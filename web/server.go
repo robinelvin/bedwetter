@@ -11,7 +11,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rob/bedwetter/alerts"
 	"github.com/rob/bedwetter/config"
+	"github.com/rob/bedwetter/ha"
 	"github.com/rob/bedwetter/models"
+	"github.com/rob/bedwetter/mqtt"
 	"github.com/rob/bedwetter/store"
 	"github.com/rob/bedwetter/zones"
 )
@@ -21,11 +23,12 @@ type Server struct {
 	store       *store.Store
 	zoneManager *zones.Manager
 	alertMgr    *alerts.AlertManager
+	mqttClient  mqtt.ClientInterface
 	router      *gin.Engine
 	templates   map[string]*template.Template
 }
 
-func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.AlertManager) *Server {
+func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.AlertManager, mqttClient mqtt.ClientInterface) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
@@ -34,6 +37,7 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 		store:       s,
 		zoneManager: zm,
 		alertMgr:    am,
+		mqttClient:  mqttClient,
 		router:      r,
 		templates:   make(map[string]*template.Template),
 	}
@@ -360,6 +364,7 @@ func (s *Server) saveZone(c *gin.Context) {
 		cfgZc := zc.ToConfigZoneConfig()
 
 		if oldName != "" && oldName != zc.Name {
+			ha.ClearZoneDiscovery(s.mqttClient, oldName)
 			s.zoneManager.RemoveZone(oldName)
 			s.zoneManager.AddZone(cfgZc)
 		} else {
@@ -375,6 +380,7 @@ func (s *Server) saveZone(c *gin.Context) {
 		s.zoneManager.AddZone(zc.ToConfigZoneConfig())
 	}
 
+	s.refreshHADiscovery()
 	c.Redirect(http.StatusFound, "/config")
 }
 
@@ -384,11 +390,27 @@ func (s *Server) deleteZone(c *gin.Context) {
 
 	var z models.ZoneConfig
 	if err := s.store.DB().First(&z, uint(id)).Error; err == nil {
+		ha.ClearZoneDiscovery(s.mqttClient, z.Name)
 		s.zoneManager.RemoveZone(z.Name)
 	}
 
 	s.store.DeleteZoneConfig(uint(id))
+	s.refreshHADiscovery()
 	c.Redirect(http.StatusFound, "/config")
+}
+
+func (s *Server) refreshHADiscovery() {
+	dbZones, err := s.store.GetAllZoneConfigs()
+	if err != nil {
+		log.Printf("Failed to load zones for HA discovery refresh: %v", err)
+		return
+	}
+	cfgZones := make([]config.ZoneConfig, len(dbZones))
+	for i, z := range dbZones {
+		cfgZones[i] = z.ToConfigZoneConfig()
+	}
+	cfg := &config.Config{Zones: cfgZones}
+	ha.PublishAll(s.mqttClient, cfg)
 }
 
 func (s *Server) apiZones(c *gin.Context) {

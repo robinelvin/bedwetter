@@ -10,9 +10,11 @@ import (
 	"github.com/rob/bedwetter/mqtt"
 )
 
-func slug(name string) string {
+func Slug(name string) string {
 	return strings.NewReplacer(" ", "_", "\t", "_", "/", "_").Replace(name)
 }
+
+func slug(name string) string { return Slug(name) }
 
 const discoveryPrefix = "homeassistant"
 
@@ -120,6 +122,31 @@ func publishSwitch(client mqtt.ClientInterface, z config.ZoneConfig, device *Dev
 	log.Printf("Publishing HA switch discovery: %s → %s", topic, string(data))
 	if err := client.Publish(topic, 1, true, string(data)); err != nil {
 		log.Printf("Failed to publish HA switch discovery for %s: %v", z.Name, err)
+	}
+}
+
+func ClearZoneDiscovery(client mqtt.ClientInterface, zoneName string) {
+	slugged := Slug(zoneName)
+	topics := []string{
+		fmt.Sprintf("%s/sensor/bedwetter_moisture_%s/config", discoveryPrefix, slugged),
+		fmt.Sprintf("%s/switch/bedwetter_valve_%s/config", discoveryPrefix, slugged),
+	}
+	for _, topic := range topics {
+		log.Printf("Clearing HA discovery: %s", topic)
+		if err := client.Publish(topic, 1, true, ""); err != nil {
+			log.Printf("Failed to clear HA discovery %s: %v", topic, err)
+		}
+	}
+}
+
+func RefreshAllDiscovery(client mqtt.ClientInterface, cfg *config.Config) {
+	ClearAllDiscovery(client, cfg)
+	PublishAll(client, cfg)
+}
+
+func ClearAllDiscovery(client mqtt.ClientInterface, cfg *config.Config) {
+	for _, z := range cfg.Zones {
+		ClearZoneDiscovery(client, z.Name)
 	}
 }
 

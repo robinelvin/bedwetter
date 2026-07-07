@@ -139,7 +139,7 @@ func main() {
 	alertMgr := alerts.New(cfg, zoneManager)
 	alertMgr.Start()
 
-	webServer := web.New(cfg, db, zoneManager, alertMgr)
+	webServer := web.New(cfg, db, zoneManager, alertMgr, mqtt)
 
 	go func() {
 		if err := webServer.Start(cfg.Web.ListenAddr); err != nil {

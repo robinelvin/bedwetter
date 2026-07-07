@@ -312,3 +312,66 @@ func TestEntityResolverGetTopics(t *testing.T) {
 		t.Errorf("expected nil for unset entity, got %v", got)
 	}
 }
+
+func TestSlugExported(t *testing.T) {
+	if got := Slug("Raised Bed 1"); got != "Raised_Bed_1" {
+		t.Errorf("Slug = %q", got)
+	}
+}
+
+func TestClearZoneDiscovery(t *testing.T) {
+	fake := &fakeMQTT{}
+	ClearZoneDiscovery(fake, "Test Zone")
+
+	if len(fake.published) != 2 {
+		t.Fatalf("expected 2 clear publishes, got %d", len(fake.published))
+	}
+	if fake.published[0].payload != "" {
+		t.Errorf("expected empty payload for clear, got %q", fake.published[0].payload)
+	}
+	if !fake.published[0].retained {
+		t.Error("expected retained true for clear")
+	}
+	if !strings.Contains(fake.published[0].topic, "Test_Zone") {
+		t.Errorf("topic should contain Test_Zone, got %q", fake.published[0].topic)
+	}
+}
+
+func TestClearAllDiscovery(t *testing.T) {
+	fake := &fakeMQTT{}
+	cfg := &config.Config{
+		Zones: []config.ZoneConfig{
+			{Name: "Z1", MoistureSensorTopic: "a/b", ValveCommandTopic: "c/d"},
+			{Name: "Z2", MoistureSensorTopic: "e/f", ValveCommandTopic: "g/h"},
+		},
+	}
+	ClearAllDiscovery(fake, cfg)
+
+	// 2 zones × 2 topics each = 4 clears
+	if len(fake.published) != 4 {
+		t.Errorf("expected 4 clear publishes, got %d", len(fake.published))
+	}
+}
+
+func TestRefreshAllDiscovery(t *testing.T) {
+	fake := &fakeMQTT{}
+	cfg := &config.Config{
+		Zones: []config.ZoneConfig{
+			{Name: "Test", MoistureSensorTopic: "s/t", ValveCommandTopic: "v/c", ValveStateTopic: "v/s"},
+		},
+	}
+	RefreshAllDiscovery(fake, cfg)
+
+	// 2 clears (sensor+switch) + 2 publishes (sensor+switch) = 4 total
+	if len(fake.published) != 4 {
+		t.Errorf("expected 4 total MQTT calls, got %d", len(fake.published))
+	}
+	// First two should be clears (empty payload)
+	if fake.published[0].payload != "" {
+		t.Errorf("expected empty payload for clear, got %q", fake.published[0].payload)
+	}
+	// Last two should be publishes (non-empty payload)
+	if fake.published[2].payload == "" {
+		t.Errorf("expected non-empty payload for publish")
+	}
+}
