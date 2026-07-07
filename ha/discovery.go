@@ -4,10 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/rob/bedwetter/config"
 	"github.com/rob/bedwetter/mqtt"
 )
+
+func slug(name string) string {
+	return strings.NewReplacer(" ", "_", "\t", "_", "/", "_").Replace(name)
+}
 
 const discoveryPrefix = "homeassistant"
 
@@ -38,8 +43,8 @@ type DeviceInfo struct {
 }
 
 type OriginInfo struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
+	Name      string `json:"name"`
+	SWVersion string `json:"sw_version"`
 }
 
 func PublishAll(client *mqtt.Client, cfg *config.Config) {
@@ -51,8 +56,8 @@ func PublishAll(client *mqtt.Client, cfg *config.Config) {
 		SWVersion:    "1.0.0",
 	}
 	origin := &OriginInfo{
-		Name:    "BedWetter",
-		Version: "1.0.0",
+		Name:      "BedWetter",
+		SWVersion: "1.0.0",
 	}
 
 	for _, z := range cfg.Zones {
@@ -64,7 +69,10 @@ func PublishAll(client *mqtt.Client, cfg *config.Config) {
 }
 
 func publishSensor(client *mqtt.Client, z config.ZoneConfig, device *DeviceInfo, origin *OriginInfo) {
-	uid := fmt.Sprintf("bedwetter_moisture_%s", z.Name)
+	if z.MoistureSensorTopic == "" {
+		return
+	}
+	uid := fmt.Sprintf("bedwetter_moisture_%s", slug(z.Name))
 	topic := fmt.Sprintf("%s/sensor/%s/config", discoveryPrefix, uid)
 	payload := DiscoveryPayload{
 		Name:              fmt.Sprintf("%s Moisture", z.Name),
@@ -78,6 +86,7 @@ func publishSensor(client *mqtt.Client, z config.ZoneConfig, device *DeviceInfo,
 		Origin:            origin,
 	}
 	data, _ := json.Marshal(payload)
+	log.Printf("Publishing HA sensor discovery: %s → %s", topic, string(data))
 	if err := client.Publish(topic, 1, true, string(data)); err != nil {
 		log.Printf("Failed to publish HA sensor discovery for %s: %v", z.Name, err)
 	}
@@ -87,7 +96,7 @@ func publishSwitch(client *mqtt.Client, z config.ZoneConfig, device *DeviceInfo,
 	if z.ValveCommandTopic == "" {
 		return
 	}
-	uid := fmt.Sprintf("bedwetter_valve_%s", z.Name)
+	uid := fmt.Sprintf("bedwetter_valve_%s", slug(z.Name))
 	stateTopic := z.ValveStateTopic
 	if stateTopic == "" {
 		stateTopic = z.ValveCommandTopic + "/state"
@@ -108,6 +117,7 @@ func publishSwitch(client *mqtt.Client, z config.ZoneConfig, device *DeviceInfo,
 		Origin:       origin,
 	}
 	data, _ := json.Marshal(payload)
+	log.Printf("Publishing HA switch discovery: %s → %s", topic, string(data))
 	if err := client.Publish(topic, 1, true, string(data)); err != nil {
 		log.Printf("Failed to publish HA switch discovery for %s: %v", z.Name, err)
 	}
