@@ -10,6 +10,7 @@ import (
 	"github.com/rob/bedwetter/alerts"
 	"github.com/rob/bedwetter/config"
 	"github.com/rob/bedwetter/ha"
+	"github.com/rob/bedwetter/models"
 	mqttclient "github.com/rob/bedwetter/mqtt"
 	"github.com/rob/bedwetter/scheduler"
 	"github.com/rob/bedwetter/store"
@@ -45,6 +46,60 @@ func main() {
 	cfg.Zones = make([]config.ZoneConfig, len(dbZones))
 	for i, z := range dbZones {
 		cfg.Zones[i] = z.ToConfigZoneConfig()
+	}
+
+	// Load MQTT config from DB, seed from YAML on first run
+	if _, err := db.GetMQTTConfig(); err != nil {
+		if err := db.SaveMQTTConfig(&models.MQTTConfig{
+			Broker: cfg.MQTT.Broker, Port: cfg.MQTT.Port,
+			Username: cfg.MQTT.Username, Password: cfg.MQTT.Password,
+		}); err != nil {
+			log.Printf("Failed to seed MQTT config: %v", err)
+		}
+	}
+	if mqttCfg, err := db.GetMQTTConfig(); err == nil {
+		cfg.MQTT.Broker = mqttCfg.Broker
+		cfg.MQTT.Port = mqttCfg.Port
+		cfg.MQTT.Username = mqttCfg.Username
+		cfg.MQTT.Password = mqttCfg.Password
+	}
+
+	// Load HA config from DB, seed from YAML on first run
+	if _, err := db.GetHAConfig(); err != nil {
+		if err := db.SaveHAConfig(&models.HAConfig{
+			URL: cfg.HomeAssistant.URL, Token: cfg.HomeAssistant.Token,
+		}); err != nil {
+			log.Printf("Failed to seed HA config: %v", err)
+		}
+	}
+	if haCfg, err := db.GetHAConfig(); err == nil {
+		cfg.HomeAssistant.URL = haCfg.URL
+		cfg.HomeAssistant.Token = haCfg.Token
+	}
+
+	// Load alert settings from DB, seed from YAML on first run
+	if _, err := db.GetAlertSettings(); err != nil {
+		if err := db.SaveAlertSettings(&models.AlertSettings{
+			Email:              cfg.Alerts.Email,
+			StaleSensorMinutes: cfg.Alerts.StaleSensorMinutes,
+			SMTPServer:         cfg.Alerts.SMTPServer,
+			SMTPPort:           cfg.Alerts.SMTPPort,
+			SMTPUsername:       cfg.Alerts.SMTPUsername,
+			SMTPPassword:       cfg.Alerts.SMTPPassword,
+			FromEmail:          cfg.Alerts.FromEmail,
+			Enabled:            true,
+		}); err != nil {
+			log.Printf("Failed to seed alert settings: %v", err)
+		}
+	}
+	if alertCfg, err := db.GetAlertSettings(); err == nil {
+		cfg.Alerts.Email = alertCfg.Email
+		cfg.Alerts.StaleSensorMinutes = alertCfg.StaleSensorMinutes
+		cfg.Alerts.SMTPServer = alertCfg.SMTPServer
+		cfg.Alerts.SMTPPort = alertCfg.SMTPPort
+		cfg.Alerts.SMTPUsername = alertCfg.SMTPUsername
+		cfg.Alerts.SMTPPassword = alertCfg.SMTPPassword
+		cfg.Alerts.FromEmail = alertCfg.FromEmail
 	}
 
 	mqtt := mqttclient.New(cfg.MQTT.Broker, cfg.MQTT.Port, cfg.MQTT.Username, cfg.MQTT.Password)

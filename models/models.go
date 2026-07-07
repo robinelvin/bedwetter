@@ -32,11 +32,37 @@ type ScheduleConfig struct {
 	Month         int    `gorm:"default:0" json:"month"`
 }
 
+type MQTTConfig struct {
+	ID       uint   `gorm:"primaryKey" json:"id"`
+	Broker   string `gorm:"size:256" json:"broker"`
+	Port     int    `json:"port"`
+	Username string `gorm:"size:128" json:"username"`
+	Password string `gorm:"size:128" json:"password"`
+}
+
+type HAConfig struct {
+	ID    uint   `gorm:"primaryKey" json:"id"`
+	URL   string `gorm:"size:512" json:"url"`
+	Token string `gorm:"size:512" json:"token"`
+}
+
 type AlertConfig struct {
 	ID      uint   `gorm:"primaryKey" json:"id"`
 	Type    string `gorm:"size:32;uniqueIndex" json:"type"`
 	Email   string `gorm:"size:256" json:"email"`
 	Enabled bool   `gorm:"default:true" json:"enabled"`
+}
+
+type AlertSettings struct {
+	ID                 uint   `gorm:"primaryKey" json:"id"`
+	Email              string `gorm:"size:256" json:"email"`
+	StaleSensorMinutes int    `gorm:"default:60" json:"stale_sensor_minutes"`
+	SMTPServer         string `gorm:"size:256" json:"smtp_server"`
+	SMTPPort           int    `gorm:"default:587" json:"smtp_port"`
+	SMTPUsername       string `gorm:"size:128" json:"smtp_username"`
+	SMTPPassword       string `gorm:"size:128" json:"smtp_password"`
+	FromEmail          string `gorm:"size:256" json:"from_email"`
+	Enabled            bool   `gorm:"default:true" json:"enabled"`
 }
 
 type ZoneConfig struct {
@@ -77,6 +103,9 @@ func AutoMigrate(db *gorm.DB) error {
 		&ScheduleConfig{},
 		&AlertConfig{},
 		&ZoneConfig{},
+		&MQTTConfig{},
+		&HAConfig{},
+		&AlertSettings{},
 	)
 }
 

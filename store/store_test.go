@@ -392,3 +392,110 @@ func TestDeleteNonExistent(t *testing.T) {
 		t.Errorf("DeleteScheduleByID non-existent: %v", err)
 	}
 }
+
+func TestMQTTConfigCRUD(t *testing.T) {
+	s := newTestStore(t)
+
+	_, err := s.GetMQTTConfig()
+	if err == nil {
+		t.Fatal("expected error for unseeded MQTT config")
+	}
+
+	cfg := &models.MQTTConfig{Broker: "mqtt.example.com", Port: 1883, Username: "user", Password: "pass"}
+	if err := s.SaveMQTTConfig(cfg); err != nil {
+		t.Fatalf("SaveMQTTConfig: %v", err)
+	}
+	if cfg.ID != 1 {
+		t.Errorf("expected ID=1, got %d", cfg.ID)
+	}
+
+	loaded, err := s.GetMQTTConfig()
+	if err != nil {
+		t.Fatalf("GetMQTTConfig: %v", err)
+	}
+	if loaded.Broker != "mqtt.example.com" || loaded.Port != 1883 {
+		t.Errorf("got broker=%q port=%d", loaded.Broker, loaded.Port)
+	}
+
+	cfg.Port = 8883
+	if err := s.SaveMQTTConfig(cfg); err != nil {
+		t.Fatalf("SaveMQTTConfig update: %v", err)
+	}
+	loaded, _ = s.GetMQTTConfig()
+	if loaded.Port != 8883 {
+		t.Errorf("expected port 8883, got %d", loaded.Port)
+	}
+}
+
+func TestHAConfigCRUD(t *testing.T) {
+	s := newTestStore(t)
+
+	_, err := s.GetHAConfig()
+	if err == nil {
+		t.Fatal("expected error for unseeded HA config")
+	}
+
+	cfg := &models.HAConfig{URL: "http://ha:8123", Token: "sekret"}
+	if err := s.SaveHAConfig(cfg); err != nil {
+		t.Fatalf("SaveHAConfig: %v", err)
+	}
+	if cfg.ID != 1 {
+		t.Errorf("expected ID=1, got %d", cfg.ID)
+	}
+
+	loaded, err := s.GetHAConfig()
+	if err != nil {
+		t.Fatalf("GetHAConfig: %v", err)
+	}
+	if loaded.URL != "http://ha:8123" || loaded.Token != "sekret" {
+		t.Errorf("got url=%q token=%q", loaded.URL, loaded.Token)
+	}
+
+	cfg.Token = "newtoken"
+	s.SaveHAConfig(cfg)
+	loaded, _ = s.GetHAConfig()
+	if loaded.Token != "newtoken" {
+		t.Errorf("token not updated")
+	}
+}
+
+func TestAlertSettingsCRUD(t *testing.T) {
+	s := newTestStore(t)
+
+	_, err := s.GetAlertSettings()
+	if err == nil {
+		t.Fatal("expected error for unseeded alert settings")
+	}
+
+	cfg := &models.AlertSettings{
+		Email:              "test@example.com",
+		StaleSensorMinutes: 60,
+		SMTPServer:         "smtp.example.com",
+		SMTPPort:           587,
+		SMTPUsername:       "smtpuser",
+		SMTPPassword:       "smtppass",
+		FromEmail:          "from@example.com",
+		Enabled:            true,
+	}
+	if err := s.SaveAlertSettings(cfg); err != nil {
+		t.Fatalf("SaveAlertSettings: %v", err)
+	}
+	if cfg.ID != 1 {
+		t.Errorf("expected ID=1, got %d", cfg.ID)
+	}
+
+	loaded, err := s.GetAlertSettings()
+	if err != nil {
+		t.Fatalf("GetAlertSettings: %v", err)
+	}
+	if loaded.Email != "test@example.com" || loaded.SMTPServer != "smtp.example.com" {
+		t.Errorf("got email=%q smtp=%q", loaded.Email, loaded.SMTPServer)
+	}
+
+	cfg.Email = "updated@example.com"
+	s.SaveAlertSettings(cfg)
+	loaded, _ = s.GetAlertSettings()
+	if loaded.Email != "updated@example.com" {
+		t.Errorf("email not updated")
+	}
+}

@@ -122,6 +122,48 @@ func (s *Store) DeleteZoneConfig(id uint) error {
 	return s.db.Delete(&models.ZoneConfig{}, id).Error
 }
 
+func (s *Store) GetMQTTConfig() (*models.MQTTConfig, error) {
+	var cfg models.MQTTConfig
+	err := s.db.First(&cfg, 1).Error
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func (s *Store) SaveMQTTConfig(cfg *models.MQTTConfig) error {
+	cfg.ID = 1
+	return s.db.Save(cfg).Error
+}
+
+func (s *Store) GetHAConfig() (*models.HAConfig, error) {
+	var cfg models.HAConfig
+	err := s.db.First(&cfg, 1).Error
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func (s *Store) SaveHAConfig(cfg *models.HAConfig) error {
+	cfg.ID = 1
+	return s.db.Save(cfg).Error
+}
+
+func (s *Store) GetAlertSettings() (*models.AlertSettings, error) {
+	var cfg models.AlertSettings
+	err := s.db.First(&cfg, 1).Error
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func (s *Store) SaveAlertSettings(cfg *models.AlertSettings) error {
+	cfg.ID = 1
+	return s.db.Save(cfg).Error
+}
+
 func (s *Store) LoadConfigZones(yamlZones []config.ZoneConfig) error {
 	var count int64
 	s.db.Model(&models.ZoneConfig{}).Count(&count)

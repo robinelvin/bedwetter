@@ -4,25 +4,84 @@
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <div class="bg-white rounded-lg shadow p-4">
         <h2 class="text-lg font-semibold mb-4">MQTT Broker</h2>
-        <div class="text-sm space-y-2">
-            <div class="flex justify-between"><span class="text-gray-500">Broker</span><span class="font-mono">{{.cfg.MQTT.Broker}}:{{.cfg.MQTT.Port}}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Username</span><span class="font-mono">{{.cfg.MQTT.Username}}</span></div>
-        </div>
+        <form action="/config/mqtt" method="POST" class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Broker</label>
+                    <input type="text" name="broker" value="{{if .mqtt}}{{.mqtt.Broker}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Port</label>
+                    <input type="number" name="port" value="{{if .mqtt}}{{.mqtt.Port}}{{else}}1883{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Username</label>
+                    <input type="text" name="username" value="{{if .mqtt}}{{.mqtt.Username}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Password</label>
+                    <input type="password" name="password" value="{{if .mqtt}}{{.mqtt.Password}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                </div>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">Save</button>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-4">
+        <h2 class="text-lg font-semibold mb-4">Home Assistant</h2>
+        <form action="/config/ha" method="POST" class="space-y-3">
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">API URL</label>
+                <input type="text" name="url" value="{{if .ha}}{{.ha.URL}}{{end}}" placeholder="http://homeassistant:8123" class="w-full border rounded px-3 py-2 text-sm font-mono">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Long-Lived Access Token</label>
+                <input type="password" name="token" value="{{if .ha}}{{.ha.Token}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+            </div>
+            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">Save</button>
+        </form>
     </div>
 
     <div class="bg-white rounded-lg shadow p-4">
         <h2 class="text-lg font-semibold mb-4">Alert Configuration</h2>
         <form action="/config/alerts" method="POST" class="space-y-3">
             <div>
-                <label class="block text-sm text-gray-600 mb-1">Alert Email</label>
-                <input type="email" name="email" value="{{.cfg.Alerts.Email}}" class="w-full border rounded px-3 py-2 text-sm">
+                <label class="block text-xs text-gray-500 mb-1">Alert Email</label>
+                <input type="email" name="email" value="{{if .alerts}}{{.alerts.Email}}{{end}}" class="w-full border rounded px-3 py-2 text-sm">
             </div>
-            {{range .alerts}}
-            <div class="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked disabled class="rounded">
-                <span>{{.Type}}</span>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">From Email</label>
+                <input type="email" name="from_email" value="{{if .alerts}}{{.alerts.FromEmail}}{{end}}" class="w-full border rounded px-3 py-2 text-sm">
             </div>
-            {{end}}
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Stale Sensor Threshold (minutes)</label>
+                <input type="number" name="stale_sensor_minutes" value="{{if .alerts}}{{.alerts.StaleSensorMinutes}}{{else}}60{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+            </div>
+            <div class="pt-2 border-t">
+                <h3 class="text-sm font-medium text-gray-700 mb-2">SMTP Settings</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Server</label>
+                        <input type="text" name="smtp_server" value="{{if .alerts}}{{.alerts.SMTPServer}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Port</label>
+                        <input type="number" name="smtp_port" value="{{if .alerts}}{{.alerts.SMTPPort}}{{else}}587{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Username</label>
+                        <input type="text" name="smtp_username" value="{{if .alerts}}{{.alerts.SMTPUsername}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Password</label>
+                        <input type="password" name="smtp_password" value="{{if .alerts}}{{.alerts.SMTPPassword}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                    </div>
+                </div>
+            </div>
             <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">Save</button>
         </form>
     </div>

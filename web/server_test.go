@@ -105,7 +105,15 @@ func TestSaveAlerts(t *testing.T) {
 	setupGin()
 	sv := newTestServer(t)
 
-	form := url.Values{"email": {"new@example.com"}}
+	form := url.Values{
+		"email":                {"new@example.com"},
+		"from_email":           {"from@example.com"},
+		"stale_sensor_minutes": {"30"},
+		"smtp_server":          {"smtp.example.com"},
+		"smtp_port":            {"587"},
+		"smtp_username":        {"user"},
+		"smtp_password":        {"pass"},
+	}
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("POST", "/config/alerts", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -116,6 +124,79 @@ func TestSaveAlerts(t *testing.T) {
 	}
 	if sv.cfg.Alerts.Email != "new@example.com" {
 		t.Errorf("email not updated: got %q", sv.cfg.Alerts.Email)
+	}
+	if sv.cfg.Alerts.StaleSensorMinutes != 30 {
+		t.Errorf("stale sensor minutes: got %d", sv.cfg.Alerts.StaleSensorMinutes)
+	}
+}
+
+func TestSaveMQTT(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	form := url.Values{
+		"broker":   {"mqtt.example.com"},
+		"port":     {"8883"},
+		"username": {"mqttuser"},
+		"password": {"mqttpass"},
+	}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/config/mqtt", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+	if sv.cfg.MQTT.Broker != "mqtt.example.com" {
+		t.Errorf("broker: got %q", sv.cfg.MQTT.Broker)
+	}
+	if sv.cfg.MQTT.Port != 8883 {
+		t.Errorf("port: got %d", sv.cfg.MQTT.Port)
+	}
+	if sv.cfg.MQTT.Username != "mqttuser" {
+		t.Errorf("username: got %q", sv.cfg.MQTT.Username)
+	}
+
+	// Verify persisted to DB
+	dbCfg, err := sv.store.GetMQTTConfig()
+	if err != nil {
+		t.Fatalf("GetMQTTConfig: %v", err)
+	}
+	if dbCfg.Broker != "mqtt.example.com" {
+		t.Errorf("DB broker: got %q", dbCfg.Broker)
+	}
+}
+
+func TestSaveHA(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	form := url.Values{
+		"url":   {"http://ha:8123"},
+		"token": {"hatoken"},
+	}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/config/ha", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+	if sv.cfg.HomeAssistant.URL != "http://ha:8123" {
+		t.Errorf("url: got %q", sv.cfg.HomeAssistant.URL)
+	}
+	if sv.cfg.HomeAssistant.Token != "hatoken" {
+		t.Errorf("token: got %q", sv.cfg.HomeAssistant.Token)
+	}
+
+	dbCfg, err := sv.store.GetHAConfig()
+	if err != nil {
+		t.Fatalf("GetHAConfig: %v", err)
+	}
+	if dbCfg.URL != "http://ha:8123" {
+		t.Errorf("DB url: got %q", dbCfg.URL)
 	}
 }
 

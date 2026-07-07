@@ -96,6 +96,8 @@ func (s *Server) setupRoutes() {
 	s.router.POST("/schedules/:id/delete", s.deleteSchedule)
 	s.router.GET("/config", s.configPage)
 	s.router.POST("/config/alerts", s.saveAlerts)
+	s.router.POST("/config/mqtt", s.saveMQTT)
+	s.router.POST("/config/ha", s.saveHA)
 	s.router.POST("/config/zones", s.saveZone)
 	s.router.POST("/config/zones/:id/delete", s.deleteZone)
 	s.router.GET("/api/zones", s.apiZones)
@@ -202,11 +204,25 @@ func (s *Server) deleteSchedule(c *gin.Context) {
 }
 
 func (s *Server) configPage(c *gin.Context) {
-	alertConfigs := []models.AlertConfig{
-		{Type: string(alerts.AlertStaleSensor), Email: s.cfg.Alerts.Email, Enabled: true},
-	}
-
 	dbZones, _ := s.store.GetAllZoneConfigs()
+
+	mqttCfg, err := s.store.GetMQTTConfig()
+	if err != nil {
+		mqttCfg = &models.MQTTConfig{Broker: s.cfg.MQTT.Broker, Port: s.cfg.MQTT.Port, Username: s.cfg.MQTT.Username, Password: s.cfg.MQTT.Password}
+	}
+	haCfg, err := s.store.GetHAConfig()
+	if err != nil {
+		haCfg = &models.HAConfig{URL: s.cfg.HomeAssistant.URL, Token: s.cfg.HomeAssistant.Token}
+	}
+	alertCfg, err := s.store.GetAlertSettings()
+	if err != nil {
+		alertCfg = &models.AlertSettings{
+			Email: s.cfg.Alerts.Email, StaleSensorMinutes: s.cfg.Alerts.StaleSensorMinutes,
+			SMTPServer: s.cfg.Alerts.SMTPServer, SMTPPort: s.cfg.Alerts.SMTPPort,
+			SMTPUsername: s.cfg.Alerts.SMTPUsername, SMTPPassword: s.cfg.Alerts.SMTPPassword,
+			FromEmail: s.cfg.Alerts.FromEmail,
+		}
+	}
 
 	editIDStr := c.Query("edit")
 	var editZone *models.ZoneConfig
@@ -225,16 +241,83 @@ func (s *Server) configPage(c *gin.Context) {
 
 	s.render(c, "config", http.StatusOK, gin.H{
 		"title":    "Configuration",
-		"alerts":   alertConfigs,
 		"cfg":      s.cfg,
+		"mqtt":     mqttCfg,
+		"ha":       haCfg,
+		"alerts":   alertCfg,
 		"dbZones":  dbZones,
 		"editZone": editZone,
 	})
 }
 
+func (s *Server) saveMQTT(c *gin.Context) {
+	cfg := &models.MQTTConfig{
+		ID:       1,
+		Broker:   c.PostForm("broker"),
+		Port:     1883,
+		Username: c.PostForm("username"),
+		Password: c.PostForm("password"),
+	}
+	if p, err := strconv.Atoi(c.PostForm("port")); err == nil && p > 0 {
+		cfg.Port = p
+	}
+	if err := s.store.SaveMQTTConfig(cfg); err != nil {
+		log.Printf("Failed to save MQTT config: %v", err)
+	}
+	s.cfg.MQTT.Broker = cfg.Broker
+	s.cfg.MQTT.Port = cfg.Port
+	s.cfg.MQTT.Username = cfg.Username
+	s.cfg.MQTT.Password = cfg.Password
+	log.Println("MQTT config updated — restart to apply connection changes")
+	c.Redirect(http.StatusFound, "/config")
+}
+
+func (s *Server) saveHA(c *gin.Context) {
+	cfg := &models.HAConfig{
+		ID:    1,
+		URL:   c.PostForm("url"),
+		Token: c.PostForm("token"),
+	}
+	if err := s.store.SaveHAConfig(cfg); err != nil {
+		log.Printf("Failed to save HA config: %v", err)
+	}
+	s.cfg.HomeAssistant.URL = cfg.URL
+	s.cfg.HomeAssistant.Token = cfg.Token
+	log.Println("HA config updated — restart to apply connection changes")
+	c.Redirect(http.StatusFound, "/config")
+}
+
 func (s *Server) saveAlerts(c *gin.Context) {
-	email := c.PostForm("email")
-	s.cfg.Alerts.Email = email
+	port, _ := strconv.Atoi(c.PostForm("smtp_port"))
+	if port <= 0 {
+		port = 587
+	}
+	staleMin, _ := strconv.Atoi(c.PostForm("stale_sensor_minutes"))
+	if staleMin <= 0 {
+		staleMin = 60
+	}
+
+	cfg := &models.AlertSettings{
+		ID:                 1,
+		Email:              c.PostForm("email"),
+		StaleSensorMinutes: staleMin,
+		SMTPServer:         c.PostForm("smtp_server"),
+		SMTPPort:           port,
+		SMTPUsername:       c.PostForm("smtp_username"),
+		SMTPPassword:       c.PostForm("smtp_password"),
+		FromEmail:          c.PostForm("from_email"),
+		Enabled:            c.PostForm("enabled") != "false",
+	}
+	if err := s.store.SaveAlertSettings(cfg); err != nil {
+		log.Printf("Failed to save alert settings: %v", err)
+	}
+	s.cfg.Alerts.Email = cfg.Email
+	s.cfg.Alerts.StaleSensorMinutes = cfg.StaleSensorMinutes
+	s.cfg.Alerts.SMTPServer = cfg.SMTPServer
+	s.cfg.Alerts.SMTPPort = cfg.SMTPPort
+	s.cfg.Alerts.SMTPUsername = cfg.SMTPUsername
+	s.cfg.Alerts.SMTPPassword = cfg.SMTPPassword
+	s.cfg.Alerts.FromEmail = cfg.FromEmail
 	c.Redirect(http.StatusFound, "/config")
 }
 
