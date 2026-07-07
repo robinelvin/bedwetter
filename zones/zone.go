@@ -404,6 +404,55 @@ func splitEntityID(entityID string) []string {
 	return parts
 }
 
+func (m *Manager) AddZone(zc config.ZoneConfig) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, exists := m.zones[zc.Name]; exists {
+		return
+	}
+
+	z := &Zone{
+		Config: zc,
+		State:  StateIdle,
+	}
+	m.zones[zc.Name] = z
+
+	m.subscribeSensor(z)
+	m.subscribeValveState(z)
+	m.watchHAEntity(z)
+
+	if m.resolver != nil {
+		ha.ResolveZoneAsync(m.resolver, &z.Config)
+	}
+
+	log.Printf("Zone %q: added dynamically", zc.Name)
+}
+
+func (m *Manager) RemoveZone(name string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if z, ok := m.zones[name]; ok {
+		m.CloseValve(name)
+		delete(m.zones, name)
+		log.Printf("Zone %q: removed dynamically", name)
+		_ = z
+	}
+}
+
+func (m *Manager) UpdateZoneConfig(name string, zc config.ZoneConfig) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	z, ok := m.zones[name]
+	if !ok {
+		return
+	}
+	z.Config = zc
+	log.Printf("Zone %q: config updated dynamically", name)
+}
+
 func (m *Manager) GetZone(name string) *Zone {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

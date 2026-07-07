@@ -28,21 +28,89 @@
     </div>
 
     <div class="bg-white rounded-lg shadow p-4 lg:col-span-2">
+        <h2 class="text-lg font-semibold mb-4">
+            {{if .editZone}}Edit Zone{{else}}Add Zone{{end}}
+            {{if .editZone}}<a href="/config" class="text-sm text-gray-500 font-normal ml-2">Cancel</a>{{end}}
+        </h2>
+        <form action="/config/zones" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {{if .editZone}}<input type="hidden" name="id" value="{{.editZone.ID}}">{{end}}
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Name</label>
+                <input type="text" name="name" value="{{if .editZone}}{{.editZone.Name}}{{end}}" required class="w-full border rounded px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Moisture Sensor Topic</label>
+                <input type="text" name="moisture_sensor_topic" value="{{if .editZone}}{{.editZone.MoistureSensorTopic}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Moisture Sensor Entity</label>
+                <input type="text" name="moisture_sensor_entity" value="{{if .editZone}}{{.editZone.MoistureSensorEntity}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Valve Command Topic</label>
+                <input type="text" name="valve_command_topic" value="{{if .editZone}}{{.editZone.ValveCommandTopic}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Valve State Topic</label>
+                <input type="text" name="valve_state_topic" value="{{if .editZone}}{{.editZone.ValveStateTopic}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Valve Switch Entity</label>
+                <input type="text" name="valve_switch_entity" value="{{if .editZone}}{{.editZone.ValveSwitchEntity}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Threshold Low (%)</label>
+                <input type="number" name="threshold_low" value="{{if .editZone}}{{.editZone.ThresholdLow}}{{else}}40{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Threshold High (%)</label>
+                <input type="number" name="threshold_high" value="{{if .editZone}}{{.editZone.ThresholdHigh}}{{else}}60{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Max Watering (s)</label>
+                <input type="number" name="max_watering_seconds" value="{{if .editZone}}{{.editZone.MaxWateringSeconds}}{{else}}300{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Max Activations/Day</label>
+                <input type="number" name="max_activations_per_day" value="{{if .editZone}}{{.editZone.MaxActivationsPerDay}}{{else}}5{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Cooldown (min)</label>
+                <input type="number" name="cooldown_minutes" value="{{if .editZone}}{{.editZone.CooldownMinutes}}{{else}}90{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+            </div>
+            <div class="md:col-span-3 flex gap-2 pt-2">
+                <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">{{if .editZone}}Update{{else}}Add{{end}} Zone</button>
+                {{if .editZone}}<a href="/config" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 text-sm">Cancel</a>{{end}}
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-4 lg:col-span-2">
         <h2 class="text-lg font-semibold mb-4">Zones</h2>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
-                <thead><tr class="border-b"><th class="text-left py-2">Zone</th><th class="text-left py-2">Source</th><th class="text-left py-2">Moisture</th><th class="text-left py-2">Valve</th><th class="text-left py-2">Threshold</th><th class="text-left py-2">Max Water</th><th class="text-left py-2">Cooldown</th></tr></thead>
+                <thead><tr class="border-b"><th class="text-left py-2">Zone</th><th class="text-left py-2">Source</th><th class="text-left py-2">Moisture</th><th class="text-left py-2">Valve</th><th class="text-left py-2">Threshold</th><th class="text-left py-2">Max Water</th><th class="text-left py-2">Cooldown</th><th class="text-left py-2">Actions</th></tr></thead>
                 <tbody>
-                    {{range .cfg.Zones}}
+                    {{range .dbZones}}
                     <tr class="border-b border-gray-100">
                         <td class="py-2 font-medium">{{.Name}}</td>
                         <td>{{if .MoistureSensorEntity}}HA{{else}}MQTT{{end}}</td>
-                        <td class="font-mono text-xs">{{if .MoistureSensorEntity}}{{.MoistureSensorEntity}}{{else}}{{.MoistureSensorTopic}}{{end}}</td>
-                        <td class="font-mono text-xs">{{if .ValveSwitchEntity}}{{.ValveSwitchEntity}}{{else}}{{.ValveCommandTopic}}{{end}}</td>
+                        <td class="font-mono text-xs max-w-xs truncate">{{if .MoistureSensorEntity}}{{.MoistureSensorEntity}}{{else}}{{.MoistureSensorTopic}}{{end}}</td>
+                        <td class="font-mono text-xs max-w-xs truncate">{{if .ValveSwitchEntity}}{{.ValveSwitchEntity}}{{else}}{{.ValveCommandTopic}}{{end}}</td>
                         <td>{{.ThresholdLow}}% - {{.ThresholdHigh}}%</td>
                         <td>{{.MaxWateringSeconds}}s</td>
                         <td>{{.CooldownMinutes}}m</td>
+                        <td>
+                            <div class="flex gap-2">
+                                <a href="/config?edit={{.ID}}" class="text-blue-600 hover:text-blue-800 text-sm">Edit</a>
+                                <form action="/config/zones/{{.ID}}/delete" method="POST" class="inline" onsubmit="return confirm('Delete zone {{.Name}}?')">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                                </form>
+                            </div>
+                        </td>
                     </tr>
+                    {{else}}
+                    <tr><td colspan="8" class="py-4 text-gray-500 text-center">No zones configured. Add one above.</td></tr>
                     {{end}}
                 </tbody>
             </table>

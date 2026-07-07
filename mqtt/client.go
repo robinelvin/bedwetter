@@ -82,6 +82,13 @@ func (c *Client) IsConnected() bool {
 	return c.client != nil && c.client.IsConnected()
 }
 
+func (c *Client) Unsubscribe(topics ...string) {
+	for _, topic := range topics {
+		delete(c.handlers, topic)
+	}
+	c.client.Unsubscribe(topics...).WaitTimeout(5 * time.Second)
+}
+
 func (c *Client) Disconnect(quiesce uint) {
 	c.client.Disconnect(quiesce)
 }

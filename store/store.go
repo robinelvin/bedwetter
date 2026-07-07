@@ -104,6 +104,50 @@ func (s *Store) DeleteScheduleByID(id uint) error {
 	return s.db.Delete(&models.ScheduleConfig{}, id).Error
 }
 
+func (s *Store) GetAllZoneConfigs() ([]models.ZoneConfig, error) {
+	var zones []models.ZoneConfig
+	err := s.db.Order("name").Find(&zones).Error
+	return zones, err
+}
+
+func (s *Store) CreateZoneConfig(zc *models.ZoneConfig) error {
+	return s.db.Create(zc).Error
+}
+
+func (s *Store) UpdateZoneConfig(id uint, zc *models.ZoneConfig) error {
+	return s.db.Model(&models.ZoneConfig{}).Where("id = ?", id).Updates(zc).Error
+}
+
+func (s *Store) DeleteZoneConfig(id uint) error {
+	return s.db.Delete(&models.ZoneConfig{}, id).Error
+}
+
+func (s *Store) LoadConfigZones(yamlZones []config.ZoneConfig) error {
+	var count int64
+	s.db.Model(&models.ZoneConfig{}).Count(&count)
+	if count > 0 {
+		return nil
+	}
+	for _, z := range yamlZones {
+		if err := s.db.Create(&models.ZoneConfig{
+			Name:                 z.Name,
+			MoistureSensorTopic:  z.MoistureSensorTopic,
+			MoistureSensorEntity: z.MoistureSensorEntity,
+			ValveCommandTopic:    z.ValveCommandTopic,
+			ValveStateTopic:      z.ValveStateTopic,
+			ValveSwitchEntity:    z.ValveSwitchEntity,
+			ThresholdLow:         z.ThresholdLow,
+			ThresholdHigh:        z.ThresholdHigh,
+			MaxWateringSeconds:   z.MaxWateringSeconds,
+			MaxActivationsPerDay: z.MaxActivationsPerDay,
+			CooldownMinutes:      z.CooldownMinutes,
+		}).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *Store) LoadConfigSchedules(zoneSchedules []config.ZoneSchedule) error {
 	for _, zs := range zoneSchedules {
 		var entries []models.ScheduleConfig

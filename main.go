@@ -31,8 +31,20 @@ func main() {
 		log.Fatalf("Failed to open database: %v", err)
 	}
 
+	if err := db.LoadConfigZones(cfg.Zones); err != nil {
+		log.Printf("Failed to seed zones into DB: %v", err)
+	}
 	if err := db.LoadConfigSchedules(cfg.Schedules); err != nil {
 		log.Printf("Failed to load config schedules into DB: %v", err)
+	}
+
+	dbZones, err := db.GetAllZoneConfigs()
+	if err != nil {
+		log.Fatalf("Failed to load zones from DB: %v", err)
+	}
+	cfg.Zones = make([]config.ZoneConfig, len(dbZones))
+	for i, z := range dbZones {
+		cfg.Zones[i] = z.ToConfigZoneConfig()
 	}
 
 	mqtt := mqttclient.New(cfg.MQTT.Broker, cfg.MQTT.Port, cfg.MQTT.Username, cfg.MQTT.Password)

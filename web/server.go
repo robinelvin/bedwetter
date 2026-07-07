@@ -96,6 +96,8 @@ func (s *Server) setupRoutes() {
 	s.router.POST("/schedules/:id/delete", s.deleteSchedule)
 	s.router.GET("/config", s.configPage)
 	s.router.POST("/config/alerts", s.saveAlerts)
+	s.router.POST("/config/zones", s.saveZone)
+	s.router.POST("/config/zones/:id/delete", s.deleteZone)
 	s.router.GET("/api/zones", s.apiZones)
 }
 
@@ -157,11 +159,15 @@ func (s *Server) schedulesPage(c *gin.Context) {
 		s.render(c, "dashboard", http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	zones := s.cfg.Zones
+	dbZones, _ := s.store.GetAllZoneConfigs()
+	zoneNames := make([]config.ZoneConfig, len(dbZones))
+	for i, z := range dbZones {
+		zoneNames[i] = z.ToConfigZoneConfig()
+	}
 	s.render(c, "schedules", http.StatusOK, gin.H{
 		"title":     "Watering Schedules",
 		"schedules": schedules,
-		"zones":     zones,
+		"zones":     zoneNames,
 		"days":      []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"},
 	})
 }
@@ -199,16 +205,106 @@ func (s *Server) configPage(c *gin.Context) {
 	alertConfigs := []models.AlertConfig{
 		{Type: string(alerts.AlertStaleSensor), Email: s.cfg.Alerts.Email, Enabled: true},
 	}
+
+	dbZones, _ := s.store.GetAllZoneConfigs()
+
+	editIDStr := c.Query("edit")
+	var editZone *models.ZoneConfig
+	if editIDStr != "" {
+		var id uint
+		if parsed, err := strconv.ParseUint(editIDStr, 10, 64); err == nil {
+			id = uint(parsed)
+			for _, z := range dbZones {
+				if z.ID == id {
+					editZone = &z
+					break
+				}
+			}
+		}
+	}
+
 	s.render(c, "config", http.StatusOK, gin.H{
-		"title":  "Configuration",
-		"alerts": alertConfigs,
-		"cfg":    s.cfg,
+		"title":    "Configuration",
+		"alerts":   alertConfigs,
+		"cfg":      s.cfg,
+		"dbZones":  dbZones,
+		"editZone": editZone,
 	})
 }
 
 func (s *Server) saveAlerts(c *gin.Context) {
 	email := c.PostForm("email")
 	s.cfg.Alerts.Email = email
+	c.Redirect(http.StatusFound, "/config")
+}
+
+func (s *Server) saveZone(c *gin.Context) {
+	idStr := c.PostForm("id")
+
+	zc := models.ZoneConfig{
+		Name:                 c.PostForm("name"),
+		MoistureSensorTopic:  c.PostForm("moisture_sensor_topic"),
+		MoistureSensorEntity: c.PostForm("moisture_sensor_entity"),
+		ValveCommandTopic:    c.PostForm("valve_command_topic"),
+		ValveStateTopic:      c.PostForm("valve_state_topic"),
+		ValveSwitchEntity:    c.PostForm("valve_switch_entity"),
+	}
+
+	zc.ThresholdLow, _ = strconv.Atoi(c.PostForm("threshold_low"))
+	zc.ThresholdHigh, _ = strconv.Atoi(c.PostForm("threshold_high"))
+	zc.MaxWateringSeconds, _ = strconv.Atoi(c.PostForm("max_watering_seconds"))
+	zc.MaxActivationsPerDay, _ = strconv.Atoi(c.PostForm("max_activations_per_day"))
+	zc.CooldownMinutes, _ = strconv.Atoi(c.PostForm("cooldown_minutes"))
+
+	if idStr != "" {
+		id, err := strconv.ParseUint(idStr, 10, 64)
+		if err != nil {
+			c.Redirect(http.StatusFound, "/config")
+			return
+		}
+
+		oldName := ""
+		var old models.ZoneConfig
+		if err := s.store.DB().First(&old, uint(id)).Error; err == nil {
+			oldName = old.Name
+		}
+
+		if err := s.store.UpdateZoneConfig(uint(id), &zc); err != nil {
+			log.Printf("Failed to update zone: %v", err)
+		}
+
+		zc.ID = uint(id)
+		cfgZc := zc.ToConfigZoneConfig()
+
+		if oldName != "" && oldName != zc.Name {
+			s.zoneManager.RemoveZone(oldName)
+			s.zoneManager.AddZone(cfgZc)
+		} else {
+			s.zoneManager.UpdateZoneConfig(zc.Name, cfgZc)
+		}
+	} else {
+		if err := s.store.CreateZoneConfig(&zc); err != nil {
+			log.Printf("Failed to create zone: %v", err)
+			c.Redirect(http.StatusFound, "/config")
+			return
+		}
+
+		s.zoneManager.AddZone(zc.ToConfigZoneConfig())
+	}
+
+	c.Redirect(http.StatusFound, "/config")
+}
+
+func (s *Server) deleteZone(c *gin.Context) {
+	idStr := c.Param("id")
+	id, _ := strconv.ParseUint(idStr, 10, 64)
+
+	var z models.ZoneConfig
+	if err := s.store.DB().First(&z, uint(id)).Error; err == nil {
+		s.zoneManager.RemoveZone(z.Name)
+	}
+
+	s.store.DeleteZoneConfig(uint(id))
 	c.Redirect(http.StatusFound, "/config")
 }
 
