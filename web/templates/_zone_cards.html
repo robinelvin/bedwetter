@@ -1,0 +1,44 @@
+{{define "_zone_cards"}}{{if .zones}}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="zone-cards"
+     hx-get="/dashboard/zones" hx-trigger="every 5s" hx-swap="outerHTML">
+    {{range .zones}}
+    <div class="bg-white rounded-lg shadow p-4 border-l-4 {{if eq .State 1}}border-green-500{{else if eq .State 4}}border-red-500{{else if eq .State 2}}border-yellow-500{{else}}border-gray-300{{end}}">
+        <div class="flex justify-between items-start mb-3">
+            <h2 class="text-lg font-semibold">{{.Config.Name}}</h2>
+            <span class="text-sm px-2 py-1 rounded {{if eq .State 1}}bg-green-100 text-green-800{{else if eq .State 4}}bg-red-100 text-red-800{{else if eq .State 2}}bg-yellow-100 text-yellow-800{{else}}bg-gray-100 text-gray-800{{end}}">
+                {{if eq .State 0}}Idle{{else if eq .State 1}}Watering{{else if eq .State 2}}Cooldown{{else if eq .State 3}}Manual{{else}}Failsafe{{end}}
+            </span>
+        </div>
+
+        <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+                <span class="text-gray-500">Moisture</span>
+                <span class="font-mono font-medium {{if lt .Moisture 40.0}}text-red-600{{else}}text-green-600{{end}}">{{printf "%.1f" .Moisture}}%</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-500">Humidity</span>
+                <span class="font-mono">{{printf "%.1f" .Humidity}}%</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-500">Last Update</span>
+                <span class="font-mono text-gray-600">{{formatTime .LastMoistureTime}}</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                <div class="h-2.5 rounded-full {{if lt .Moisture 40.0}}bg-red-500{{else}}bg-green-500{{end}}" style="width: {{printf "%.0f" .Moisture}}%"></div>
+            </div>
+        </div>
+
+        <div class="flex gap-2 mt-4">
+            <form action="/zones/{{.Config.Name}}/open" method="POST" class="flex-1">
+                <button type="submit" class="w-full px-3 py-1.5 text-sm rounded bg-green-600 text-white hover:bg-green-700 {{if eq .State 1}}opacity-50 cursor-not-allowed{{end}}" {{if eq .State 1}}disabled{{end}}>Open</button>
+            </form>
+            <form action="/zones/{{.Config.Name}}/close" method="POST" class="flex-1">
+                <button type="submit" class="w-full px-3 py-1.5 text-sm rounded bg-red-600 text-white hover:bg-red-700 {{if ne .State 1}}{{if ne .State 3}}opacity-50 cursor-not-allowed{{end}}{{end}}" {{if ne .State 1}}{{if ne .State 3}}disabled{{end}}{{end}}>Close</button>
+            </form>
+        </div>
+    </div>
+{{end}}
+{{end}}
+
+</div>
+{{end}}

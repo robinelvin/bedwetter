@@ -31,13 +31,14 @@
         <h2 class="text-lg font-semibold mb-4">Zones</h2>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
-                <thead><tr class="border-b"><th class="text-left py-2">Zone</th><th class="text-left py-2">Moisture Topic</th><th class="text-left py-2">Valve Topic</th><th class="text-left py-2">Threshold</th><th class="text-left py-2">Max Water</th><th class="text-left py-2">Cooldown</th></tr></thead>
+                <thead><tr class="border-b"><th class="text-left py-2">Zone</th><th class="text-left py-2">Source</th><th class="text-left py-2">Moisture</th><th class="text-left py-2">Valve</th><th class="text-left py-2">Threshold</th><th class="text-left py-2">Max Water</th><th class="text-left py-2">Cooldown</th></tr></thead>
                 <tbody>
                     {{range .cfg.Zones}}
                     <tr class="border-b border-gray-100">
                         <td class="py-2 font-medium">{{.Name}}</td>
-                        <td class="font-mono text-xs">{{.MoistureSensorTopic}}</td>
-                        <td class="font-mono text-xs">{{.ValveCommandTopic}}</td>
+                        <td>{{if .MoistureSensorEntity}}HA{{else}}MQTT{{end}}</td>
+                        <td class="font-mono text-xs">{{if .MoistureSensorEntity}}{{.MoistureSensorEntity}}{{else}}{{.MoistureSensorTopic}}{{end}}</td>
+                        <td class="font-mono text-xs">{{if .ValveSwitchEntity}}{{.ValveSwitchEntity}}{{else}}{{.ValveCommandTopic}}{{end}}</td>
                         <td>{{.ThresholdLow}}% - {{.ThresholdHigh}}%</td>
                         <td>{{.MaxWateringSeconds}}s</td>
                         <td>{{.CooldownMinutes}}m</td>

@@ -48,12 +48,20 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 		"floatVal": func(f float64) float64 { return f },
 	}
 
-	pages := []string{"dashboard", "schedules", "config"}
-	for _, page := range pages {
-		sv.templates[page] = template.Must(
-			template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/"+page+".html"),
-		)
-	}
+	sv.templates["dashboard"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS,
+			"templates/base.html", "templates/dashboard.html", "templates/_zone_cards.html"),
+	)
+	sv.templates["schedules"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/schedules.html"),
+	)
+	sv.templates["config"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/config.html"),
+	)
+
+	sv.templates["_zone_cards"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_zone_cards.html"),
+	)
 
 	sv.setupRoutes()
 	return sv
@@ -67,10 +75,19 @@ func (s *Server) render(c *gin.Context, page string, code int, data gin.H) {
 	}
 }
 
+func (s *Server) renderPartial(c *gin.Context, name string, code int, data gin.H) {
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Status(code)
+	if err := s.templates[name].ExecuteTemplate(c.Writer, name, data); err != nil {
+		log.Printf("Template render error: %v", err)
+	}
+}
+
 func (s *Server) setupRoutes() {
 	s.router.Static("/static", "./web/static")
 	s.router.GET("/", s.dashboard)
 	s.router.GET("/dashboard", s.dashboard)
+	s.router.GET("/dashboard/zones", s.dashboardZones)
 	s.router.POST("/zones/:name/open", s.openValve)
 	s.router.POST("/zones/:name/close", s.closeValve)
 	s.router.GET("/zones/:name/history", s.zoneHistory)
@@ -86,6 +103,13 @@ func (s *Server) dashboard(c *gin.Context) {
 	zoneStates := s.zoneManager.GetAllZones()
 	s.render(c, "dashboard", http.StatusOK, gin.H{
 		"title": "Dashboard",
+		"zones": zoneStates,
+	})
+}
+
+func (s *Server) dashboardZones(c *gin.Context) {
+	zoneStates := s.zoneManager.GetAllZones()
+	s.renderPartial(c, "_zone_cards", http.StatusOK, gin.H{
 		"zones": zoneStates,
 	})
 }

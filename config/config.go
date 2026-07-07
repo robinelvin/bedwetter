@@ -14,15 +14,17 @@ type MQTTConfig struct {
 }
 
 type ZoneConfig struct {
-	Name                 string `yaml:"name"`
-	MoistureSensorTopic  string `yaml:"moisture_sensor_topic"`
-	ValveCommandTopic    string `yaml:"valve_command_topic"`
-	ValveStateTopic      string `yaml:"valve_state_topic"`
-	ThresholdLow         int    `yaml:"threshold_low"`
-	ThresholdHigh        int    `yaml:"threshold_high"`
-	MaxWateringSeconds   int    `yaml:"max_watering_seconds"`
-	MaxActivationsPerDay int    `yaml:"max_activations_per_day"`
-	CooldownMinutes      int    `yaml:"cooldown_minutes"`
+	Name                  string `yaml:"name"`
+	MoistureSensorTopic   string `yaml:"moisture_sensor_topic"`
+	MoistureSensorEntity  string `yaml:"moisture_sensor_entity"`
+	ValveCommandTopic     string `yaml:"valve_command_topic"`
+	ValveStateTopic       string `yaml:"valve_state_topic"`
+	ValveSwitchEntity     string `yaml:"valve_switch_entity"`
+	ThresholdLow          int    `yaml:"threshold_low"`
+	ThresholdHigh         int    `yaml:"threshold_high"`
+	MaxWateringSeconds    int    `yaml:"max_watering_seconds"`
+	MaxActivationsPerDay  int    `yaml:"max_activations_per_day"`
+	CooldownMinutes       int    `yaml:"cooldown_minutes"`
 }
 
 type AlertsConfig struct {
@@ -62,14 +64,20 @@ type WebConfig struct {
 	ListenAddr string `yaml:"listen_addr"`
 }
 
+type HomeAssistantConfig struct {
+	URL   string `yaml:"url"`
+	Token string `yaml:"token"`
+}
+
 type Config struct {
-	MQTT        MQTTConfig      `yaml:"mqtt"`
-	Zones       []ZoneConfig    `yaml:"zones"`
-	Alerts      AlertsConfig    `yaml:"alerts"`
-	Schedules   []ZoneSchedule  `yaml:"schedules"`
-	Weather     WeatherConfig   `yaml:"weather"`
-	Web         WebConfig       `yaml:"web"`
-	DBPath      string          `yaml:"db_path"`
+	MQTT          MQTTConfig           `yaml:"mqtt"`
+	HomeAssistant HomeAssistantConfig  `yaml:"homeassistant"`
+	Zones         []ZoneConfig         `yaml:"zones"`
+	Alerts        AlertsConfig         `yaml:"alerts"`
+	Schedules     []ZoneSchedule       `yaml:"schedules"`
+	Weather       WeatherConfig        `yaml:"weather"`
+	Web           WebConfig            `yaml:"web"`
+	DBPath        string               `yaml:"db_path"`
 }
 
 func Load(path string) (*Config, error) {

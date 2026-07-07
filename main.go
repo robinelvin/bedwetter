@@ -42,8 +42,16 @@ func main() {
 	}
 	log.Println("Connected to MQTT broker")
 
-	zoneManager := zones.NewManager(cfg, mqtt, db)
+	haAPI := ha.NewAPIClient(cfg.HomeAssistant.URL, cfg.HomeAssistant.Token)
+
+	resolver := ha.NewEntityResolver(mqtt)
+	for i := range cfg.Zones {
+		ha.ResolveZoneAsync(resolver, &cfg.Zones[i])
+	}
+
+	zoneManager := zones.NewManager(cfg, mqtt, db, resolver, haAPI)
 	zoneManager.Start()
+	haAPI.Start()
 
 	ha.PublishAll(mqtt, cfg)
 	ha.SubscribeToCommands(mqtt, cfg, func(zoneName, state string) {
@@ -77,6 +85,7 @@ func main() {
 	<-sigCh
 
 	log.Println("Shutting down...")
+	haAPI.Stop()
 	zoneManager.Stop()
 	sched.Stop()
 	alertMgr.Stop()

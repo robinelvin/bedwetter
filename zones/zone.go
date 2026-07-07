@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rob/bedwetter/config"
+	"github.com/rob/bedwetter/ha"
 	"github.com/rob/bedwetter/mqtt"
 	"github.com/rob/bedwetter/store"
 )
@@ -37,21 +38,25 @@ type Zone struct {
 }
 
 type Manager struct {
-	zones  map[string]*Zone
-	client *mqtt.Client
-	store  *store.Store
-	cfg    *config.Config
-	mu     sync.RWMutex
-	done   chan struct{}
+	zones    map[string]*Zone
+	client   *mqtt.Client
+	store    *store.Store
+	cfg      *config.Config
+	resolver *ha.EntityResolver
+	haAPI    *ha.APIClient
+	mu       sync.RWMutex
+	done     chan struct{}
 }
 
-func NewManager(cfg *config.Config, client *mqtt.Client, store *store.Store) *Manager {
+func NewManager(cfg *config.Config, client *mqtt.Client, store *store.Store, resolver *ha.EntityResolver, haAPI *ha.APIClient) *Manager {
 	m := &Manager{
-		zones:  make(map[string]*Zone),
-		client: client,
-		store:  store,
-		cfg:    cfg,
-		done:   make(chan struct{}),
+		zones:    make(map[string]*Zone),
+		client:   client,
+		store:    store,
+		cfg:      cfg,
+		resolver: resolver,
+		haAPI:    haAPI,
+		done:     make(chan struct{}),
 	}
 	for _, zc := range cfg.Zones {
 		m.zones[zc.Name] = &Zone{
@@ -63,23 +68,93 @@ func NewManager(cfg *config.Config, client *mqtt.Client, store *store.Store) *Ma
 }
 
 func (m *Manager) Start() {
-	for _, z := range m.zones {
-		z := z
-		topic := z.Config.MoistureSensorTopic
-		if err := m.client.Subscribe(topic, 0, func(t string, p []byte) {
-			m.handleSensorReading(z.Config.Name, p)
-		}); err != nil {
-			log.Printf("Failed to subscribe to %s: %v", topic, err)
+	if m.resolver != nil {
+		m.resolver.OnResolved(func(zoneName string) {
+			m.mu.RLock()
+			z, ok := m.zones[zoneName]
+			m.mu.RUnlock()
+			if !ok {
+				return
+			}
+			log.Printf("Zone %q: HA entity resolved, subscribing to sensor/valve topics", zoneName)
+			m.subscribeSensor(z)
+			m.subscribeValveState(z)
+		})
+		for _, z := range m.zones {
+			ha.ResolveZoneAsync(m.resolver, &z.Config)
 		}
-		if z.Config.ValveStateTopic != "" {
-			if err := m.client.Subscribe(z.Config.ValveStateTopic, 0, func(t string, p []byte) {
-				m.handleValveState(z.Config.Name, p)
-			}); err != nil {
-				log.Printf("Failed to subscribe to %s: %v", z.Config.ValveStateTopic, err)
+	}
+
+	for _, z := range m.zones {
+		m.subscribeSensor(z)
+		m.subscribeValveState(z)
+		m.watchHAEntity(z)
+	}
+
+	go m.watchdogLoop()
+}
+
+func (m *Manager) watchHAEntity(z *Zone) {
+	if m.haAPI == nil {
+		return
+	}
+	entityID := z.Config.MoistureSensorEntity
+	if entityID == "" || z.Config.MoistureSensorTopic != "" {
+		return
+	}
+	log.Printf("Zone %q: watching HA entity %s via API", z.Config.Name, entityID)
+	m.haAPI.Watch(entityID, func(eid string, value float64) {
+		z.mu.Lock()
+		z.Moisture = value
+		z.LastMoistureTime = time.Now()
+		z.mu.Unlock()
+		log.Printf("Zone %q: HA API update %s = %.1f%%", z.Config.Name, eid, value)
+		if err := m.store.SaveSensorReading(z.Config.Name, value, z.Humidity); err != nil {
+			log.Printf("Failed to save sensor reading: %v", err)
+		}
+		m.evaluateZone(z.Config.Name)
+	})
+}
+
+func (m *Manager) subscribeSensor(z *Zone) {
+	topic := z.Config.MoistureSensorTopic
+	if topic == "" && z.Config.MoistureSensorEntity != "" && m.resolver != nil {
+		topics := m.resolver.GetTopics(z.Config.MoistureSensorEntity)
+		if topics != nil {
+			topic = topics.StateTopic
+		}
+	}
+	if topic == "" {
+		return
+	}
+	log.Printf("Zone %q: subscribing to sensor topic %s", z.Config.Name, topic)
+	if err := m.client.Subscribe(topic, 0, func(t string, p []byte) {
+		m.handleSensorReading(z.Config.Name, p)
+	}); err != nil {
+		log.Printf("Zone %q: failed to subscribe to sensor topic %s: %v", z.Config.Name, topic, err)
+	}
+}
+
+func (m *Manager) subscribeValveState(z *Zone) {
+	topic := z.Config.ValveStateTopic
+	if topic == "" && z.Config.ValveSwitchEntity != "" && m.resolver != nil {
+		topics := m.resolver.GetTopics(z.Config.ValveSwitchEntity)
+		if topics != nil {
+			topic = topics.StateTopic
+			if z.Config.ValveCommandTopic == "" {
+				z.Config.ValveCommandTopic = topics.CommandTopic
 			}
 		}
 	}
-	go m.watchdogLoop()
+	if topic == "" {
+		return
+	}
+	log.Printf("Zone %q: subscribing to valve state topic %s", z.Config.Name, topic)
+	if err := m.client.Subscribe(topic, 0, func(t string, p []byte) {
+		m.handleValveState(z.Config.Name, p)
+	}); err != nil {
+		log.Printf("Zone %q: failed to subscribe to valve state topic %s: %v", z.Config.Name, topic, err)
+	}
 }
 
 func (m *Manager) Stop() {
@@ -90,10 +165,9 @@ func (m *Manager) Stop() {
 }
 
 func (m *Manager) handleSensorReading(zoneName string, payload []byte) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
+	m.mu.RLock()
 	z, ok := m.zones[zoneName]
+	m.mu.RUnlock()
 	if !ok {
 		return
 	}
@@ -221,11 +295,22 @@ func (m *Manager) OpenValve(zoneName string) {
 		return
 	}
 	topic := z.Config.ValveCommandTopic
-	if topic == "" {
+	if topic != "" {
+		m.client.Publish(topic, 1, false, "ON")
 		return
 	}
-	if err := m.client.Publish(topic, 1, false, "ON"); err != nil {
-		log.Printf("Failed to open valve for %s: %v", zoneName, err)
+	if m.haAPI != nil && z.Config.ValveSwitchEntity != "" {
+		entityID := z.Config.ValveSwitchEntity
+		parts := splitEntityID(entityID)
+		if parts != nil {
+			go func() {
+				if err := m.haAPI.CallService(parts[0], "turn_on", entityID); err != nil {
+					log.Printf("Zone %q: HA API turn_on failed for %s: %v", zoneName, entityID, err)
+				} else {
+					log.Printf("Zone %q: HA API turn_on %s", zoneName, entityID)
+				}
+			}()
+		}
 	}
 }
 
@@ -237,12 +322,31 @@ func (m *Manager) CloseValve(zoneName string) {
 		return
 	}
 	topic := z.Config.ValveCommandTopic
-	if topic == "" {
+	if topic != "" {
+		m.client.Publish(topic, 1, false, "OFF")
 		return
 	}
-	if err := m.client.Publish(topic, 1, false, "OFF"); err != nil {
-		log.Printf("Failed to close valve for %s: %v", zoneName, err)
+	if m.haAPI != nil && z.Config.ValveSwitchEntity != "" {
+		entityID := z.Config.ValveSwitchEntity
+		parts := splitEntityID(entityID)
+		if parts != nil {
+			go func() {
+				if err := m.haAPI.CallService(parts[0], "turn_off", entityID); err != nil {
+					log.Printf("Zone %q: HA API turn_off failed for %s: %v", zoneName, entityID, err)
+				} else {
+					log.Printf("Zone %q: HA API turn_off %s", zoneName, entityID)
+				}
+			}()
+		}
 	}
+}
+
+func splitEntityID(entityID string) []string {
+	parts := strings.SplitN(entityID, ".", 2)
+	if len(parts) != 2 {
+		return nil
+	}
+	return parts
 }
 
 func (m *Manager) GetZone(name string) *Zone {
