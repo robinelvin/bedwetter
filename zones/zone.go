@@ -3,6 +3,7 @@ package zones
 import (
 	"log"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -91,7 +92,52 @@ func (m *Manager) Start() {
 		m.watchHAEntity(z)
 	}
 
+	go m.syncHAValveStates()
 	go m.watchdogLoop()
+}
+
+func (m *Manager) syncHAValveStates() {
+	if m.haAPI == nil {
+		return
+	}
+	m.pollHAValveStates()
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-m.done:
+			return
+		case <-ticker.C:
+			m.pollHAValveStates()
+		}
+	}
+}
+
+func (m *Manager) pollHAValveStates() {
+	for _, z := range m.zones {
+		if z.Config.ValveSwitchEntity == "" {
+			continue
+		}
+		state, err := m.haAPI.GetEntityState(z.Config.ValveSwitchEntity)
+		if err != nil {
+			log.Printf("Zone %q: failed to fetch valve switch state: %v", z.Config.Name, err)
+			continue
+		}
+		z.mu.Lock()
+		if state == "on" || state == "open" {
+			if z.State == StateIdle || z.State == StateCooldown {
+				z.State = StateManualOpen
+				z.LastStateChange = time.Now()
+				log.Printf("Zone %q: synced valve state from HA = %s", z.Config.Name, state)
+			}
+		} else if z.State == StateManualOpen || z.State == StateWatering {
+			z.State = StateIdle
+			z.LastWaterEnd = time.Now()
+			z.LastStateChange = time.Now()
+			log.Printf("Zone %q: synced valve state from HA = %s", z.Config.Name, state)
+		}
+		z.mu.Unlock()
+	}
 }
 
 func (m *Manager) watchHAEntity(z *Zone) {
@@ -297,9 +343,7 @@ func (m *Manager) OpenValve(zoneName string) {
 	topic := z.Config.ValveCommandTopic
 	if topic != "" {
 		m.client.Publish(topic, 1, false, "ON")
-		return
-	}
-	if m.haAPI != nil && z.Config.ValveSwitchEntity != "" {
+	} else if m.haAPI != nil && z.Config.ValveSwitchEntity != "" {
 		entityID := z.Config.ValveSwitchEntity
 		parts := splitEntityID(entityID)
 		if parts != nil {
@@ -312,6 +356,12 @@ func (m *Manager) OpenValve(zoneName string) {
 			}()
 		}
 	}
+	z.mu.Lock()
+	if z.State == StateIdle || z.State == StateCooldown {
+		z.State = StateManualOpen
+		z.LastStateChange = time.Now()
+	}
+	z.mu.Unlock()
 }
 
 func (m *Manager) CloseValve(zoneName string) {
@@ -324,9 +374,7 @@ func (m *Manager) CloseValve(zoneName string) {
 	topic := z.Config.ValveCommandTopic
 	if topic != "" {
 		m.client.Publish(topic, 1, false, "OFF")
-		return
-	}
-	if m.haAPI != nil && z.Config.ValveSwitchEntity != "" {
+	} else if m.haAPI != nil && z.Config.ValveSwitchEntity != "" {
 		entityID := z.Config.ValveSwitchEntity
 		parts := splitEntityID(entityID)
 		if parts != nil {
@@ -339,6 +387,13 @@ func (m *Manager) CloseValve(zoneName string) {
 			}()
 		}
 	}
+	z.mu.Lock()
+	if z.State == StateManualOpen || z.State == StateWatering {
+		z.State = StateIdle
+		z.LastWaterEnd = time.Now()
+		z.LastStateChange = time.Now()
+	}
+	z.mu.Unlock()
 }
 
 func splitEntityID(entityID string) []string {
@@ -362,6 +417,9 @@ func (m *Manager) GetAllZones() []*Zone {
 	for _, z := range m.zones {
 		result = append(result, z)
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Config.Name < result[j].Config.Name
+	})
 	return result
 }
 

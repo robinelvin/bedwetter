@@ -133,6 +133,33 @@ func (a *APIClient) FetchEntityState(entityID string) (*float64, error) {
 	return a.fetchEntityState(entityID)
 }
 
+func (a *APIClient) GetEntityState(entityID string) (string, error) {
+	u := fmt.Sprintf("%s/api/states/%s", a.baseURL, entityID)
+	req, err := http.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+a.token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	var stateResp HAStateResponse
+	if err := json.NewDecoder(resp.Body).Decode(&stateResp); err != nil {
+		return "", err
+	}
+	return strings.ToLower(stateResp.State), nil
+}
+
 func (a *APIClient) CallService(domain, service string, entityID string) error {
 	u := fmt.Sprintf("%s/api/services/%s/%s", a.baseURL, domain, service)
 	payload := map[string]interface{}{
