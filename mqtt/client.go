@@ -10,6 +10,15 @@ import (
 
 type MessageHandler func(topic string, payload []byte)
 
+type ClientInterface interface {
+	Publish(topic string, qos byte, retained bool, payload string) error
+	Subscribe(topic string, qos byte, handler MessageHandler) error
+	SubscribeMultiple(topics map[string]byte, handler MessageHandler) error
+	IsConnected() bool
+	Unsubscribe(topics ...string)
+	Disconnect(quiesce uint)
+}
+
 type Client struct {
 	client  mqtt.Client
 	broker  string

@@ -17,13 +17,13 @@ type ResolvedTopics struct {
 }
 
 type EntityResolver struct {
-	client   *mqtt.Client
+	client   mqtt.ClientInterface
 	resolved map[string]*ResolvedTopics
 	mu       sync.RWMutex
 	handlers []func(zoneName string)
 }
 
-func NewEntityResolver(client *mqtt.Client) *EntityResolver {
+func NewEntityResolver(client mqtt.ClientInterface) *EntityResolver {
 	return &EntityResolver{
 		client:   client,
 		resolved: make(map[string]*ResolvedTopics),

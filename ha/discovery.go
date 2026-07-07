@@ -47,7 +47,7 @@ type OriginInfo struct {
 	SWVersion string `json:"sw_version"`
 }
 
-func PublishAll(client *mqtt.Client, cfg *config.Config) {
+func PublishAll(client mqtt.ClientInterface, cfg *config.Config) {
 	device := &DeviceInfo{
 		Identifiers:  []string{"bedwetter"},
 		Name:         "BedWetter Irrigation",
@@ -68,7 +68,7 @@ func PublishAll(client *mqtt.Client, cfg *config.Config) {
 	log.Printf("Published HA discovery configs for %d zones", len(cfg.Zones))
 }
 
-func publishSensor(client *mqtt.Client, z config.ZoneConfig, device *DeviceInfo, origin *OriginInfo) {
+func publishSensor(client mqtt.ClientInterface, z config.ZoneConfig, device *DeviceInfo, origin *OriginInfo) {
 	if z.MoistureSensorTopic == "" {
 		return
 	}
@@ -92,7 +92,7 @@ func publishSensor(client *mqtt.Client, z config.ZoneConfig, device *DeviceInfo,
 	}
 }
 
-func publishSwitch(client *mqtt.Client, z config.ZoneConfig, device *DeviceInfo, origin *OriginInfo) {
+func publishSwitch(client mqtt.ClientInterface, z config.ZoneConfig, device *DeviceInfo, origin *OriginInfo) {
 	if z.ValveCommandTopic == "" {
 		return
 	}
@@ -123,7 +123,7 @@ func publishSwitch(client *mqtt.Client, z config.ZoneConfig, device *DeviceInfo,
 	}
 }
 
-func SubscribeToCommands(client *mqtt.Client, cfg *config.Config, handler func(zoneName string, state string)) {
+func SubscribeToCommands(client mqtt.ClientInterface, cfg *config.Config, handler func(zoneName string, state string)) {
 	for _, z := range cfg.Zones {
 		if z.ValveCommandTopic == "" {
 			continue

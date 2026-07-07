@@ -1,4 +1,4 @@
-.PHONY: build dev css clean
+.PHONY: build dev css clean test
 
 css:
 	npx tailwindcss -i web/static/input.css -o web/static/tailwind.css
@@ -16,3 +16,6 @@ dev:
 
 clean:
 	rm -f bedwetter tmp/bedwetter build-errors.log bedwetter.db
+
+test:
+	go test -count=1 -timeout 120s -cover ./...

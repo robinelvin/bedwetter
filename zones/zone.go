@@ -40,7 +40,7 @@ type Zone struct {
 
 type Manager struct {
 	zones    map[string]*Zone
-	client   *mqtt.Client
+	client   mqtt.ClientInterface
 	store    *store.Store
 	cfg      *config.Config
 	resolver *ha.EntityResolver
@@ -49,7 +49,7 @@ type Manager struct {
 	done     chan struct{}
 }
 
-func NewManager(cfg *config.Config, client *mqtt.Client, store *store.Store, resolver *ha.EntityResolver, haAPI *ha.APIClient) *Manager {
+func NewManager(cfg *config.Config, client mqtt.ClientInterface, store *store.Store, resolver *ha.EntityResolver, haAPI *ha.APIClient) *Manager {
 	m := &Manager{
 		zones:    make(map[string]*Zone),
 		client:   client,
@@ -430,14 +430,14 @@ func (m *Manager) AddZone(zc config.ZoneConfig) {
 }
 
 func (m *Manager) RemoveZone(name string) {
+	m.CloseValve(name)
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if z, ok := m.zones[name]; ok {
-		m.CloseValve(name)
+	if _, ok := m.zones[name]; ok {
 		delete(m.zones, name)
 		log.Printf("Zone %q: removed dynamically", name)
-		_ = z
 	}
 }
 
