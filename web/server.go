@@ -22,6 +22,7 @@ type Server struct {
 	zoneManager *zones.Manager
 	alertMgr    *alerts.AlertManager
 	router      *gin.Engine
+	templates   map[string]*template.Template
 }
 
 func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.AlertManager) *Server {
@@ -34,14 +35,10 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 		zoneManager: zm,
 		alertMgr:    am,
 		router:      r,
+		templates:   make(map[string]*template.Template),
 	}
 
-	sv.setupRoutes()
-	return sv
-}
-
-func (s *Server) setupRoutes() {
-	s.router.SetHTMLTemplate(template.Must(template.New("").Funcs(template.FuncMap{
+	funcMap := template.FuncMap{
 		"formatTime": func(t time.Time) string {
 			if t.IsZero() {
 				return "never"
@@ -49,8 +46,28 @@ func (s *Server) setupRoutes() {
 			return t.Format("15:04:05")
 		},
 		"floatVal": func(f float64) float64 { return f },
-	}).ParseFS(templatesFS, "templates/*.html")))
+	}
 
+	pages := []string{"dashboard", "schedules", "config"}
+	for _, page := range pages {
+		sv.templates[page] = template.Must(
+			template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/"+page+".html"),
+		)
+	}
+
+	sv.setupRoutes()
+	return sv
+}
+
+func (s *Server) render(c *gin.Context, page string, code int, data gin.H) {
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Status(code)
+	if err := s.templates[page].ExecuteTemplate(c.Writer, "base", data); err != nil {
+		log.Printf("Template render error: %v", err)
+	}
+}
+
+func (s *Server) setupRoutes() {
 	s.router.Static("/static", "./web/static")
 	s.router.GET("/", s.dashboard)
 	s.router.GET("/dashboard", s.dashboard)
@@ -67,7 +84,7 @@ func (s *Server) setupRoutes() {
 
 func (s *Server) dashboard(c *gin.Context) {
 	zoneStates := s.zoneManager.GetAllZones()
-	c.HTML(http.StatusOK, "dashboard.html", gin.H{
+	s.render(c, "dashboard", http.StatusOK, gin.H{
 		"title": "Dashboard",
 		"zones": zoneStates,
 	})
@@ -95,13 +112,13 @@ func (s *Server) zoneHistory(c *gin.Context) {
 
 	readings, err := s.store.RecentReadings(name, hours)
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "dashboard.html", gin.H{"error": err.Error()})
+		s.render(c, "dashboard", http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	events, _ := s.store.RecentValveEvents(name, 20)
 
-	c.HTML(http.StatusOK, "dashboard.html", gin.H{
+	s.render(c, "dashboard", http.StatusOK, gin.H{
 		"title":    fmt.Sprintf("History: %s", name),
 		"readings": readings,
 		"events":   events,
@@ -113,11 +130,11 @@ func (s *Server) zoneHistory(c *gin.Context) {
 func (s *Server) schedulesPage(c *gin.Context) {
 	schedules, err := s.store.GetAllSchedules()
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "dashboard.html", gin.H{"error": err.Error()})
+		s.render(c, "dashboard", http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	zones := s.cfg.Zones
-	c.HTML(http.StatusOK, "schedules.html", gin.H{
+	s.render(c, "schedules", http.StatusOK, gin.H{
 		"title":     "Watering Schedules",
 		"schedules": schedules,
 		"zones":     zones,
@@ -135,13 +152,13 @@ func (s *Server) saveSchedule(c *gin.Context) {
 		duration = 300
 	}
 
-	entry := models.ScheduleConfig{
+	entry := &models.ScheduleConfig{
 		ZoneName:  zoneName,
 		DayOfWeek: dayOfWeek,
 		Time:      time,
 		Duration:  duration,
 	}
-	if err := s.store.SaveSchedule([]models.ScheduleConfig{entry}); err != nil {
+	if err := s.store.CreateScheduleEntry(entry); err != nil {
 		log.Printf("Failed to save schedule: %v", err)
 	}
 	c.Redirect(http.StatusFound, "/schedules")
@@ -158,7 +175,7 @@ func (s *Server) configPage(c *gin.Context) {
 	alertConfigs := []models.AlertConfig{
 		{Type: string(alerts.AlertStaleSensor), Email: s.cfg.Alerts.Email, Enabled: true},
 	}
-	c.HTML(http.StatusOK, "config.html", gin.H{
+	s.render(c, "config", http.StatusOK, gin.H{
 		"title":  "Configuration",
 		"alerts": alertConfigs,
 		"cfg":    s.cfg,

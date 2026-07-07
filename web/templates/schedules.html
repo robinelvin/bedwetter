@@ -1,77 +1,52 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>BedWetter - {{.title}}</title>
-    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <nav class="bg-green-700 text-white shadow-lg">
-        <div class="max-w-6xl mx-auto px-4">
-            <div class="flex items-center justify-between h-14">
-                <a href="/" class="text-xl font-bold">BedWetter</a>
-                <div class="flex gap-4">
-                    <a href="/dashboard" class="hover:text-green-200">Dashboard</a>
-                    <a href="/schedules" class="hover:text-green-200">Schedules</a>
-                    <a href="/config" class="hover:text-green-200">Config</a>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <main class="max-w-6xl mx-auto px-4 py-6">
-        <h1 class="text-2xl font-bold mb-6">Watering Schedules</h1>
-
-        <div class="bg-white rounded-lg shadow p-4 mb-6">
-            <h2 class="text-lg font-semibold mb-4">Add Schedule</h2>
-            <form action="/schedules" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <select name="zone_name" class="border rounded px-3 py-2 text-sm">
-                    {{range .zones}}
-                    <option value="{{.Name}}">{{.Name}}</option>
-                    {{end}}
-                </select>
-                <select name="day_of_week" class="border rounded px-3 py-2 text-sm">
-                    {{range .days}}
-                    <option value="{{.}}">{{.}}</option>
-                    {{end}}
-                </select>
-                <input type="time" name="time" value="06:00" class="border rounded px-3 py-2 text-sm">
-                <div class="flex gap-2">
-                    <input type="number" name="duration" value="300" class="border rounded px-3 py-2 text-sm w-24" placeholder="Duration (s)">
-                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">Add</button>
-                </div>
-            </form>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-4">
-            <h2 class="text-lg font-semibold mb-4">Existing Schedules</h2>
-            {{if .schedules}}
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead><tr class="border-b"><th class="text-left py-2">Zone</th><th class="text-left py-2">Day</th><th class="text-left py-2">Time</th><th class="text-left py-2">Duration</th><th class="text-left py-2">Actions</th></tr></thead>
-                    <tbody>
-                        {{range .schedules}}
-                        <tr class="border-b border-gray-100">
-                            <td class="py-2">{{.ZoneName}}</td>
-                            <td>{{if .Month}}Month {{.Month}}{{else}}{{.DayOfWeek}}{{end}}</td>
-                            <td class="font-mono">{{.Time}}</td>
-                            <td>{{.Duration}}s</td>
-                            <td>
-                                <form action="/schedules/{{.ID}}/delete" method="POST" class="inline">
-                                    <button type="submit" class="text-red-600 hover:text-red-800 text-sm">Delete</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {{end}}
-                    </tbody>
-                </table>
-            </div>
-            {{else}}
-            <p class="text-gray-500 text-sm">No schedules configured.</p>
+{{define "title"}}Watering Schedules{{end}}
+{{define "heading"}}Watering Schedules{{end}}
+{{define "content"}}
+<div class="bg-white rounded-lg shadow p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-4">Add Schedule</h2>
+    <form action="/schedules" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <select name="zone_name" class="border rounded px-3 py-2 text-sm">
+            {{range .zones}}
+            <option value="{{.Name}}">{{.Name}}</option>
             {{end}}
+        </select>
+        <select name="day_of_week" class="border rounded px-3 py-2 text-sm">
+            {{range .days}}
+            <option value="{{.}}">{{.}}</option>
+            {{end}}
+        </select>
+        <input type="time" name="time" value="06:00" class="border rounded px-3 py-2 text-sm">
+        <div class="flex gap-2">
+            <input type="number" name="duration" value="300" class="border rounded px-3 py-2 text-sm w-24" placeholder="Duration (s)">
+            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">Add</button>
         </div>
-    </main>
-</body>
-</html>
+    </form>
+</div>
+
+<div class="bg-white rounded-lg shadow p-4">
+    <h2 class="text-lg font-semibold mb-4">Existing Schedules</h2>
+    {{if .schedules}}
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead><tr class="border-b"><th class="text-left py-2">Zone</th><th class="text-left py-2">Day</th><th class="text-left py-2">Time</th><th class="text-left py-2">Duration</th><th class="text-left py-2">Actions</th></tr></thead>
+            <tbody>
+                {{range .schedules}}
+                <tr class="border-b border-gray-100">
+                    <td class="py-2">{{.ZoneName}}</td>
+                    <td>{{if .Month}}Month {{.Month}}{{else}}{{.DayOfWeek}}{{end}}</td>
+                    <td class="font-mono">{{.Time}}</td>
+                    <td>{{.Duration}}s</td>
+                    <td>
+                        <form action="/schedules/{{.ID}}/delete" method="POST" class="inline">
+                            <button type="submit" class="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <p class="text-gray-500 text-sm">No schedules configured.</p>
+    {{end}}
+</div>
+{{end}}

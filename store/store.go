@@ -3,6 +3,7 @@ package store
 import (
 	"time"
 
+	"github.com/rob/bedwetter/config"
 	"github.com/rob/bedwetter/models"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -68,6 +69,9 @@ func (s *Store) ActivationsToday(zoneName string) (int64, error) {
 }
 
 func (s *Store) SaveSchedule(entries []models.ScheduleConfig) error {
+	if len(entries) == 0 {
+		return nil
+	}
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		zoneName := entries[0].ZoneName
 		tx.Where("zone_name = ?", zoneName).Delete(&models.ScheduleConfig{})
@@ -92,6 +96,42 @@ func (s *Store) GetAllSchedules() ([]models.ScheduleConfig, error) {
 	return entries, err
 }
 
+func (s *Store) CreateScheduleEntry(entry *models.ScheduleConfig) error {
+	return s.db.Create(entry).Error
+}
+
 func (s *Store) DeleteScheduleByID(id uint) error {
 	return s.db.Delete(&models.ScheduleConfig{}, id).Error
+}
+
+func (s *Store) LoadConfigSchedules(zoneSchedules []config.ZoneSchedule) error {
+	for _, zs := range zoneSchedules {
+		var entries []models.ScheduleConfig
+		for _, se := range zs.Schedule {
+			entries = append(entries, models.ScheduleConfig{
+				ZoneName:  zs.ZoneName,
+				DayOfWeek: se.DayOfWeek,
+				Time:      se.Time,
+				Duration:  se.Duration,
+				Month:     0,
+			})
+		}
+		for _, mo := range zs.MonthOverride {
+			for _, se := range mo.Schedule {
+				entries = append(entries, models.ScheduleConfig{
+					ZoneName:  zs.ZoneName,
+					DayOfWeek: se.DayOfWeek,
+					Time:      se.Time,
+					Duration:  se.Duration,
+					Month:     mo.Month,
+				})
+			}
+		}
+		if len(entries) > 0 {
+			if err := s.SaveSchedule(entries); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

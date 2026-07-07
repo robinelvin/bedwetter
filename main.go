@@ -31,6 +31,10 @@ func main() {
 		log.Fatalf("Failed to open database: %v", err)
 	}
 
+	if err := db.LoadConfigSchedules(cfg.Schedules); err != nil {
+		log.Printf("Failed to load config schedules into DB: %v", err)
+	}
+
 	mqtt := mqttclient.New(cfg.MQTT.Broker, cfg.MQTT.Port, cfg.MQTT.Username, cfg.MQTT.Password)
 
 	if err := mqtt.Connect(); err != nil {
