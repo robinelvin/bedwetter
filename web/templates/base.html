@@ -1,0 +1,30 @@
+{{define "base"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BedWetter - {{block "title" .}}{{.title}}{{end}}</title>
+    <script src="/static/htmx.min.js"></script>
+    <link rel="stylesheet" href="/static/tailwind.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-green-700 text-white shadow-lg">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex items-center justify-between h-14">
+                <a href="/" class="text-xl font-bold">BedWetter</a>
+                <div class="flex gap-4">
+                    <a href="/dashboard" class="hover:text-green-200">Dashboard</a>
+                    <a href="/schedules" class="hover:text-green-200">Schedules</a>
+                    <a href="/config" class="hover:text-green-200">Config</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-6">
+        <h1 class="text-2xl font-bold mb-6">{{block "heading" .}}{{.title}}{{end}}</h1>
+        {{block "content" .}}{{end}}
+    </main>
+</body>
+</html>
+{{end}}

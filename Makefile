@@ -1,0 +1,18 @@
+.PHONY: build dev css clean
+
+css:
+	npx tailwindcss -i web/static/input.css -o web/static/tailwind.css
+
+build: css
+	go build -o bedwetter .
+
+dev:
+	@which air > /dev/null 2>&1 || \
+		test -x "$(shell go env GOPATH)/bin/air" > /dev/null 2>&1 || { \
+		echo "Installing air (live-reload)…"; \
+		go install github.com/air-verse/air@latest; \
+	}
+	PATH="$(shell go env GOPATH)/bin:$$PATH" air
+
+clean:
+	rm -f bedwetter tmp/bedwetter build-errors.log bedwetter.db

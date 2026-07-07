@@ -1,3 +1,8 @@
 *.db
 bedwetter
 config.yaml
+tmp/
+node_modules/
+package-lock.json
+build-errors.log
+web/static/tailwind.css
