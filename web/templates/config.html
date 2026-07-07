@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BedWetter - {{.title}}</title>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-green-700 text-white shadow-lg">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex items-center justify-between h-14">
+                <a href="/" class="text-xl font-bold">BedWetter</a>
+                <div class="flex gap-4">
+                    <a href="/dashboard" class="hover:text-green-200">Dashboard</a>
+                    <a href="/schedules" class="hover:text-green-200">Schedules</a>
+                    <a href="/config" class="hover:text-green-200">Config</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-6">
+        <h1 class="text-2xl font-bold mb-6">Configuration</h1>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-lg shadow p-4">
+                <h2 class="text-lg font-semibold mb-4">MQTT Broker</h2>
+                <div class="text-sm space-y-2">
+                    <div class="flex justify-between"><span class="text-gray-500">Broker</span><span class="font-mono">{{.cfg.MQTT.Broker}}:{{.cfg.MQTT.Port}}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Username</span><span class="font-mono">{{.cfg.MQTT.Username}}</span></div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-4">
+                <h2 class="text-lg font-semibold mb-4">Alert Configuration</h2>
+                <form action="/config/alerts" method="POST" class="space-y-3">
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">Alert Email</label>
+                        <input type="email" name="email" value="{{.cfg.Alerts.Email}}" class="w-full border rounded px-3 py-2 text-sm">
+                    </div>
+                    {{range .alerts}}
+                    <div class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked disabled class="rounded">
+                        <span>{{.Type}}</span>
+                    </div>
+                    {{end}}
+                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">Save</button>
+                </form>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-4 lg:col-span-2">
+                <h2 class="text-lg font-semibold mb-4">Zones</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead><tr class="border-b"><th class="text-left py-2">Zone</th><th class="text-left py-2">Moisture Topic</th><th class="text-left py-2">Valve Topic</th><th class="text-left py-2">Threshold</th><th class="text-left py-2">Max Water</th><th class="text-left py-2">Cooldown</th></tr></thead>
+                        <tbody>
+                            {{range .cfg.Zones}}
+                            <tr class="border-b border-gray-100">
+                                <td class="py-2 font-medium">{{.Name}}</td>
+                                <td class="font-mono text-xs">{{.MoistureSensorTopic}}</td>
+                                <td class="font-mono text-xs">{{.ValveCommandTopic}}</td>
+                                <td>{{.ThresholdLow}}% - {{.ThresholdHigh}}%</td>
+                                <td>{{.MaxWateringSeconds}}s</td>
+                                <td>{{.CooldownMinutes}}m</td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
