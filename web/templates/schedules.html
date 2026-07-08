@@ -1,43 +1,69 @@
 {{define "title"}}Watering Schedules{{end}}
 {{define "heading"}}Watering Schedules{{end}}
 {{define "content"}}
-<div class="bg-white rounded-lg shadow p-4 mb-6">
-    <h2 class="text-lg font-semibold mb-4">Add Schedule</h2>
-    <form action="/schedules" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <select name="zone_name" class="border rounded px-3 py-2 text-sm">
-            {{range .zones}}
-            <option value="{{.Name}}">{{.Name}}</option>
-            {{end}}
-        </select>
-        <select name="day_of_week" class="border rounded px-3 py-2 text-sm">
-            {{range .days}}
-            <option value="{{.}}">{{.}}</option>
-            {{end}}
-        </select>
-        <input type="time" name="time" value="06:00" class="border rounded px-3 py-2 text-sm">
-        <div class="flex gap-2">
-            <input type="number" name="duration" value="300" class="border rounded px-3 py-2 text-sm w-24" placeholder="Duration (s)">
-            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">Add</button>
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+    <h2 class="text-lg font-semibold text-slate-800 mb-5">Add Schedule</h2>
+    <form action="/schedules" method="POST" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div>
+            <label class="block text-sm font-medium text-slate-600 mb-1.5">Zone</label>
+            <select name="zone_name" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+                {{range .zones}}
+                <option value="{{.Name}}">{{.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-600 mb-1.5">Day</label>
+            <select name="day_of_week" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+                {{range .days}}
+                <option value="{{.}}">{{.}}</option>
+                {{end}}
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-600 mb-1.5">Time</label>
+            <input type="time" name="time" value="06:00" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-600 mb-1.5">Duration (s)</label>
+            <div class="flex gap-2">
+                <input type="number" name="duration" value="300" class="flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow" placeholder="Duration">
+                <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                    Add
+                </button>
+            </div>
         </div>
     </form>
 </div>
 
-<div class="bg-white rounded-lg shadow p-4">
-    <h2 class="text-lg font-semibold mb-4">Existing Schedules</h2>
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <h2 class="text-lg font-semibold text-slate-800 mb-5">Existing Schedules</h2>
     {{if .schedules}}
-    <div class="overflow-x-auto">
+    <div class="overflow-x-auto rounded-lg border border-slate-100">
         <table class="w-full text-sm">
-            <thead><tr class="border-b"><th class="text-left py-2">Zone</th><th class="text-left py-2">Day</th><th class="text-left py-2">Time</th><th class="text-left py-2">Duration</th><th class="text-left py-2">Actions</th></tr></thead>
-            <tbody>
+            <thead>
+                <tr class="bg-slate-50">
+                    <th class="text-left px-4 py-3 font-medium text-slate-500">Zone</th>
+                    <th class="text-left px-4 py-3 font-medium text-slate-500">Day</th>
+                    <th class="text-left px-4 py-3 font-medium text-slate-500">Time</th>
+                    <th class="text-left px-4 py-3 font-medium text-slate-500">Duration</th>
+                    <th class="text-left px-4 py-3 font-medium text-slate-500">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
                 {{range .schedules}}
-                <tr class="border-b border-gray-100">
-                    <td class="py-2">{{.ZoneName}}</td>
-                    <td>{{if .Month}}Month {{.Month}}{{else}}{{.DayOfWeek}}{{end}}</td>
-                    <td class="font-mono">{{.Time}}</td>
-                    <td>{{.Duration}}s</td>
-                    <td>
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-4 py-3 font-medium text-slate-800">{{.ZoneName}}</td>
+                    <td class="px-4 py-3 text-slate-600">{{if .Month}}Month {{.Month}}{{else}}{{.DayOfWeek}}{{end}}</td>
+                    <td class="px-4 py-3 font-mono text-slate-700">{{.Time}}</td>
+                    <td class="px-4 py-3 text-slate-600">{{.Duration}}s</td>
+                    <td class="px-4 py-3">
                         <form action="/schedules/{{.ID}}/delete" method="POST" class="inline">
-                            <button type="submit" class="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                            <button type="submit" class="inline-flex items-center gap-1 text-red-600 hover:text-red-800 text-sm font-medium transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                Delete
+                            </button>
                         </form>
                     </td>
                 </tr>
@@ -46,7 +72,10 @@
         </table>
     </div>
     {{else}}
-    <p class="text-gray-500 text-sm">No schedules configured.</p>
+    <div class="text-center py-12">
+        <svg class="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <p class="text-slate-500 text-sm">No schedules configured yet.</p>
+    </div>
     {{end}}
 </div>
 {{end}}

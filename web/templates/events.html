@@ -2,57 +2,77 @@
 {{define "heading"}}Event Log{{end}}
 {{define "content"}}
 {{if .error}}
-<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{{.error}}</div>
+<div class="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm mb-6">{{.error}}</div>
 {{end}}
 
-<div class="bg-white rounded-lg shadow overflow-hidden">
-  <table class="min-w-full divide-y divide-gray-200 text-sm">
-    <thead class="bg-gray-50">
-      <tr>
-        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Time</th>
-        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Level</th>
-        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Category</th>
-        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Zone</th>
-        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Message</th>
-      </tr>
-    </thead>
-    <tbody class="divide-y divide-gray-200">
-      {{range .events.Events}}
-      <tr class="hover:bg-gray-50">
-        <td class="px-4 py-2 whitespace-nowrap text-gray-500">{{.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
-        <td class="px-4 py-2 whitespace-nowrap">
-          {{if eq .Level "warn"}}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">warn</span>
-          {{else if eq .Level "error"}}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">error</span>
-          {{else}}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">info</span>
-          {{end}}
-        </td>
-        <td class="px-4 py-2 whitespace-nowrap text-gray-700">{{.Category}}</td>
-        <td class="px-4 py-2 whitespace-nowrap text-gray-700">{{.ZoneName}}</td>
-        <td class="px-4 py-2 text-gray-700">{{.Message}}</td>
-      </tr>
-      {{else}}
-      <tr>
-        <td colspan="5" class="px-4 py-8 text-center text-gray-500">No events logged yet.</td>
-      </tr>
-      {{end}}
-    </tbody>
-  </table>
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-slate-50">
+          <th class="text-left px-5 py-3.5 font-medium text-slate-500">Time</th>
+          <th class="text-left px-5 py-3.5 font-medium text-slate-500">Level</th>
+          <th class="text-left px-5 py-3.5 font-medium text-slate-500">Category</th>
+          <th class="text-left px-5 py-3.5 font-medium text-slate-500">Zone</th>
+          <th class="text-left px-5 py-3.5 font-medium text-slate-500">Message</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {{range .events.Events}}
+        <tr class="hover:bg-slate-50 transition-colors">
+          <td class="px-5 py-3 whitespace-nowrap font-mono text-xs text-slate-500">{{.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
+          <td class="px-5 py-3 whitespace-nowrap">
+            {{if eq .Level "warn"}}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              warn
+            </span>
+            {{else if eq .Level "error"}}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+              error
+            </span>
+            {{else}}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+              info
+            </span>
+            {{end}}
+          </td>
+          <td class="px-5 py-3 whitespace-nowrap text-slate-700 font-medium">{{.Category}}</td>
+          <td class="px-5 py-3 whitespace-nowrap text-slate-600">{{if .ZoneName}}{{.ZoneName}}{{else}}<span class="text-slate-300">—</span>{{end}}</td>
+          <td class="px-5 py-3 text-slate-700">{{.Message}}</td>
+        </tr>
+        {{else}}
+        <tr>
+          <td colspan="5" class="px-5 py-16 text-center">
+            <svg class="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <p class="text-slate-500 text-sm">No events logged yet.</p>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
 </div>
 
 {{if gt .events.TotalPages 1}}
-<div class="flex items-center justify-between mt-4">
-  <div class="text-sm text-gray-600">
-    Page {{.events.Page}} of {{.events.TotalPages}} ({{.events.Total}} total events)
+<div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+  <div class="text-sm text-slate-500">
+    Page {{.events.Page}} of {{.events.TotalPages}} <span class="text-slate-300">·</span> {{.events.Total}} total events
   </div>
   <div class="flex gap-2">
     {{if gt .events.Page 1}}
-    <a href="/events?page={{sub .events.Page 1}}&per_page={{.events.PerPage}}" class="px-3 py-1 bg-white border rounded hover:bg-gray-50 text-sm">&laquo; Previous</a>
+    <a href="/events?page={{sub .events.Page 1}}&per_page={{.events.PerPage}}" class="inline-flex items-center gap-1 px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-700 transition-colors shadow-sm">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      Previous
+    </a>
     {{end}}
     {{if lt .events.Page .events.TotalPages}}
-    <a href="/events?page={{add .events.Page 1}}&per_page={{.events.PerPage}}" class="px-3 py-1 bg-white border rounded hover:bg-gray-50 text-sm">Next &raquo;</a>
+    <a href="/events?page={{add .events.Page 1}}&per_page={{.events.PerPage}}" class="inline-flex items-center gap-1 px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-700 transition-colors shadow-sm">
+      Next
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+    </a>
     {{end}}
   </div>
 </div>

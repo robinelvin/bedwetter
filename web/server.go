@@ -86,6 +86,12 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 func (s *Server) render(c *gin.Context, page string, code int, data gin.H) {
 	c.Header("Content-Type", "text/html; charset=utf-8")
 	c.Status(code)
+	if data == nil {
+		data = gin.H{}
+	}
+	if _, ok := data["page"]; !ok {
+		data["page"] = page
+	}
 	if err := s.templates[page].ExecuteTemplate(c.Writer, "base", data); err != nil {
 		log.Printf("Template render error: %v", err)
 	}

@@ -2,174 +2,232 @@
 {{define "heading"}}Configuration{{end}}
 {{define "content"}}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <div class="bg-white rounded-lg shadow p-4">
-        <h2 class="text-lg font-semibold mb-4">MQTT Broker</h2>
-        <form action="/config/mqtt" method="POST" class="space-y-3">
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Broker</label>
-                    <input type="text" name="broker" value="{{if .mqtt}}{{.mqtt.Broker}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+            <h2 class="text-lg font-semibold text-slate-800">MQTT Broker</h2>
+        </div>
+        <form action="/config/mqtt" method="POST" class="space-y-4">
+            <div class="grid grid-cols-3 gap-4">
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-slate-600 mb-1.5">Broker</label>
+                    <input type="text" name="broker" value="{{if .mqtt}}{{.mqtt.Broker}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 mb-1">Port</label>
-                    <input type="number" name="port" value="{{if .mqtt}}{{.mqtt.Port}}{{else}}1883{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+                    <label class="block text-sm font-medium text-slate-600 mb-1.5">Port</label>
+                    <input type="number" name="port" value="{{if .mqtt}}{{.mqtt.Port}}{{else}}1883{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
                 </div>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-xs text-gray-500 mb-1">Username</label>
-                    <input type="text" name="username" value="{{if .mqtt}}{{.mqtt.Username}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                    <label class="block text-sm font-medium text-slate-600 mb-1.5">Username</label>
+                    <input type="text" name="username" value="{{if .mqtt}}{{.mqtt.Username}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 mb-1">Password</label>
-                    <input type="password" name="password" value="{{if .mqtt}}{{.mqtt.Password}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                    <label class="block text-sm font-medium text-slate-600 mb-1.5">Password</label>
+                    <input type="password" name="password" value="{{if .mqtt}}{{.mqtt.Password}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
                 </div>
             </div>
-            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">Save</button>
+            <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                Save
+            </button>
         </form>
     </div>
 
-    <div class="bg-white rounded-lg shadow p-4">
-        <h2 class="text-lg font-semibold mb-4">Home Assistant</h2>
-        <form action="/config/ha" method="POST" class="space-y-3">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            </div>
+            <h2 class="text-lg font-semibold text-slate-800">Home Assistant</h2>
+        </div>
+        <form action="/config/ha" method="POST" class="space-y-4">
             <div>
-                <label class="block text-xs text-gray-500 mb-1">API URL</label>
-                <input type="text" name="url" value="{{if .ha}}{{.ha.URL}}{{end}}" placeholder="http://homeassistant:8123" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">API URL</label>
+                <input type="text" name="url" value="{{if .ha}}{{.ha.URL}}{{end}}" placeholder="http://homeassistant:8123" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Long-Lived Access Token</label>
-                <input type="password" name="token" value="{{if .ha}}{{.ha.Token}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Long-Lived Access Token</label>
+                <input type="password" name="token" value="{{if .ha}}{{.ha.Token}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
-            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">Save</button>
+            <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                Save
+            </button>
         </form>
     </div>
 
-    <div class="bg-white rounded-lg shadow p-4">
-        <h2 class="text-lg font-semibold mb-4">Alert Configuration</h2>
-        <form action="/config/alerts" method="POST" class="space-y-3">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+            </div>
+            <h2 class="text-lg font-semibold text-slate-800">Alert Configuration</h2>
+        </div>
+        <form action="/config/alerts" method="POST" class="space-y-4">
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Alert Email</label>
-                <input type="email" name="email" value="{{if .alerts}}{{.alerts.Email}}{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Alert Email</label>
+                <input type="email" name="email" value="{{if .alerts}}{{.alerts.Email}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">From Email</label>
-                <input type="email" name="from_email" value="{{if .alerts}}{{.alerts.FromEmail}}{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">From Email</label>
+                <input type="email" name="from_email" value="{{if .alerts}}{{.alerts.FromEmail}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Stale Sensor Threshold (minutes)</label>
-                <input type="number" name="stale_sensor_minutes" value="{{if .alerts}}{{.alerts.StaleSensorMinutes}}{{else}}60{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Stale Sensor Threshold (minutes)</label>
+                <input type="number" name="stale_sensor_minutes" value="{{if .alerts}}{{.alerts.StaleSensorMinutes}}{{else}}60{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
-            <div class="pt-2 border-t">
-                <h3 class="text-sm font-medium text-gray-700 mb-2">SMTP Settings</h3>
-                <div class="grid grid-cols-2 gap-3">
+            <div class="pt-4 border-t border-slate-100">
+                <h3 class="text-sm font-semibold text-slate-700 mb-3">SMTP Settings</h3>
+                <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs text-gray-500 mb-1">Server</label>
-                        <input type="text" name="smtp_server" value="{{if .alerts}}{{.alerts.SMTPServer}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Server</label>
+                        <input type="text" name="smtp_server" value="{{if .alerts}}{{.alerts.SMTPServer}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
                     </div>
                     <div>
-                        <label class="block text-xs text-gray-500 mb-1">Port</label>
-                        <input type="number" name="smtp_port" value="{{if .alerts}}{{.alerts.SMTPPort}}{{else}}587{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Port</label>
+                        <input type="number" name="smtp_port" value="{{if .alerts}}{{.alerts.SMTPPort}}{{else}}587{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-3 mt-3">
+                <div class="grid grid-cols-2 gap-4 mt-4">
                     <div>
-                        <label class="block text-xs text-gray-500 mb-1">Username</label>
-                        <input type="text" name="smtp_username" value="{{if .alerts}}{{.alerts.SMTPUsername}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Username</label>
+                        <input type="text" name="smtp_username" value="{{if .alerts}}{{.alerts.SMTPUsername}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
                     </div>
                     <div>
-                        <label class="block text-xs text-gray-500 mb-1">Password</label>
-                        <input type="password" name="smtp_password" value="{{if .alerts}}{{.alerts.SMTPPassword}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Password</label>
+                        <input type="password" name="smtp_password" value="{{if .alerts}}{{.alerts.SMTPPassword}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
                     </div>
                 </div>
             </div>
-            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">Save</button>
+            <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                Save
+            </button>
         </form>
     </div>
 
-    <div id="zone-form" class="bg-white rounded-lg shadow p-4 lg:col-span-2">
-        <h2 class="text-lg font-semibold mb-4">
-            {{if .editZone}}Edit Zone{{else}}Add Zone{{end}}
-            {{if .editZone}}<a href="/config#zone-form" class="text-sm text-gray-500 font-normal ml-2">Cancel</a>{{end}}
-        </h2>
-        <form action="/config/zones" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div id="zone-form" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 lg:col-span-2">
+        <div class="flex items-center justify-between mb-5">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-sky-100 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                </div>
+                <h2 class="text-lg font-semibold text-slate-800">{{if .editZone}}Edit Zone{{else}}Add Zone{{end}}</h2>
+            </div>
+            {{if .editZone}}<a href="/config#zone-form" class="text-sm text-slate-500 hover:text-slate-700 font-medium transition-colors">Cancel</a>{{end}}
+        </div>
+        <form action="/config/zones" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
             {{if .editZone}}<input type="hidden" name="id" value="{{.editZone.ID}}">{{end}}
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Name</label>
-                <input type="text" name="name" value="{{if .editZone}}{{.editZone.Name}}{{end}}" required class="w-full border rounded px-3 py-2 text-sm">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Name</label>
+                <input type="text" name="name" value="{{if .editZone}}{{.editZone.Name}}{{end}}" required class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Moisture Sensor Topic</label>
-                <input type="text" name="moisture_sensor_topic" value="{{if .editZone}}{{.editZone.MoistureSensorTopic}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Moisture Sensor Topic</label>
+                <input type="text" name="moisture_sensor_topic" value="{{if .editZone}}{{.editZone.MoistureSensorTopic}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Moisture Sensor Entity</label>
-                <input type="text" name="moisture_sensor_entity" value="{{if .editZone}}{{.editZone.MoistureSensorEntity}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Moisture Sensor Entity</label>
+                <input type="text" name="moisture_sensor_entity" value="{{if .editZone}}{{.editZone.MoistureSensorEntity}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Valve Command Topic</label>
-                <input type="text" name="valve_command_topic" value="{{if .editZone}}{{.editZone.ValveCommandTopic}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Valve Command Topic</label>
+                <input type="text" name="valve_command_topic" value="{{if .editZone}}{{.editZone.ValveCommandTopic}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Valve State Topic</label>
-                <input type="text" name="valve_state_topic" value="{{if .editZone}}{{.editZone.ValveStateTopic}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Valve State Topic</label>
+                <input type="text" name="valve_state_topic" value="{{if .editZone}}{{.editZone.ValveStateTopic}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Valve Switch Entity</label>
-                <input type="text" name="valve_switch_entity" value="{{if .editZone}}{{.editZone.ValveSwitchEntity}}{{end}}" class="w-full border rounded px-3 py-2 text-sm font-mono">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Valve Switch Entity</label>
+                <input type="text" name="valve_switch_entity" value="{{if .editZone}}{{.editZone.ValveSwitchEntity}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Threshold Low (%)</label>
-                <input type="number" name="threshold_low" value="{{if .editZone}}{{.editZone.ThresholdLow}}{{else}}40{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Threshold Low (%)</label>
+                <input type="number" name="threshold_low" value="{{if .editZone}}{{.editZone.ThresholdLow}}{{else}}40{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Threshold High (%)</label>
-                <input type="number" name="threshold_high" value="{{if .editZone}}{{.editZone.ThresholdHigh}}{{else}}60{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Threshold High (%)</label>
+                <input type="number" name="threshold_high" value="{{if .editZone}}{{.editZone.ThresholdHigh}}{{else}}60{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Max Watering (s)</label>
-                <input type="number" name="max_watering_seconds" value="{{if .editZone}}{{.editZone.MaxWateringSeconds}}{{else}}300{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Max Watering (s)</label>
+                <input type="number" name="max_watering_seconds" value="{{if .editZone}}{{.editZone.MaxWateringSeconds}}{{else}}300{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Max Activations/Day</label>
-                <input type="number" name="max_activations_per_day" value="{{if .editZone}}{{.editZone.MaxActivationsPerDay}}{{else}}5{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Max Activations / Day</label>
+                <input type="number" name="max_activations_per_day" value="{{if .editZone}}{{.editZone.MaxActivationsPerDay}}{{else}}5{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Cooldown (min)</label>
-                <input type="number" name="cooldown_minutes" value="{{if .editZone}}{{.editZone.CooldownMinutes}}{{else}}90{{end}}" class="w-full border rounded px-3 py-2 text-sm">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Cooldown (min)</label>
+                <input type="number" name="cooldown_minutes" value="{{if .editZone}}{{.editZone.CooldownMinutes}}{{else}}90{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
-            <div class="md:col-span-3 flex gap-2 pt-2">
-                <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">{{if .editZone}}Update{{else}}Add{{end}} Zone</button>
-                {{if .editZone}}<a href="/config" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 text-sm">Cancel</a>{{end}}
+            <div class="md:col-span-3 flex gap-3 pt-2">
+                <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    {{if .editZone}}Update{{else}}Add{{end}} Zone
+                </button>
+                {{if .editZone}}
+                <a href="/config" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 active:bg-slate-300 text-sm font-medium transition-colors">
+                    Cancel
+                </a>
+                {{end}}
             </div>
         </form>
     </div>
 
-    <div class="bg-white rounded-lg shadow p-4 lg:col-span-2">
-        <h2 class="text-lg font-semibold mb-4">Zones</h2>
-        <div class="overflow-x-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 lg:col-span-2">
+        <h2 class="text-lg font-semibold text-slate-800 mb-5">Configured Zones</h2>
+        <div class="overflow-x-auto rounded-lg border border-slate-100">
             <table class="w-full text-sm">
-                <thead><tr class="border-b"><th class="text-left py-2">Zone</th><th class="text-left py-2">Source</th><th class="text-left py-2">Moisture</th><th class="text-left py-2">Valve</th><th class="text-left py-2">Threshold</th><th class="text-left py-2">Max Water</th><th class="text-left py-2">Cooldown</th><th class="text-left py-2">Actions</th></tr></thead>
-                <tbody>
+                <thead>
+                    <tr class="bg-slate-50">
+                        <th class="text-left px-4 py-3 font-medium text-slate-500">Zone</th>
+                        <th class="text-left px-4 py-3 font-medium text-slate-500">Source</th>
+                        <th class="text-left px-4 py-3 font-medium text-slate-500">Moisture</th>
+                        <th class="text-left px-4 py-3 font-medium text-slate-500">Valve</th>
+                        <th class="text-left px-4 py-3 font-medium text-slate-500">Threshold</th>
+                        <th class="text-left px-4 py-3 font-medium text-slate-500">Max Water</th>
+                        <th class="text-left px-4 py-3 font-medium text-slate-500">Cooldown</th>
+                        <th class="text-left px-4 py-3 font-medium text-slate-500">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
                     {{range .dbZones}}
-                    <tr class="border-b border-gray-100">
-                        <td class="py-2 font-medium">{{.Name}}</td>
-                        <td>{{if .MoistureSensorEntity}}HA{{else}}MQTT{{end}}</td>
-                        <td class="font-mono text-xs max-w-xs truncate">{{if .MoistureSensorEntity}}{{.MoistureSensorEntity}}{{else}}{{.MoistureSensorTopic}}{{end}}</td>
-                        <td class="font-mono text-xs max-w-xs truncate">{{if .ValveSwitchEntity}}{{.ValveSwitchEntity}}{{else}}{{.ValveCommandTopic}}{{end}}</td>
-                        <td>{{.ThresholdLow}}% - {{.ThresholdHigh}}%</td>
-                        <td>{{.MaxWateringSeconds}}s</td>
-                        <td>{{.CooldownMinutes}}m</td>
-                        <td>
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-4 py-3 font-medium text-slate-800">{{.Name}}</td>
+                        <td class="px-4 py-3">
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium {{if .MoistureSensorEntity}}bg-indigo-50 text-indigo-700{{else}}bg-slate-100 text-slate-600{{end}}">
+                                {{if .MoistureSensorEntity}}HA{{else}}MQTT{{end}}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 font-mono text-xs text-slate-600 max-w-[10rem] truncate" title="{{if .MoistureSensorEntity}}{{.MoistureSensorEntity}}{{else}}{{.MoistureSensorTopic}}{{end}}">{{if .MoistureSensorEntity}}{{.MoistureSensorEntity}}{{else}}{{.MoistureSensorTopic}}{{end}}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-slate-600 max-w-[10rem] truncate" title="{{if .ValveSwitchEntity}}{{.ValveSwitchEntity}}{{else}}{{.ValveCommandTopic}}{{end}}">{{if .ValveSwitchEntity}}{{.ValveSwitchEntity}}{{else}}{{.ValveCommandTopic}}{{end}}</td>
+                        <td class="px-4 py-3 text-slate-600">{{.ThresholdLow}}% – {{.ThresholdHigh}}%</td>
+                        <td class="px-4 py-3 text-slate-600">{{.MaxWateringSeconds}}s</td>
+                        <td class="px-4 py-3 text-slate-600">{{.CooldownMinutes}}m</td>
+                        <td class="px-4 py-3">
                             <div class="flex gap-2">
-                                <a href="/config?edit={{.ID}}#zone-form" class="text-blue-600 hover:text-blue-800 text-sm">Edit</a>
+                                <a href="/config?edit={{.ID}}#zone-form" class="inline-flex items-center gap-1 text-sm font-medium text-emerald-600 hover:text-emerald-800 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                    Edit
+                                </a>
                                 <form action="/config/zones/{{.ID}}/delete" method="POST" class="inline" onsubmit="return confirm('Delete zone {{.Name}}?')">
-                                    <button type="submit" class="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                                    <button type="submit" class="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-800 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        Delete
+                                    </button>
                                 </form>
                             </div>
                         </td>
                     </tr>
                     {{else}}
-                    <tr><td colspan="8" class="py-4 text-gray-500 text-center">No zones configured. Add one above.</td></tr>
+                    <tr><td colspan="8" class="px-4 py-12 text-center text-slate-500">No zones configured.</td></tr>
                     {{end}}
                 </tbody>
             </table>

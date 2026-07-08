@@ -4,14 +4,22 @@
 {{template "_zone_cards" .}}
 
 {{if .readings}}
-<div class="mt-8 bg-white rounded-lg shadow p-4">
-    <h2 class="text-lg font-semibold mb-4">Sensor History: {{.zoneName}} (last {{.hours}}h)</h2>
-    <div class="overflow-x-auto">
+<div class="mt-8 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <h2 class="text-lg font-semibold text-slate-800 mb-4">Sensor History: {{.zoneName}} <span class="text-sm font-normal text-slate-500">(last {{.hours}}h)</span></h2>
+    <div class="overflow-x-auto rounded-lg border border-slate-100">
         <table class="w-full text-sm">
-            <thead><tr class="border-b"><th class="text-left py-2">Time</th><th class="text-left py-2">Moisture</th></tr></thead>
-            <tbody>
+            <thead>
+                <tr class="bg-slate-50">
+                    <th class="text-left px-4 py-3 font-medium text-slate-500">Time</th>
+                    <th class="text-left px-4 py-3 font-medium text-slate-500">Moisture</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
                 {{range .readings}}
-                <tr class="border-b border-gray-100"><td class="py-1 font-mono">{{.CreatedAt.Format "15:04:05"}}</td><td class="font-mono">{{printf "%.1f" .Moisture}}%</td></tr>
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-4 py-2.5 font-mono text-slate-600">{{.CreatedAt.Format "15:04:05"}}</td>
+                    <td class="px-4 py-2.5 font-mono font-medium {{if lt .Moisture 40.0}}text-red-600{{else}}text-emerald-600{{end}}">{{printf "%.1f" .Moisture}}%</td>
+                </tr>
                 {{end}}
             </tbody>
         </table>
@@ -20,6 +28,6 @@
 {{end}}
 
 {{if .error}}
-<div class="mt-4 p-3 bg-red-100 text-red-700 rounded">{{.error}}</div>
+<div class="mt-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">{{.error}}</div>
 {{end}}
 {{end}}
