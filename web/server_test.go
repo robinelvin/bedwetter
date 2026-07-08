@@ -980,4 +980,57 @@ func TestAuthMiddleware_AuthenticatedSessionProceeds(t *testing.T) {
 	}
 }
 
+func TestOpenAllValves(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	sv.zoneManager.AddZone(config.ZoneConfig{Name: "Z2", ThresholdLow: 30, ThresholdHigh: 60})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/zones/all/open", nil)
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+
+	for _, name := range []string{"Z1", "Z2"} {
+		z := sv.zoneManager.GetZone(name)
+		if z == nil {
+			t.Fatalf("expected zone %q to exist", name)
+		}
+		if z.State != zones.StateManualOpen {
+			t.Errorf("zone %q: expected StateManualOpen, got %v", name, z.State)
+		}
+	}
+}
+
+func TestCloseAllValves(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	sv.zoneManager.AddZone(config.ZoneConfig{Name: "Z2", ThresholdLow: 30, ThresholdHigh: 60})
+
+	sv.zoneManager.OpenValve("Z1")
+	sv.zoneManager.OpenValve("Z2")
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/zones/all/close", nil)
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+
+	for _, name := range []string{"Z1", "Z2"} {
+		z := sv.zoneManager.GetZone(name)
+		if z == nil {
+			t.Fatalf("expected zone %q to exist", name)
+		}
+		if z.State != zones.StateIdle {
+			t.Errorf("zone %q: expected StateIdle, got %v", name, z.State)
+		}
+	}
+}
+
 

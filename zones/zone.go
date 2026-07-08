@@ -479,6 +479,20 @@ func (m *Manager) UpdateZoneConfig(name string, zc config.ZoneConfig) {
 	log.Printf("Zone %q: config updated dynamically", name)
 }
 
+func (m *Manager) OpenAllValves() {
+	zones := m.GetAllZones()
+	for _, z := range zones {
+		m.OpenValve(z.Config.Name)
+	}
+}
+
+func (m *Manager) CloseAllValves() {
+	zones := m.GetAllZones()
+	for _, z := range zones {
+		m.CloseValve(z.Config.Name)
+	}
+}
+
 func (m *Manager) GetZone(name string) *Zone {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

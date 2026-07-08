@@ -207,6 +207,8 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/dashboard/zones", s.dashboardZones)
 	s.router.POST("/zones/:name/open", s.openValve)
 	s.router.POST("/zones/:name/close", s.closeValve)
+	s.router.POST("/zones/all/open", s.openAllValves)
+	s.router.POST("/zones/all/close", s.closeAllValves)
 	s.router.GET("/zones/:name/history", s.zoneHistory)
 	s.router.GET("/schedules", s.schedulesPage)
 	s.router.POST("/schedules", s.saveSchedule)
@@ -367,6 +369,16 @@ func (s *Server) openValve(c *gin.Context) {
 func (s *Server) closeValve(c *gin.Context) {
 	name := c.Param("name")
 	s.zoneManager.CloseValve(name)
+	c.Redirect(http.StatusFound, "/dashboard")
+}
+
+func (s *Server) openAllValves(c *gin.Context) {
+	s.zoneManager.OpenAllValves()
+	c.Redirect(http.StatusFound, "/dashboard")
+}
+
+func (s *Server) closeAllValves(c *gin.Context) {
+	s.zoneManager.CloseAllValves()
 	c.Redirect(http.StatusFound, "/dashboard")
 }
 
