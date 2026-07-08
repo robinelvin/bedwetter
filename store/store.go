@@ -233,6 +233,28 @@ func (s *Store) LoadConfigZones(yamlZones []config.ZoneConfig) error {
 	return nil
 }
 
+func (s *Store) CreateUser(username, passwordHash string) error {
+	return s.db.Create(&models.User{
+		Username:     username,
+		PasswordHash: passwordHash,
+	}).Error
+}
+
+func (s *Store) GetUserByUsername(username string) (*models.User, error) {
+	var user models.User
+	err := s.db.Where("username = ?", username).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (s *Store) CountUsers() (int64, error) {
+	var count int64
+	err := s.db.Model(&models.User{}).Count(&count).Error
+	return count, err
+}
+
 func (s *Store) LoadConfigSchedules(zoneSchedules []config.ZoneSchedule) error {
 	for _, zs := range zoneSchedules {
 		var entries []models.ScheduleConfig

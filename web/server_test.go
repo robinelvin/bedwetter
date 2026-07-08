@@ -16,6 +16,7 @@ import (
 	"github.com/rob/bedwetter/mqtt"
 	"github.com/rob/bedwetter/store"
 	"github.com/rob/bedwetter/zones"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func newTestServer(t *testing.T) *Server {
@@ -503,6 +504,479 @@ func TestAPIZones(t *testing.T) {
 	}
 	if zones[0]["name"] != "Z1" {
 		t.Errorf("zone name: got %v", zones[0]["name"])
+	}
+}
+
+// --- Auth tests ---
+
+func TestLoginPage_NoUsers(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/login", nil)
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "Sign In") {
+		t.Error("expected login page heading")
+	}
+	if !strings.Contains(body, "Create Admin User") {
+		t.Error("expected setup link when no users exist")
+	}
+	if !strings.Contains(body, "admin") || !strings.Contains(body, "bedwetter") {
+		t.Error("expected default credentials hint")
+	}
+}
+
+func TestLoginPage_WithUsers(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+	sv.store.CreateUser("testuser", "hash")
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/login", nil)
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "Sign In") {
+		t.Error("expected login page heading")
+	}
+	if strings.Contains(body, "Create Admin User") {
+		t.Error("expected no setup link when users exist")
+	}
+	if strings.Contains(body, "bedwetter") {
+		t.Error("expected no default credentials hint when users exist")
+	}
+}
+
+func TestLogin_DefaultCreds(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	form := url.Values{"username": {"admin"}, "password": {"bedwetter"}}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+
+	cookies := w.Result().Cookies()
+	var sessionCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == "session" {
+			sessionCookie = c
+			break
+		}
+	}
+	if sessionCookie == nil {
+		t.Fatal("expected session cookie")
+	}
+	if sessionCookie.Value == "" {
+		t.Error("expected non-empty session cookie value")
+	}
+
+	sv.sessionMu.RLock()
+	username, ok := sv.sessions[sessionCookie.Value]
+	sv.sessionMu.RUnlock()
+	if !ok {
+		t.Error("expected session to exist in server")
+	}
+	if username != "admin" {
+		t.Errorf("expected username 'admin', got %q", username)
+	}
+}
+
+func TestLogin_DefaultCreds_Wrong(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	form := url.Values{"username": {"admin"}, "password": {"wrong"}}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 (re-render login), got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "Invalid credentials") {
+		t.Error("expected error message for invalid credentials")
+	}
+	if !strings.Contains(body, "Create Admin User") {
+		t.Error("expected setup link still shown")
+	}
+
+	sv.sessionMu.RLock()
+	sessionCount := len(sv.sessions)
+	sv.sessionMu.RUnlock()
+	if sessionCount != 0 {
+		t.Errorf("expected 0 sessions, got %d", sessionCount)
+	}
+}
+
+func TestLogin_RealCreds(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+	hash, _ := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.DefaultCost)
+	sv.store.CreateUser("alice", string(hash))
+
+	form := url.Values{"username": {"alice"}, "password": {"secret"}}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+
+	cookies := w.Result().Cookies()
+	var sessionCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == "session" {
+			sessionCookie = c
+			break
+		}
+	}
+	if sessionCookie == nil {
+		t.Fatal("expected session cookie")
+	}
+
+	sv.sessionMu.RLock()
+	username, ok := sv.sessions[sessionCookie.Value]
+	sv.sessionMu.RUnlock()
+	if !ok {
+		t.Error("expected session to exist in server")
+	}
+	if username != "alice" {
+		t.Errorf("expected username 'alice', got %q", username)
+	}
+}
+
+func TestLogin_RealCreds_Wrong(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+	hash, _ := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.DefaultCost)
+	sv.store.CreateUser("alice", string(hash))
+
+	form := url.Values{"username": {"alice"}, "password": {"wrong"}}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 (re-render login), got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "Invalid username or password") {
+		t.Error("expected error message for invalid credentials")
+	}
+}
+
+func TestLogin_RealCreds_UnknownUser(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+	sv.store.CreateUser("alice", "hash")
+
+	form := url.Values{"username": {"bob"}, "password": {"secret"}}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 (re-render login), got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "Invalid username or password") {
+		t.Error("expected error message for unknown user")
+	}
+}
+
+func TestSetupPage_NoUsers(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/setup", nil)
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "First-Time Setup") {
+		t.Error("expected setup page heading")
+	}
+	if !strings.Contains(body, "Create Account") {
+		t.Error("expected create account button")
+	}
+}
+
+func TestSetupPage_WithUsers(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+	sv.store.CreateUser("existing", "hash")
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/setup", nil)
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+	loc := w.Result().Header.Get("Location")
+	if loc != "/" {
+		t.Errorf("expected redirect to /, got %q", loc)
+	}
+}
+
+func TestSetupCreate(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	form := url.Values{"username": {"newuser"}, "password": {"mypassword"}, "confirm_password": {"mypassword"}}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/setup", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 (redirect to login), got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "Account created successfully") {
+		t.Error("expected success message")
+	}
+
+	user, err := sv.store.GetUserByUsername("newuser")
+	if err != nil {
+		t.Fatalf("expected user to exist in DB: %v", err)
+	}
+	if user.Username != "newuser" {
+		t.Errorf("expected username 'newuser', got %q", user.Username)
+	}
+	if user.PasswordHash == "" {
+		t.Error("expected password hash to be non-empty")
+	}
+}
+
+func TestSetupCreate_PasswordMismatch(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	form := url.Values{"username": {"newuser"}, "password": {"mypassword"}, "confirm_password": {"different"}}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/setup", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "Passwords do not match") {
+		t.Error("expected password mismatch error")
+	}
+}
+
+func TestSetupCreate_ShortPassword(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	form := url.Values{"username": {"newuser"}, "password": {"ab"}, "confirm_password": {"ab"}}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/setup", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "at least 6 characters") {
+		t.Error("expected short password error")
+	}
+}
+
+func TestSetupCreate_DuplicateUser(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+	sv.store.CreateUser("existing", "hash")
+
+	form := url.Values{"username": {"existing"}, "password": {"password123"}, "confirm_password": {"password123"}}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/setup", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect (setup not available), got %d", w.Code)
+	}
+}
+
+func TestLogout(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	sessionID := sv.createSession("testuser")
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/logout", nil)
+	req.AddCookie(&http.Cookie{Name: "session", Value: sessionID})
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+	loc := w.Result().Header.Get("Location")
+	if loc != "/login" {
+		t.Errorf("expected redirect to /login, got %q", loc)
+	}
+
+	sv.sessionMu.RLock()
+	_, ok := sv.sessions[sessionID]
+	sv.sessionMu.RUnlock()
+	if ok {
+		t.Error("expected session to be removed after logout")
+	}
+
+	cookies := w.Result().Cookies()
+	for _, c := range cookies {
+		if c.Name == "session" {
+			if c.MaxAge >= 0 {
+				t.Error("expected session cookie to be cleared (MaxAge < 0)")
+			}
+		}
+	}
+}
+
+func TestLogout_NoSession(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/logout", nil)
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+}
+
+func TestAuthMiddleware_RedirectToSetup(t *testing.T) {
+	prevMode := gin.Mode()
+	gin.SetMode(gin.DebugMode)
+	defer gin.SetMode(prevMode)
+
+	sv := newTestServer(t)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/dashboard", nil)
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+	loc := w.Result().Header.Get("Location")
+	if loc != "/setup" {
+		t.Errorf("expected redirect to /setup, got %q", loc)
+	}
+}
+
+func TestAuthMiddleware_RedirectToLogin(t *testing.T) {
+	prevMode := gin.Mode()
+	gin.SetMode(gin.DebugMode)
+	defer gin.SetMode(prevMode)
+
+	sv := newTestServer(t)
+	sv.store.CreateUser("testuser", "hash")
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/dashboard", nil)
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+	loc := w.Result().Header.Get("Location")
+	if loc != "/login" {
+		t.Errorf("expected redirect to /login, got %q", loc)
+	}
+}
+
+func TestAuthMiddleware_AllowsLoginAndSetup(t *testing.T) {
+	prevMode := gin.Mode()
+	gin.SetMode(gin.DebugMode)
+	defer gin.SetMode(prevMode)
+
+	sv := newTestServer(t)
+
+	// Login page should be accessible without auth
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/login", nil)
+	sv.router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for /login, got %d", w.Code)
+	}
+
+	// Setup page should be accessible without auth when no users exist
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest("GET", "/setup", nil)
+	sv.router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for /setup, got %d", w.Code)
+	}
+}
+
+func TestAuthMiddleware_StaticBypassesAuth(t *testing.T) {
+	prevMode := gin.Mode()
+	gin.SetMode(gin.DebugMode)
+	defer gin.SetMode(prevMode)
+
+	sv := newTestServer(t)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/static/tailwind.css", nil)
+	sv.router.ServeHTTP(w, req)
+
+	// Should get a valid response (either the file or 404), not a redirect
+	if w.Code == http.StatusFound || w.Code == http.StatusTemporaryRedirect {
+		t.Errorf("expected non-redirect for static file, got %d", w.Code)
+	}
+}
+
+func TestAuthMiddleware_AuthenticatedSessionProceeds(t *testing.T) {
+	prevMode := gin.Mode()
+	gin.SetMode(gin.DebugMode)
+	defer gin.SetMode(prevMode)
+
+	sv := newTestServer(t)
+	sessionID := sv.createSession("testuser")
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/dashboard", nil)
+	req.AddCookie(&http.Cookie{Name: "session", Value: sessionID})
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for authenticated request, got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "Dashboard") {
+		t.Error("expected dashboard page content")
 	}
 }
 

@@ -17,10 +17,15 @@
                     BedWetter
                 </a>
                 <div class="flex items-center gap-1">
+                    {{if .authenticated}}
                     <a href="/dashboard" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/10 {{if eq .page "dashboard"}}bg-white/15{{end}}">Dashboard</a>
                     <a href="/schedules" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/10 {{if eq .page "schedules"}}bg-white/15{{end}}">Schedules</a>
                     <a href="/events" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/10 {{if eq .page "events"}}bg-white/15{{end}}">Events</a>
                     <a href="/config" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/10 {{if eq .page "config"}}bg-white/15{{end}}">Config</a>
+                    <form action="/logout" method="POST" class="inline ml-2">
+                        <button type="submit" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/10 text-white/80 hover:text-white">Sign Out</button>
+                    </form>
+                    {{end}}
                 </div>
             </div>
         </div>

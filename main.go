@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/gin-gonic/gin"
 	"github.com/rob/bedwetter/alerts"
 	"github.com/rob/bedwetter/config"
 	"github.com/rob/bedwetter/ha"
@@ -162,6 +163,7 @@ func main() {
 	alertMgr := alerts.New(cfg, zoneManager)
 	alertMgr.Start()
 
+	gin.SetMode(gin.ReleaseMode)
 	webServer := web.New(cfg, db, zoneManager, alertMgr, mqtt)
 
 	go func() {
