@@ -96,6 +96,15 @@ func (m *ZoneConfig) ToConfigZoneConfig() config.ZoneConfig {
 	}
 }
 
+type EventLog struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Level     string    `gorm:"size:16;index" json:"level"`
+	Category  string    `gorm:"size:32;index" json:"category"`
+	Message   string    `gorm:"size:512" json:"message"`
+	ZoneName  string    `gorm:"size:128;index" json:"zone_name"`
+	CreatedAt time.Time `gorm:"autoCreateTime;index" json:"created_at"`
+}
+
 func AutoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&SensorReading{},
@@ -106,6 +115,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&MQTTConfig{},
 		&HAConfig{},
 		&AlertSettings{},
+		&EventLog{},
 	)
 }
 

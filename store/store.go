@@ -164,6 +164,49 @@ func (s *Store) SaveAlertSettings(cfg *models.AlertSettings) error {
 	return s.db.Save(cfg).Error
 }
 
+func (s *Store) CreateEventLog(event *models.EventLog) error {
+	return s.db.Create(event).Error
+}
+
+type EventLogPage struct {
+	Events  []models.EventLog
+	Total   int64
+	Page    int
+	PerPage int
+	TotalPages int
+}
+
+func (s *Store) GetEventLogs(page, perPage int) (*EventLogPage, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 50
+	}
+	var total int64
+	s.db.Model(&models.EventLog{}).Count(&total)
+
+	var events []models.EventLog
+	err := s.db.Order("created_at desc").
+		Offset((page - 1) * perPage).
+		Limit(perPage).
+		Find(&events).Error
+	if err != nil {
+		return nil, err
+	}
+	totalPages := int(total) / perPage
+	if int(total)%perPage > 0 {
+		totalPages++
+	}
+	return &EventLogPage{
+		Events:     events,
+		Total:      total,
+		Page:       page,
+		PerPage:    perPage,
+		TotalPages: totalPages,
+	}, nil
+}
+
 func (s *Store) LoadConfigZones(yamlZones []config.ZoneConfig) error {
 	var count int64
 	s.db.Model(&models.ZoneConfig{}).Count(&count)

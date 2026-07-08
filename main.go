@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"log"
 	"os"
@@ -17,6 +18,26 @@ import (
 	"github.com/rob/bedwetter/web"
 	"github.com/rob/bedwetter/zones"
 )
+
+func logEvent(db *store.Store, mqtt mqttclient.ClientInterface, level, category, message, zoneName string) {
+	event := &models.EventLog{
+		Level:    level,
+		Category: category,
+		Message:  message,
+		ZoneName: zoneName,
+	}
+	if err := db.CreateEventLog(event); err != nil {
+		log.Printf("Failed to log event: %v", err)
+	}
+	if mqtt != nil && mqtt.IsConnected() {
+		payload, err := json.Marshal(event)
+		if err != nil {
+			log.Printf("Failed to marshal event: %v", err)
+			return
+		}
+		mqtt.Publish("bedwetter/event", 0, false, string(payload))
+	}
+}
 
 func main() {
 	configPath := flag.String("config", "config.yaml", "Path to configuration file")
@@ -109,6 +130,8 @@ func main() {
 	}
 	log.Println("Connected to MQTT broker")
 
+	logEvent(db, mqtt, "info", "system", "System started", "")
+
 	haAPI := ha.NewAPIClient(cfg.HomeAssistant.URL, cfg.HomeAssistant.Token)
 
 	resolver := ha.NewEntityResolver(mqtt)
@@ -152,6 +175,7 @@ func main() {
 	<-sigCh
 
 	log.Println("Shutting down...")
+	logEvent(db, mqtt, "info", "system", "System shutting down", "")
 	haAPI.Stop()
 	zoneManager.Stop()
 	sched.Stop()

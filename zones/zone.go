@@ -1,6 +1,7 @@
 package zones
 
 import (
+	"encoding/json"
 	"log"
 	"math"
 	"sort"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/rob/bedwetter/config"
 	"github.com/rob/bedwetter/ha"
+	"github.com/rob/bedwetter/models"
 	"github.com/rob/bedwetter/mqtt"
 	"github.com/rob/bedwetter/store"
 )
@@ -260,12 +262,14 @@ func (m *Manager) handleValveState(zoneName string, payload []byte) {
 		if z.State == StateIdle || z.State == StateCooldown {
 			z.State = StateManualOpen
 			z.LastStateChange = time.Now()
+			m.logEvent("info", "valve", "Valve manually opened: "+zoneName, zoneName)
 		}
 	} else {
 		if z.State == StateManualOpen || z.State == StateWatering {
 			z.State = StateIdle
 			z.LastWaterEnd = time.Now()
 			z.LastStateChange = time.Now()
+			m.logEvent("info", "valve", "Valve manually closed: "+zoneName, zoneName)
 			go func() {
 				m.store.SaveValveEvent(zoneName, "close", 0)
 			}()
@@ -290,6 +294,7 @@ func (m *Manager) evaluateZone(zoneName string) {
 			maxDur := time.Duration(z.Config.MaxWateringSeconds) * time.Second
 			if elapsed >= maxDur {
 				log.Printf("Zone %s: max watering duration reached (%ds)", zoneName, z.Config.MaxWateringSeconds)
+				m.logEvent("warn", "valve", "Max watering duration reached for "+zoneName, zoneName)
 				go m.CloseValve(zoneName)
 				z.State = StateCooldown
 				z.LastWaterEnd = time.Now()
@@ -324,6 +329,7 @@ func (m *Manager) evaluateZone(zoneName string) {
 	}
 
 	log.Printf("Zone %s: moisture %.1f%% below threshold %d%%, opening valve", zoneName, z.Moisture, z.Config.ThresholdLow)
+	m.logEvent("info", "valve", "Watering started: "+zoneName, zoneName)
 	go m.OpenValve(zoneName)
 	z.State = StateWatering
 	z.WateringStarted = time.Now()
@@ -362,6 +368,7 @@ func (m *Manager) OpenValve(zoneName string) {
 		z.LastStateChange = time.Now()
 	}
 	z.mu.Unlock()
+	m.logEvent("info", "valve", "Valve opened: "+zoneName, zoneName)
 }
 
 func (m *Manager) CloseValve(zoneName string) {
@@ -394,6 +401,25 @@ func (m *Manager) CloseValve(zoneName string) {
 		z.LastStateChange = time.Now()
 	}
 	z.mu.Unlock()
+	m.logEvent("info", "valve", "Valve closed: "+zoneName, zoneName)
+}
+
+func (m *Manager) logEvent(level, category, message, zoneName string) {
+	event := &models.EventLog{
+		Level:    level,
+		Category: category,
+		Message:  message,
+		ZoneName: zoneName,
+	}
+	if err := m.store.CreateEventLog(event); err != nil {
+		log.Printf("Failed to log event: %v", err)
+	}
+	payload, err := json.Marshal(event)
+	if err != nil {
+		log.Printf("Failed to marshal event: %v", err)
+		return
+	}
+	m.client.Publish("bedwetter/event", 0, false, string(payload))
 }
 
 func splitEntityID(entityID string) []string {
@@ -426,7 +452,7 @@ func (m *Manager) AddZone(zc config.ZoneConfig) {
 		ha.ResolveZoneAsync(m.resolver, &z.Config)
 	}
 
-	log.Printf("Zone %q: added dynamically", zc.Name)
+	m.logEvent("info", "config", "Zone added: "+zc.Name, zc.Name)
 }
 
 func (m *Manager) RemoveZone(name string) {
@@ -437,7 +463,7 @@ func (m *Manager) RemoveZone(name string) {
 
 	if _, ok := m.zones[name]; ok {
 		delete(m.zones, name)
-		log.Printf("Zone %q: removed dynamically", name)
+		m.logEvent("info", "config", "Zone removed: "+name, name)
 	}
 }
 
@@ -479,6 +505,7 @@ func (m *Manager) Watchdog() {
 		stale := time.Duration(m.cfg.Alerts.StaleSensorMinutes) * time.Minute
 		if z.LastMoistureTime.IsZero() || since > stale*2 {
 			z.State = StateFailsafe
+			m.logEvent("warn", "system", "Failsafe activated: stale sensor for "+z.Config.Name, z.Config.Name)
 			go m.CloseValve(z.Config.Name)
 		}
 		z.mu.Unlock()

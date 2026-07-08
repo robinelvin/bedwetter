@@ -19,21 +19,22 @@ func slug(name string) string { return Slug(name) }
 const discoveryPrefix = "homeassistant"
 
 type DiscoveryPayload struct {
-	Name              string `json:"name"`
-	UniqueID          string `json:"unique_id"`
-	StateTopic        string `json:"state_topic,omitempty"`
-	CommandTopic      string `json:"command_topic,omitempty"`
-	PayloadOn         string `json:"payload_on,omitempty"`
-	PayloadOff        string `json:"payload_off,omitempty"`
-	StateOn           string `json:"state_on,omitempty"`
-	StateOff          string `json:"state_off,omitempty"`
-	UnitOfMeasurement string `json:"unit_of_measurement,omitempty"`
-	DeviceClass       string `json:"device_class,omitempty"`
-	ValueTemplate     string `json:"value_template,omitempty"`
-	QoS               int    `json:"qos,omitempty"`
-	Retain            bool   `json:"retain,omitempty"`
+	Name              string      `json:"name"`
+	UniqueID          string      `json:"unique_id"`
+	StateTopic        string      `json:"state_topic,omitempty"`
+	CommandTopic      string      `json:"command_topic,omitempty"`
+	PayloadOn         string      `json:"payload_on,omitempty"`
+	PayloadOff        string      `json:"payload_off,omitempty"`
+	StateOn           string      `json:"state_on,omitempty"`
+	StateOff          string      `json:"state_off,omitempty"`
+	UnitOfMeasurement string      `json:"unit_of_measurement,omitempty"`
+	DeviceClass       string      `json:"device_class,omitempty"`
+	ValueTemplate     string      `json:"value_template,omitempty"`
+	QoS               int         `json:"qos,omitempty"`
+	Retain            bool        `json:"retain,omitempty"`
 	Device            *DeviceInfo `json:"device,omitempty"`
 	Origin            *OriginInfo `json:"origin,omitempty"`
+	Icon              string      `json:"icon,omitempty"`
 }
 
 type DeviceInfo struct {
@@ -63,14 +64,14 @@ func PublishAll(client mqtt.ClientInterface, cfg *config.Config) {
 	}
 
 	for _, z := range cfg.Zones {
-		publishSensor(client, z, device, origin)
+		publishMoistureSensor(client, z, device, origin)
 		publishSwitch(client, z, device, origin)
 	}
 
 	log.Printf("Published HA discovery configs for %d zones", len(cfg.Zones))
 }
 
-func publishSensor(client mqtt.ClientInterface, z config.ZoneConfig, device *DeviceInfo, origin *OriginInfo) {
+func publishMoistureSensor(client mqtt.ClientInterface, z config.ZoneConfig, device *DeviceInfo, origin *OriginInfo) {
 	if z.MoistureSensorTopic == "" {
 		return
 	}
@@ -81,7 +82,7 @@ func publishSensor(client mqtt.ClientInterface, z config.ZoneConfig, device *Dev
 		UniqueID:          uid,
 		StateTopic:        z.MoistureSensorTopic,
 		UnitOfMeasurement: "%",
-		DeviceClass:       "humidity",
+		DeviceClass:       "moisture",
 		QoS:               1,
 		Retain:            true,
 		Device:            device,
@@ -113,6 +114,7 @@ func publishSwitch(client mqtt.ClientInterface, z config.ZoneConfig, device *Dev
 		PayloadOff:   "OFF",
 		StateOn:      "ON",
 		StateOff:     "OFF",
+		Icon:         "mdi:water",
 		QoS:          1,
 		Retain:       true,
 		Device:       device,

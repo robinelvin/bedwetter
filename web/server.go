@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
@@ -49,7 +50,15 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 			}
 			return t.Format("15:04:05")
 		},
+		"formatDateTime": func(t time.Time) string {
+			if t.IsZero() {
+				return ""
+			}
+			return t.Format("2006-01-02 15:04:05")
+		},
 		"floatVal": func(f float64) float64 { return f },
+		"add":      func(a, b int) int { return a + b },
+		"sub":      func(a, b int) int { return a - b },
 	}
 
 	sv.templates["dashboard"] = template.Must(
@@ -61,6 +70,9 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 	)
 	sv.templates["config"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/config.html"),
+	)
+	sv.templates["events"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/events.html"),
 	)
 
 	sv.templates["_zone_cards"] = template.Must(
@@ -104,6 +116,7 @@ func (s *Server) setupRoutes() {
 	s.router.POST("/config/ha", s.saveHA)
 	s.router.POST("/config/zones", s.saveZone)
 	s.router.POST("/config/zones/:id/delete", s.deleteZone)
+	s.router.GET("/events", s.eventsPage)
 	s.router.GET("/api/zones", s.apiZones)
 }
 
@@ -272,7 +285,7 @@ func (s *Server) saveMQTT(c *gin.Context) {
 	s.cfg.MQTT.Port = cfg.Port
 	s.cfg.MQTT.Username = cfg.Username
 	s.cfg.MQTT.Password = cfg.Password
-	log.Println("MQTT config updated — restart to apply connection changes")
+	s.logEvent("info", "config", "MQTT config updated", "")
 	c.Redirect(http.StatusFound, "/config")
 }
 
@@ -287,7 +300,7 @@ func (s *Server) saveHA(c *gin.Context) {
 	}
 	s.cfg.HomeAssistant.URL = cfg.URL
 	s.cfg.HomeAssistant.Token = cfg.Token
-	log.Println("HA config updated — restart to apply connection changes")
+	s.logEvent("info", "config", "HA config updated", "")
 	c.Redirect(http.StatusFound, "/config")
 }
 
@@ -322,6 +335,7 @@ func (s *Server) saveAlerts(c *gin.Context) {
 	s.cfg.Alerts.SMTPUsername = cfg.SMTPUsername
 	s.cfg.Alerts.SMTPPassword = cfg.SMTPPassword
 	s.cfg.Alerts.FromEmail = cfg.FromEmail
+	s.logEvent("info", "config", "Alert settings updated", "")
 	c.Redirect(http.StatusFound, "/config")
 }
 
@@ -367,8 +381,10 @@ func (s *Server) saveZone(c *gin.Context) {
 			ha.ClearZoneDiscovery(s.mqttClient, oldName)
 			s.zoneManager.RemoveZone(oldName)
 			s.zoneManager.AddZone(cfgZc)
+			s.logEvent("info", "config", "Zone renamed: "+oldName+" → "+zc.Name, zc.Name)
 		} else {
 			s.zoneManager.UpdateZoneConfig(zc.Name, cfgZc)
+			s.logEvent("info", "config", "Zone updated: "+zc.Name, zc.Name)
 		}
 	} else {
 		if err := s.store.CreateZoneConfig(&zc); err != nil {
@@ -378,6 +394,7 @@ func (s *Server) saveZone(c *gin.Context) {
 		}
 
 		s.zoneManager.AddZone(zc.ToConfigZoneConfig())
+		s.logEvent("info", "config", "Zone created: "+zc.Name, zc.Name)
 	}
 
 	s.refreshHADiscovery()
@@ -396,6 +413,7 @@ func (s *Server) deleteZone(c *gin.Context) {
 
 	s.store.DeleteZoneConfig(uint(id))
 	s.refreshHADiscovery()
+	s.logEvent("info", "config", "Zone deleted: "+z.Name, z.Name)
 	c.Redirect(http.StatusFound, "/config")
 }
 
@@ -411,6 +429,50 @@ func (s *Server) refreshHADiscovery() {
 	}
 	cfg := &config.Config{Zones: cfgZones}
 	ha.PublishAll(s.mqttClient, cfg)
+}
+
+func (s *Server) logEvent(level, category, message, zoneName string) {
+	event := &models.EventLog{
+		Level:    level,
+		Category: category,
+		Message:  message,
+		ZoneName: zoneName,
+	}
+	if err := s.store.CreateEventLog(event); err != nil {
+		log.Printf("Failed to log event: %v", err)
+	}
+	if s.mqttClient != nil && s.mqttClient.IsConnected() {
+		payload, err := json.Marshal(event)
+		if err != nil {
+			log.Printf("Failed to marshal event: %v", err)
+			return
+		}
+		s.mqttClient.Publish("bedwetter/event", 0, false, string(payload))
+	}
+}
+
+func (s *Server) eventsPage(c *gin.Context) {
+	pageStr := c.DefaultQuery("page", "1")
+	perPageStr := c.DefaultQuery("per_page", "50")
+	page, _ := strconv.Atoi(pageStr)
+	perPage, _ := strconv.Atoi(perPageStr)
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 200 {
+		perPage = 50
+	}
+
+	result, err := s.store.GetEventLogs(page, perPage)
+	if err != nil {
+		s.render(c, "events", http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	s.render(c, "events", http.StatusOK, gin.H{
+		"title":  "Event Log",
+		"events": result,
+	})
 }
 
 func (s *Server) apiZones(c *gin.Context) {
