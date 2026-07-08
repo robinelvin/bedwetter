@@ -120,8 +120,8 @@ func TestPublishAllMQTTZone(t *testing.T) {
 	if sensorPayload.StateTopic != "sensor/topic" {
 		t.Errorf("sensor StateTopic: got %q, want sensor/topic", sensorPayload.StateTopic)
 	}
-	if sensorPayload.DeviceClass != "humidity" {
-		t.Errorf("sensor DeviceClass: got %q", sensorPayload.DeviceClass)
+	if sensorPayload.DeviceClass != "moisture" {
+		t.Errorf("sensor DeviceClass: got %q, want moisture", sensorPayload.DeviceClass)
 	}
 
 	switchPub := fake.published[1]
