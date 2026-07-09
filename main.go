@@ -108,6 +108,26 @@ func main() {
 		cfg.HomeAssistant.Token = haCfg.Token
 	}
 
+	// Load weather config from DB, seed from YAML on first run
+	if _, err := db.GetWeatherConfig(); err != nil {
+		if err := db.SaveWeatherConfig(&models.WeatherConfig{
+			Lat:              cfg.Weather.Lat,
+			Lon:              cfg.Weather.Lon,
+			RainThresholdMm:  cfg.Weather.RainThresholdMm,
+			RainSensorTopic:  cfg.Weather.RainSensorTopic,
+			RainSensorEntity: cfg.Weather.RainSensorEntity,
+		}); err != nil {
+			log.Printf("Failed to seed weather config: %v", err)
+		}
+	}
+	if weatherCfg, err := db.GetWeatherConfig(); err == nil {
+		cfg.Weather.Lat = weatherCfg.Lat
+		cfg.Weather.Lon = weatherCfg.Lon
+		cfg.Weather.RainThresholdMm = weatherCfg.RainThresholdMm
+		cfg.Weather.RainSensorTopic = weatherCfg.RainSensorTopic
+		cfg.Weather.RainSensorEntity = weatherCfg.RainSensorEntity
+	}
+
 	// Load alert settings from DB, seed from YAML on first run
 	if _, err := db.GetAlertSettings(); err != nil {
 		if err := db.SaveAlertSettings(&models.AlertSettings{
@@ -173,7 +193,7 @@ func main() {
 	alertMgr.Start()
 
 	gin.SetMode(gin.ReleaseMode)
-	webServer := web.New(cfg, db, zoneManager, alertMgr, mqtt, haAPI)
+	webServer := web.New(cfg, db, zoneManager, alertMgr, mqtt, haAPI, sched)
 
 	go func() {
 		if err := webServer.Start(cfg.Web.ListenAddr); err != nil {

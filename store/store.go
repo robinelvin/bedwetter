@@ -165,6 +165,20 @@ func (s *Store) SaveAlertSettings(cfg *models.AlertSettings) error {
 	return s.db.Save(cfg).Error
 }
 
+func (s *Store) GetWeatherConfig() (*models.WeatherConfig, error) {
+	var cfg models.WeatherConfig
+	err := s.db.First(&cfg, 1).Error
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func (s *Store) SaveWeatherConfig(cfg *models.WeatherConfig) error {
+	cfg.ID = 1
+	return s.db.Save(cfg).Error
+}
+
 func (s *Store) CreateEventLog(event *models.EventLog) error {
 	return s.db.Create(event).Error
 }

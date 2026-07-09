@@ -55,6 +55,15 @@ type AlertConfig struct {
 	Enabled bool   `gorm:"default:true" json:"enabled"`
 }
 
+type WeatherConfig struct {
+	ID              uint    `gorm:"primaryKey" json:"id"`
+	Lat             float64 `json:"lat"`
+	Lon             float64 `json:"lon"`
+	RainThresholdMm float64 `gorm:"default:5.0" json:"rain_threshold_mm"`
+	RainSensorTopic string  `gorm:"size:256" json:"rain_sensor_topic"`
+	RainSensorEntity string `gorm:"size:256" json:"rain_sensor_entity"`
+}
+
 type AlertSettings struct {
 	ID                 uint   `gorm:"primaryKey" json:"id"`
 	Email              string `gorm:"size:256" json:"email"`
@@ -164,6 +173,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&MQTTConfig{},
 		&HAConfig{},
 		&AlertSettings{},
+		&WeatherConfig{},
 		&User{},
 		&EventLog{},
 	)

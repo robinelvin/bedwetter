@@ -14,6 +14,7 @@ import (
 	"github.com/robinelvin/bedwetter/config"
 	"github.com/robinelvin/bedwetter/models"
 	"github.com/robinelvin/bedwetter/mqtt"
+	"github.com/robinelvin/bedwetter/scheduler"
 	"github.com/robinelvin/bedwetter/store"
 	"github.com/robinelvin/bedwetter/zones"
 	"golang.org/x/crypto/bcrypt"
@@ -38,8 +39,9 @@ func newTestServer(t *testing.T) *Server {
 
 	zoneManager := zones.NewManager(cfg, &mqttClientMock{}, st, nil, nil)
 	alertMgr := alerts.New(cfg, zoneManager)
+	sched := scheduler.New(cfg, st, zoneManager)
 
-	return New(cfg, st, zoneManager, alertMgr, &mqttClientMock{}, nil)
+	return New(cfg, st, zoneManager, alertMgr, &mqttClientMock{}, nil, sched)
 }
 
 type mqttClientMock struct{}
@@ -1052,12 +1054,12 @@ func TestConfigPageContainsWeatherSection(t *testing.T) {
 	if !strings.Contains(body, "rain_threshold_mm") {
 		t.Error("expected page to contain rain threshold field")
 	}
-	if !strings.Contains(body, "rain_sensor_topic") {
-		t.Error("expected page to contain rain sensor topic field")
+	if !strings.Contains(body, "Rain Sensor Source") {
+		t.Error("expected page to contain rain sensor source toggle")
 	}
 }
 
-func TestSaveWeatherConfig(t *testing.T) {
+func TestSaveWeatherConfigMQTT(t *testing.T) {
 	setupGin()
 	sv := newTestServer(t)
 
@@ -1065,6 +1067,7 @@ func TestSaveWeatherConfig(t *testing.T) {
 	form.Set("lat", "51.5")
 	form.Set("lon", "-0.12")
 	form.Set("rain_threshold_mm", "3.5")
+	form.Set("rain_source", "mqtt")
 	form.Set("rain_sensor_topic", "sensor/rain")
 
 	w := httptest.NewRecorder()
@@ -1087,6 +1090,37 @@ func TestSaveWeatherConfig(t *testing.T) {
 	}
 	if sv.cfg.Weather.RainSensorTopic != "sensor/rain" {
 		t.Errorf("expected RainSensorTopic sensor/rain, got %q", sv.cfg.Weather.RainSensorTopic)
+	}
+	if sv.cfg.Weather.RainSensorEntity != "" {
+		t.Errorf("expected empty RainSensorEntity, got %q", sv.cfg.Weather.RainSensorEntity)
+	}
+}
+
+func TestSaveWeatherConfigHA(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	form := url.Values{}
+	form.Set("lat", "52.0")
+	form.Set("lon", "13.0")
+	form.Set("rain_threshold_mm", "2.0")
+	form.Set("rain_source", "ha")
+	form.Set("rain_sensor_entity", "binary_sensor.rain")
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/config/weather", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+
+	if sv.cfg.Weather.RainSensorEntity != "binary_sensor.rain" {
+		t.Errorf("expected RainSensorEntity binary_sensor.rain, got %q", sv.cfg.Weather.RainSensorEntity)
+	}
+	if sv.cfg.Weather.RainSensorTopic != "" {
+		t.Errorf("expected empty RainSensorTopic, got %q", sv.cfg.Weather.RainSensorTopic)
 	}
 }
 

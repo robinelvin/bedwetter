@@ -81,6 +81,7 @@ weather:
   lon: -0.12
   rain_threshold_mm: 5.0       # skip watering if ≥5mm rain expected in 24h
   rain_sensor_topic: ""        # optional MQTT topic for digital rain sensor
+  rain_sensor_entity: ""       # or HA entity ID (binary_sensor.rain, sensor.rain, etc.)
 
 web:
   listen_addr: ":8080"

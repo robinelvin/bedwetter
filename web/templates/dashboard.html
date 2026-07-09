@@ -19,6 +19,8 @@
 </div>
 {{end}}
 {{define "content"}}
+{{template "_weather" .}}
+
 {{template "_zone_cards" .}}
 
 {{if .readings}}

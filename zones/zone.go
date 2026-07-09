@@ -75,6 +75,11 @@ func NewManager(cfg *config.Config, client mqtt.ClientInterface, store *store.St
 func (m *Manager) Start() {
 	if m.resolver != nil {
 		m.resolver.OnResolved(func(zoneName string) {
+			if zoneName == "__rain__" {
+				log.Println("Rain sensor HA entity resolved, re-subscribing")
+				m.subscribeRainSensor()
+				return
+			}
 			m.mu.RLock()
 			z, ok := m.zones[zoneName]
 			m.mu.RUnlock()
@@ -87,6 +92,9 @@ func (m *Manager) Start() {
 		})
 		for _, z := range m.zones {
 			ha.ResolveZoneAsync(m.resolver, &z.Config)
+		}
+		if m.cfg.Weather.RainSensorEntity != "" && m.cfg.Weather.RainSensorTopic == "" {
+			m.resolver.ResolveEntity("__rain__", m.cfg.Weather.RainSensorEntity)
 		}
 	}
 
@@ -101,6 +109,7 @@ func (m *Manager) Start() {
 	}
 
 	m.subscribeRainSensor()
+	m.watchHARainSensor()
 
 	go m.syncHAValveStates()
 	go m.watchdogLoop()
@@ -285,27 +294,69 @@ func (m *Manager) subscribeValveState(z *Zone) {
 	}
 }
 
+func (m *Manager) setRainDetected(detected bool, source string) {
+	m.rainMu.Lock()
+	was := m.rainDetected
+	m.rainDetected = detected
+	m.rainMu.Unlock()
+
+	if detected && !was {
+		log.Printf("Rain detected via %s, closing all valves", source)
+		m.CloseAllValves()
+	} else if !detected && was {
+		log.Printf("Rain cleared via %s", source)
+	}
+}
+
 func (m *Manager) subscribeRainSensor() {
 	topic := m.cfg.Weather.RainSensorTopic
-	if topic == "" {
+	entity := m.cfg.Weather.RainSensorEntity
+
+	// If entity is set but no topic, try to resolve via HA discovery
+	if topic == "" && entity != "" && m.resolver != nil {
+		topics := m.resolver.GetTopics(entity)
+		if topics != nil {
+			topic = topics.StateTopic
+		}
+	}
+
+	if topic != "" {
+		log.Printf("Subscribing to rain sensor topic %s", topic)
+		if err := m.client.Subscribe(topic, 0, func(t string, p []byte) {
+			val := strings.TrimSpace(string(p))
+			detected := val == "1" || strings.EqualFold(val, "ON") || strings.EqualFold(val, "true")
+			m.setRainDetected(detected, "MQTT topic "+t)
+		}); err != nil {
+			log.Printf("Failed to subscribe to rain sensor topic %s: %v", topic, err)
+		}
+	}
+}
+
+func (m *Manager) watchHARainSensor() {
+	entity := m.cfg.Weather.RainSensorEntity
+	if entity == "" || m.haAPI == nil || m.cfg.Weather.RainSensorTopic != "" {
 		return
 	}
-	log.Printf("Subscribing to rain sensor topic %s", topic)
-	if err := m.client.Subscribe(topic, 0, func(t string, p []byte) {
-		val := strings.TrimSpace(string(p))
-		detected := val == "1" || strings.EqualFold(val, "ON") || strings.EqualFold(val, "true")
-		m.rainMu.Lock()
-		m.rainDetected = detected
-		m.rainMu.Unlock()
-		if detected {
-			log.Printf("Rain detected on %s, closing all valves", topic)
-			m.CloseAllValves()
-		} else {
-			log.Printf("Rain cleared on %s", topic)
+	// Only poll via HA API if we don't have a direct MQTT topic subscription
+	log.Printf("Watching rain sensor HA entity %s via API", entity)
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-m.done:
+				return
+			case <-ticker.C:
+				state, err := m.haAPI.GetEntityState(entity)
+				if err != nil {
+					log.Printf("Rain sensor HA poll failed for %s: %v", entity, err)
+					continue
+				}
+				detected := state == "on" || state == "true" || state == "1"
+				m.setRainDetected(detected, "HA entity "+entity)
+			}
 		}
-	}); err != nil {
-		log.Printf("Failed to subscribe to rain sensor topic %s: %v", topic, err)
-	}
+	}()
 }
 
 func (m *Manager) RainDetected() bool {

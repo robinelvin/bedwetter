@@ -62,10 +62,11 @@ type ZoneSchedule struct {
 }
 
 type WeatherConfig struct {
-	Lat             float64 `yaml:"lat"`
-	Lon             float64 `yaml:"lon"`
-	RainThresholdMm float64 `yaml:"rain_threshold_mm"`
-	RainSensorTopic string  `yaml:"rain_sensor_topic"`
+	Lat              float64 `yaml:"lat"`
+	Lon              float64 `yaml:"lon"`
+	RainThresholdMm  float64 `yaml:"rain_threshold_mm"`
+	RainSensorTopic  string  `yaml:"rain_sensor_topic"`
+	RainSensorEntity string  `yaml:"rain_sensor_entity"`
 }
 
 type WebConfig struct {

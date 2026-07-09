@@ -18,6 +18,7 @@ import (
 	"github.com/robinelvin/bedwetter/ha"
 	"github.com/robinelvin/bedwetter/models"
 	"github.com/robinelvin/bedwetter/mqtt"
+	"github.com/robinelvin/bedwetter/scheduler"
 	"github.com/robinelvin/bedwetter/store"
 	"github.com/robinelvin/bedwetter/zones"
 	"golang.org/x/crypto/bcrypt"
@@ -30,13 +31,14 @@ type Server struct {
 	alertMgr    *alerts.AlertManager
 	mqttClient  mqtt.ClientInterface
 	haAPI       *ha.APIClient
+	scheduler   *scheduler.Scheduler
 	router      *gin.Engine
 	templates   map[string]*template.Template
 	sessions    map[string]string
 	sessionMu   sync.RWMutex
 }
 
-func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.AlertManager, mqttClient mqtt.ClientInterface, haAPI *ha.APIClient) *Server {
+func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.AlertManager, mqttClient mqtt.ClientInterface, haAPI *ha.APIClient, sched *scheduler.Scheduler) *Server {
 	r := gin.Default()
 
 	sv := &Server{
@@ -46,6 +48,7 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 		alertMgr:    am,
 		mqttClient:  mqttClient,
 		haAPI:       haAPI,
+		scheduler:   sched,
 		router:      r,
 		templates:   make(map[string]*template.Template),
 		sessions:    make(map[string]string),
@@ -67,11 +70,93 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 		"floatVal": func(f float64) float64 { return f },
 		"add":      func(a, b int) int { return a + b },
 		"sub":      func(a, b int) int { return a - b },
+		"weatherDesc": func(code int) string {
+			switch {
+			case code == 0:
+				return "Clear"
+			case code == 1:
+				return "Mostly clear"
+			case code == 2:
+				return "Partly cloudy"
+			case code == 3:
+				return "Overcast"
+			case code == 45 || code == 48:
+				return "Fog"
+			case code >= 51 && code <= 55:
+				return "Drizzle"
+			case code >= 56 && code <= 57:
+				return "Freezing drizzle"
+			case code >= 61 && code <= 65:
+				return "Rain"
+			case code >= 66 && code <= 67:
+				return "Freezing rain"
+			case code >= 71 && code <= 77:
+				return "Snow"
+			case code >= 80 && code <= 82:
+				return "Showers"
+			case code >= 85 && code <= 86:
+				return "Snow showers"
+			case code >= 95 && code <= 99:
+				return "Thunderstorm"
+			default:
+				return "Unknown"
+			}
+		},
+		"formatHour": func(s string) string {
+			if len(s) < 16 {
+				return s
+			}
+			return s[11:16]
+		},
+		"substr": func(s string, start, length int) string {
+			if start < 0 {
+				start = 0
+			}
+			if start > len(s) {
+				return ""
+			}
+			end := start + length
+			if end > len(s) {
+				end = len(s)
+			}
+			return s[start:end]
+		},
+		"weatherIcon": func(code int) string {
+			base := "/static/icons/"
+			switch {
+			case code == 0:
+				return base + "clear-day.svg"
+			case code == 1:
+				return base + "mostly-clear-day.svg"
+			case code == 2:
+				return base + "partly-cloudy-day.svg"
+			case code == 3:
+				return base + "overcast-day.svg"
+			case code >= 45 && code <= 48:
+				return base + "fog-day.svg"
+			case code >= 51 && code <= 57:
+				return base + "overcast-drizzle.svg"
+			case code >= 61 && code <= 67:
+				return base + "overcast-rain.svg"
+			case code >= 71 && code <= 77:
+				return base + "overcast-snow.svg"
+			case code >= 80 && code <= 82:
+				return base + "overcast-rain.svg"
+			case code >= 85 && code <= 86:
+				return base + "overcast-snow.svg"
+			case code == 95:
+				return base + "thunderstorms.svg"
+			case code == 96 || code == 99:
+				return base + "thunderstorms-hail.svg"
+			default:
+				return base + "not-available.svg"
+			}
+		},
 	}
 
 	sv.templates["dashboard"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS,
-			"templates/base.html", "templates/dashboard.html", "templates/_zone_cards.html"),
+			"templates/base.html", "templates/dashboard.html", "templates/_zone_cards.html", "templates/_weather.html"),
 	)
 	sv.templates["schedules"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/schedules.html"),
@@ -85,6 +170,9 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 
 	sv.templates["_zone_cards"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_zone_cards.html"),
+	)
+	sv.templates["_weather"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_weather.html"),
 	)
 
 	sv.templates["_moisture_mqtt"] = template.Must(
@@ -111,6 +199,13 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 	)
 	sv.templates["_temperature_ha"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_temperature_ha.html"),
+	)
+
+	sv.templates["_rain_mqtt"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_rain_mqtt.html"),
+	)
+	sv.templates["_rain_ha"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_rain_ha.html"),
 	)
 
 	sv.templates["login"] = template.Must(
@@ -233,6 +328,7 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/", s.dashboard)
 	s.router.GET("/dashboard", s.dashboard)
 	s.router.GET("/dashboard/zones", s.dashboardZones)
+	s.router.GET("/dashboard/weather", s.dashboardWeather)
 	s.router.POST("/zones/:name/open", s.openValve)
 	s.router.POST("/zones/:name/close", s.closeValve)
 	s.router.POST("/zones/all/open", s.openAllValves)
@@ -259,6 +355,7 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/config/zones/fields/valve", s.zoneValveFields)
 	s.router.GET("/config/zones/fields/humidity", s.zoneHumidityFields)
 	s.router.GET("/config/zones/fields/temperature", s.zoneTemperatureFields)
+	s.router.GET("/config/weather/fields/rain", s.rainSensorFields)
 }
 
 func (s *Server) loginPage(c *gin.Context) {
@@ -380,9 +477,12 @@ func (s *Server) setupCreate(c *gin.Context) {
 
 func (s *Server) dashboard(c *gin.Context) {
 	zoneStates := s.zoneManager.GetAllZones()
+	weather := s.scheduler.GetWeather()
 	s.render(c, "dashboard", http.StatusOK, gin.H{
-		"title": "Dashboard",
-		"zones": zoneStates,
+		"title":          "Dashboard",
+		"zones":          zoneStates,
+		"weather":        weather,
+		"upcomingHours":  weather.UpcomingHours(8),
 	})
 }
 
@@ -390,6 +490,14 @@ func (s *Server) dashboardZones(c *gin.Context) {
 	zoneStates := s.zoneManager.GetAllZones()
 	s.renderPartial(c, "_zone_cards", http.StatusOK, gin.H{
 		"zones": zoneStates,
+	})
+}
+
+func (s *Server) dashboardWeather(c *gin.Context) {
+	weather := s.scheduler.GetWeather()
+	s.renderPartial(c, "_weather", http.StatusOK, gin.H{
+		"weather":       weather,
+		"upcomingHours": weather.UpcomingHours(8),
 	})
 }
 
@@ -620,6 +728,15 @@ func (s *Server) saveHA(c *gin.Context) {
 	c.Redirect(http.StatusFound, "/config")
 }
 
+func (s *Server) rainSensorFields(c *gin.Context) {
+	sourceType := c.DefaultQuery("type", "mqtt")
+	name := "_rain_mqtt"
+	if sourceType == "ha" {
+		name = "_rain_ha"
+	}
+	s.renderPartial(c, name, http.StatusOK, gin.H{"weather": s.cfg.Weather})
+}
+
 func (s *Server) saveWeather(c *gin.Context) {
 	lat, _ := strconv.ParseFloat(c.PostForm("lat"), 64)
 	lon, _ := strconv.ParseFloat(c.PostForm("lon"), 64)
@@ -631,7 +748,25 @@ func (s *Server) saveWeather(c *gin.Context) {
 	s.cfg.Weather.Lat = lat
 	s.cfg.Weather.Lon = lon
 	s.cfg.Weather.RainThresholdMm = rainThreshold
-	s.cfg.Weather.RainSensorTopic = c.PostForm("rain_sensor_topic")
+
+	rainSource := c.PostForm("rain_source")
+	if rainSource == "ha" {
+		s.cfg.Weather.RainSensorEntity = c.PostForm("rain_sensor_entity")
+		s.cfg.Weather.RainSensorTopic = ""
+	} else {
+		s.cfg.Weather.RainSensorTopic = c.PostForm("rain_sensor_topic")
+		s.cfg.Weather.RainSensorEntity = ""
+	}
+
+	if err := s.store.SaveWeatherConfig(&models.WeatherConfig{
+		Lat:              s.cfg.Weather.Lat,
+		Lon:              s.cfg.Weather.Lon,
+		RainThresholdMm:  s.cfg.Weather.RainThresholdMm,
+		RainSensorTopic:  s.cfg.Weather.RainSensorTopic,
+		RainSensorEntity: s.cfg.Weather.RainSensorEntity,
+	}); err != nil {
+		log.Printf("Failed to persist weather config: %v", err)
+	}
 
 	s.logEvent("info", "config", "Weather config updated", "")
 	c.Redirect(http.StatusFound, "/config")
