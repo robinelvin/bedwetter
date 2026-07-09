@@ -606,6 +606,14 @@ func (m *Manager) UpdateZoneConfig(name string, zc config.ZoneConfig) {
 	}
 	z.Config = zc
 	log.Printf("Zone %q: config updated dynamically", name)
+
+	m.subscribeSensor(z)
+	m.subscribeHumidity(z)
+	m.subscribeTemperature(z)
+	m.subscribeValveState(z)
+	m.watchHAEntity(z)
+	m.watchHAHumidity(z)
+	m.watchHATemperature(z)
 }
 
 func (m *Manager) OpenAllValves() {
