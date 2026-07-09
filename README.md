@@ -61,4 +61,4 @@ After first run, all config is managed through the web UI and stored in SQLite.
 
 ## License
 
-MIT
+GPLv3
