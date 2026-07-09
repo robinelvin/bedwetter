@@ -1,0 +1,79 @@
+mqtt:
+  broker: mqtt
+  port: 1883
+  username: mqttuser
+  password: mqttpass
+
+homeassistant:
+  url: http://homeassistant.local:8123/
+  token: ""
+
+zones:
+  # Example zones - edit to suit
+  - name: Raised Bed 1
+    # Direct MQTT topics (no HA entity)
+    moisture_sensor_topic: esp01/sensor/soil_moisture/state
+    valve_command_topic: esp01/switch/solenoid_valve/command
+    valve_state_topic: esp01/switch/solenoid_valve/state
+    threshold_low: 40
+    threshold_high: 60
+    max_watering_seconds: 300
+    max_activations_per_day: 5
+    cooldown_minutes: 90
+
+  - name: Herb Garden
+    # Home Assistant entity IDs (reads via HA REST API, controls via HA services)
+    moisture_sensor_entity: sensor.garden_sensor_soil_moisture
+    valve_switch_entity: switch.garden_sensor_water_valve
+    threshold_low: 35
+    threshold_high: 55
+    max_watering_seconds: 240
+    max_activations_per_day: 4
+    cooldown_minutes: 120
+
+alerts:
+  email: you@example.com
+  stale_sensor_minutes: 60
+  smtp_server: smtp.gmail.com
+  smtp_port: 587
+  smtp_username: you@gmail.com
+  smtp_password: app_password
+  from_email: bedwetter@example.com
+
+schedules:
+  - zone_name: Raised Bed 1
+    schedule:
+      - day_of_week: Mon
+        time: "06:00"
+        duration: 300
+      - day_of_week: Wed
+        time: "06:00"
+        duration: 300
+      - day_of_week: Fri
+        time: "06:00"
+        duration: 300
+    month_overrides:
+      - month: 7
+        schedule:
+          - day_of_week: Mon
+            time: "06:00"
+            duration: 360
+          - day_of_week: Wed
+            time: "06:00"
+            duration: 360
+          - day_of_week: Fri
+            time: "06:00"
+            duration: 360
+          - day_of_week: Sun
+            time: "06:00"
+            duration: 360
+
+weather:
+  api_key: ""
+  lat: 0.0
+  lon: 0.0
+
+web:
+  listen_addr: ":8080"
+
+db_path: bedwetter.db
