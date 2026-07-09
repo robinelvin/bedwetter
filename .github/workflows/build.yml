@@ -1,0 +1,92 @@
+name: Build
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - run: go test -count=1 -timeout 120s -cover ./...
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux    goarch: amd64    ext: tar.gz
+          - goos: linux    goarch: arm64    ext: tar.gz
+          - goos: linux    goarch: arm      ext: tar.gz
+          - goos: darwin   goarch: amd64    ext: tar.gz
+          - goos: darwin   goarch: arm64    ext: tar.gz
+          - goos: windows  goarch: amd64    ext: zip
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npx tailwindcss -i web/static/input.css -o web/static/tailwind.css
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          ext="${{ matrix.goos == 'windows' && '.exe' || '' }}"
+          mkdir -p build
+          CGO_ENABLED=0 go build -ldflags="-s -w" -o "build/bedwetter$ext" .
+
+      - name: Assemble archive directory
+        run: |
+          dir="bedwetter-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}"
+          mkdir -p "dist/$dir/web/static"
+          ext="${{ matrix.goos == 'windows' && '.exe' || '' }}"
+          cp "build/bedwetter$ext" "dist/$dir/"
+          cp example-config.yaml README.md LICENSE.txt "dist/$dir/"
+          cp -r web/static/* "dist/$dir/web/static/"
+
+      - name: Package tar.gz
+        if: matrix.ext == 'tar.gz'
+        run: |
+          dir="bedwetter-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}"
+          tar czf "$dir.tar.gz" -C dist "$dir"
+
+      - name: Package zip
+        if: matrix.ext == 'zip'
+        run: |
+          dir="bedwetter-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}"
+          cd dist && zip -r "../$dir.zip" "$dir"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bedwetter-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: bedwetter-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+      - run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes
+          find . -name "bedwetter-${{ github.ref_name }}-*" \
+            -exec gh release upload "${{ github.ref_name }}" {} \;
+        env:
+          GH_TOKEN: ${{ github.GITHUB_TOKEN }}
