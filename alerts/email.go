@@ -6,8 +6,8 @@ import (
 	"net/smtp"
 	"time"
 
-	"github.com/rob/bedwetter/config"
-	"github.com/rob/bedwetter/zones"
+	"github.com/robinelvin/bedwetter/config"
+	"github.com/robinelvin/bedwetter/zones"
 )
 
 type AlertType string

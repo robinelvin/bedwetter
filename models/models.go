@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	"github.com/rob/bedwetter/config"
+	"github.com/robinelvin/bedwetter/config"
 	"gorm.io/gorm"
 )
 

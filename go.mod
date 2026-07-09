@@ -1,4 +1,4 @@
-module github.com/rob/bedwetter
+module github.com/robinelvin/bedwetter
 
 go 1.26.3
 

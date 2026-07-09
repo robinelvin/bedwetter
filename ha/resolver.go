@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/rob/bedwetter/config"
-	"github.com/rob/bedwetter/mqtt"
+	"github.com/robinelvin/bedwetter/config"
+	"github.com/robinelvin/bedwetter/mqtt"
 )
 
 type ResolvedTopics struct {

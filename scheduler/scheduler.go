@@ -8,10 +8,10 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/rob/bedwetter/config"
-	"github.com/rob/bedwetter/models"
-	"github.com/rob/bedwetter/store"
-	"github.com/rob/bedwetter/zones"
+	"github.com/robinelvin/bedwetter/config"
+	"github.com/robinelvin/bedwetter/models"
+	"github.com/robinelvin/bedwetter/store"
+	"github.com/robinelvin/bedwetter/zones"
 )
 
 type Scheduler struct {

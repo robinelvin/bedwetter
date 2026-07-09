@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rob/bedwetter/config"
-	"github.com/rob/bedwetter/mqtt"
-	"github.com/rob/bedwetter/store"
+	"github.com/robinelvin/bedwetter/config"
+	"github.com/robinelvin/bedwetter/mqtt"
+	"github.com/robinelvin/bedwetter/store"
 )
 
 type fakeMQTTClient struct {

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rob/bedwetter/config"
-	"github.com/rob/bedwetter/mqtt"
+	"github.com/robinelvin/bedwetter/config"
+	"github.com/robinelvin/bedwetter/mqtt"
 )
 
 type fakeMQTT struct {

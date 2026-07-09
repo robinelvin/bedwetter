@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rob/bedwetter/config"
-	"github.com/rob/bedwetter/models"
+	"github.com/robinelvin/bedwetter/config"
+	"github.com/robinelvin/bedwetter/models"
 )
 
 func newTestStore(t *testing.T) *Store {

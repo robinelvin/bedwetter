@@ -3,8 +3,8 @@ package store
 import (
 	"time"
 
-	"github.com/rob/bedwetter/config"
-	"github.com/rob/bedwetter/models"
+	"github.com/robinelvin/bedwetter/config"
+	"github.com/robinelvin/bedwetter/models"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
