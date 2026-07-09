@@ -245,6 +245,7 @@ func (s *Server) setupRoutes() {
 	s.router.POST("/config/alerts", s.saveAlerts)
 	s.router.POST("/config/mqtt", s.saveMQTT)
 	s.router.POST("/config/ha", s.saveHA)
+	s.router.POST("/config/weather", s.saveWeather)
 	s.router.POST("/config/zones", s.saveZone)
 	s.router.POST("/config/zones/:id/delete", s.deleteZone)
 	s.router.GET("/events", s.eventsPage)
@@ -542,6 +543,26 @@ func (s *Server) configPage(c *gin.Context) {
 		}
 	}
 
+	monthNames := []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
+	parsedMults := make(map[string]float64)
+	if editZone != nil && editZone.SeasonalMultipliers != "" {
+		json.Unmarshal([]byte(editZone.SeasonalMultipliers), &parsedMults)
+	}
+	type monthEntry struct {
+		Num   int
+		Name  string
+		Value float64
+	}
+	var months []monthEntry
+	for i := 1; i <= 12; i++ {
+		key := fmt.Sprintf("%d", i)
+		val := 1.0
+		if v, ok := parsedMults[key]; ok {
+			val = v
+		}
+		months = append(months, monthEntry{Num: i, Name: monthNames[i-1], Value: val})
+	}
+
 	s.render(c, "config", http.StatusOK, gin.H{
 		"title":           "Configuration",
 		"cfg":             s.cfg,
@@ -554,6 +575,8 @@ func (s *Server) configPage(c *gin.Context) {
 		"valveType":       valveType,
 		"humidityType":    humidityType,
 		"temperatureType": temperatureType,
+		"weather":         s.cfg.Weather,
+		"months":          months,
 	})
 }
 
@@ -594,6 +617,23 @@ func (s *Server) saveHA(c *gin.Context) {
 		s.haAPI.UpdateConfig(cfg.URL, cfg.Token)
 	}
 	s.logEvent("info", "config", "HA config updated", "")
+	c.Redirect(http.StatusFound, "/config")
+}
+
+func (s *Server) saveWeather(c *gin.Context) {
+	lat, _ := strconv.ParseFloat(c.PostForm("lat"), 64)
+	lon, _ := strconv.ParseFloat(c.PostForm("lon"), 64)
+	rainThreshold, _ := strconv.ParseFloat(c.PostForm("rain_threshold_mm"), 64)
+	if rainThreshold <= 0 {
+		rainThreshold = 5.0
+	}
+
+	s.cfg.Weather.Lat = lat
+	s.cfg.Weather.Lon = lon
+	s.cfg.Weather.RainThresholdMm = rainThreshold
+	s.cfg.Weather.RainSensorTopic = c.PostForm("rain_sensor_topic")
+
+	s.logEvent("info", "config", "Weather config updated", "")
 	c.Redirect(http.StatusFound, "/config")
 }
 
@@ -653,6 +693,26 @@ func (s *Server) saveZone(c *gin.Context) {
 	zc.MaxWateringSeconds, _ = strconv.Atoi(c.PostForm("max_watering_seconds"))
 	zc.MaxActivationsPerDay, _ = strconv.Atoi(c.PostForm("max_activations_per_day"))
 	zc.CooldownMinutes, _ = strconv.Atoi(c.PostForm("cooldown_minutes"))
+	zc.EarliestWateringTime = c.PostForm("earliest_watering_time")
+	if zc.EarliestWateringTime == "" {
+		zc.EarliestWateringTime = "06:00"
+	}
+	zc.LatestWateringTime = c.PostForm("latest_watering_time")
+	if zc.LatestWateringTime == "" {
+		zc.LatestWateringTime = "10:00"
+	}
+
+	multipliers := make(map[int]float64)
+	for month := 1; month <= 12; month++ {
+		key := fmt.Sprintf("seasonal_multiplier_%d", month)
+		if val := c.PostForm(key); val != "" {
+			if m, err := strconv.ParseFloat(val, 64); err == nil && m > 0 {
+				multipliers[month] = m
+			}
+		}
+	}
+	multipliersJSON, _ := json.Marshal(multipliers)
+	zc.SeasonalMultipliers = string(multipliersJSON)
 
 	if idStr != "" {
 		id, err := strconv.ParseUint(idStr, 10, 64)

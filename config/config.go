@@ -29,6 +29,9 @@ type ZoneConfig struct {
 	MaxWateringSeconds    int    `yaml:"max_watering_seconds"`
 	MaxActivationsPerDay  int    `yaml:"max_activations_per_day"`
 	CooldownMinutes       int    `yaml:"cooldown_minutes"`
+	EarliestWateringTime  string `yaml:"earliest_watering_time"`
+	LatestWateringTime    string `yaml:"latest_watering_time"`
+	SeasonalMultipliers   map[int]float64 `yaml:"seasonal_multipliers"`
 }
 
 type AlertsConfig struct {
@@ -59,9 +62,10 @@ type ZoneSchedule struct {
 }
 
 type WeatherConfig struct {
-	APIKey string  `yaml:"api_key"`
-	Lat    float64 `yaml:"lat"`
-	Lon    float64 `yaml:"lon"`
+	Lat             float64 `yaml:"lat"`
+	Lon             float64 `yaml:"lon"`
+	RainThresholdMm float64 `yaml:"rain_threshold_mm"`
+	RainSensorTopic string  `yaml:"rain_sensor_topic"`
 }
 
 type WebConfig struct {

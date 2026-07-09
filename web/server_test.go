@@ -1033,4 +1033,112 @@ func TestCloseAllValves(t *testing.T) {
 	}
 }
 
+func TestConfigPageContainsWeatherSection(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/config", nil)
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "Weather") {
+		t.Error("expected page to contain Weather section")
+	}
+	if !strings.Contains(body, "rain_threshold_mm") {
+		t.Error("expected page to contain rain threshold field")
+	}
+	if !strings.Contains(body, "rain_sensor_topic") {
+		t.Error("expected page to contain rain sensor topic field")
+	}
+}
+
+func TestSaveWeatherConfig(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	form := url.Values{}
+	form.Set("lat", "51.5")
+	form.Set("lon", "-0.12")
+	form.Set("rain_threshold_mm", "3.5")
+	form.Set("rain_sensor_topic", "sensor/rain")
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/config/weather", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+
+	if sv.cfg.Weather.Lat != 51.5 {
+		t.Errorf("expected Lat 51.5, got %f", sv.cfg.Weather.Lat)
+	}
+	if sv.cfg.Weather.Lon != -0.12 {
+		t.Errorf("expected Lon -0.12, got %f", sv.cfg.Weather.Lon)
+	}
+	if sv.cfg.Weather.RainThresholdMm != 3.5 {
+		t.Errorf("expected RainThresholdMm 3.5, got %f", sv.cfg.Weather.RainThresholdMm)
+	}
+	if sv.cfg.Weather.RainSensorTopic != "sensor/rain" {
+		t.Errorf("expected RainSensorTopic sensor/rain, got %q", sv.cfg.Weather.RainSensorTopic)
+	}
+}
+
+func TestSaveZoneWithNewFields(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	form := url.Values{}
+	form.Set("name", "Z2")
+	form.Set("moisture_source", "mqtt")
+	form.Set("moisture_sensor_topic", "sensor/moisture")
+	form.Set("valve_source", "mqtt")
+	form.Set("valve_command_topic", "valve/cmd")
+	form.Set("threshold_low", "30")
+	form.Set("threshold_high", "70")
+	form.Set("max_watering_seconds", "300")
+	form.Set("max_activations_per_day", "5")
+	form.Set("cooldown_minutes", "90")
+	form.Set("earliest_watering_time", "07:00")
+	form.Set("latest_watering_time", "11:00")
+	form.Set("seasonal_multiplier_1", "0.5")
+	form.Set("seasonal_multiplier_7", "1.5")
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/config/zones", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+
+	dbZones, _ := sv.store.GetAllZoneConfigs()
+	var z2 *models.ZoneConfig
+	for i, z := range dbZones {
+		if z.Name == "Z2" {
+			z2 = &dbZones[i]
+			break
+		}
+	}
+	if z2 == nil {
+		t.Fatal("expected zone Z2 to exist")
+	}
+	if z2.EarliestWateringTime != "07:00" {
+		t.Errorf("expected EarliestWateringTime 07:00, got %q", z2.EarliestWateringTime)
+	}
+	if z2.LatestWateringTime != "11:00" {
+		t.Errorf("expected LatestWateringTime 11:00, got %q", z2.LatestWateringTime)
+	}
+	if z2.SeasonalMultipliers == "" {
+		t.Error("expected SeasonalMultipliers to be set")
+	}
+}
+
 

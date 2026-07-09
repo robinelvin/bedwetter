@@ -111,6 +111,40 @@
         </form>
     </div>
 
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-9 h-9 rounded-lg bg-sky-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+            </div>
+            <h2 class="text-lg font-semibold text-slate-800">Weather & Rain Sensor</h2>
+        </div>
+        <form action="/config/weather" method="POST" class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1.5">Latitude</label>
+                    <input type="number" step="any" name="lat" value="{{.weather.Lat}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1.5">Longitude</label>
+                    <input type="number" step="any" name="lon" value="{{.weather.Lon}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Rain Threshold (mm) — skip watering if ≥ this amount forecast in 24h</label>
+                <input type="number" step="0.1" name="rain_threshold_mm" value="{{.weather.RainThresholdMm}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Rain Sensor MQTT Topic (optional)</label>
+                <input type="text" name="rain_sensor_topic" value="{{.weather.RainSensorTopic}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+                <p class="text-xs text-slate-400 mt-1.5">Payload "1", "ON", or "true" = rain detected; all watering overridden</p>
+            </div>
+            <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                Save
+            </button>
+        </form>
+    </div>
+
     <div id="zone-form" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 lg:col-span-2">
         <div class="flex items-center justify-between mb-5">
             <div class="flex items-center gap-3">
@@ -271,6 +305,25 @@
             <div>
                 <label class="block text-sm font-medium text-slate-600 mb-1.5">Cooldown (min)</label>
                 <input type="number" name="cooldown_minutes" value="{{if .editZone}}{{.editZone.CooldownMinutes}}{{else}}90{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Earliest Watering Time</label>
+                <input type="time" name="earliest_watering_time" value="{{if .editZone}}{{.editZone.EarliestWateringTime}}{{else}}06:00{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Latest Watering Time</label>
+                <input type="time" name="latest_watering_time" value="{{if .editZone}}{{.editZone.LatestWateringTime}}{{else}}10:00{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+            </div>
+            <div class="md:col-span-3 border-t border-slate-100 pt-4">
+                <h3 class="text-sm font-semibold text-slate-700 mb-3">Seasonal Multipliers (× duration per month)</h3>
+                <div class="grid grid-cols-3 md:grid-cols-4 gap-3">
+                    {{range $m := .months}}
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">{{$m.Name}}</label>
+                        <input type="number" step="0.1" name="seasonal_multiplier_{{$m.Num}}" value="{{$m.Value}}" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow" placeholder="1.0">
+                    </div>
+                    {{end}}
+                </div>
             </div>
             <div class="md:col-span-3 flex gap-3 pt-2">
                 <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">

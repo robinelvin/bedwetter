@@ -471,3 +471,46 @@ func TestEvaluateZoneCooldown(t *testing.T) {
 		t.Errorf("expected StateIdle after cooldown expired, got %v", z.State)
 	}
 }
+
+func TestRainSensorNotDetectedByDefault(t *testing.T) {
+	m := newTestManager(t, nil)
+	if m.RainDetected() {
+		t.Error("expected rain not detected by default")
+	}
+}
+
+func TestRainSensorSubscribeWithTopic(t *testing.T) {
+	cfg := &config.Config{
+		Weather: config.WeatherConfig{RainSensorTopic: "bedwetter/rain"},
+		Alerts:  config.AlertsConfig{StaleSensorMinutes: 60},
+	}
+	mq := &fakeMQTTClient{}
+	st := newTestStore(t)
+	m := NewManager(cfg, mq, st, nil, nil)
+
+	m.subscribeRainSensor()
+	// Should not panic, subscription attempted
+}
+
+func TestRainSensorSubscribeEmptyTopic(t *testing.T) {
+	cfg := &config.Config{
+		Alerts: config.AlertsConfig{StaleSensorMinutes: 60},
+	}
+	mq := &fakeMQTTClient{}
+	st := newTestStore(t)
+	m := NewManager(cfg, mq, st, nil, nil)
+
+	m.subscribeRainSensor()
+	// Should not panic, no subscription attempted
+}
+
+func TestManagerHasRainSensorField(t *testing.T) {
+	m := newTestManager(t, nil)
+	m.rainMu.Lock()
+	m.rainDetected = true
+	m.rainMu.Unlock()
+
+	if !m.RainDetected() {
+		t.Error("expected rain detected after setting")
+	}
+}

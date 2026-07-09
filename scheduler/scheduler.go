@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/robinelvin/bedwetter/config"
@@ -15,11 +14,11 @@ import (
 )
 
 type Scheduler struct {
-	cfg           *config.Config
-	store         *store.Store
-	zoneManager   *zones.Manager
-	done          chan struct{}
-	weatherCache  *WeatherCache
+	cfg         *config.Config
+	store       *store.Store
+	zoneManager *zones.Manager
+	done        chan struct{}
+	weatherCache *WeatherCache
 }
 
 type WeatherCache struct {
@@ -67,6 +66,13 @@ func (s *Scheduler) evaluate() {
 	weekday := now.Weekday().String()[:3]
 	currentMinute := now.Hour()*60 + now.Minute()
 
+	if s.zoneManager.RainDetected() {
+		log.Println("Schedule: rain sensor active, skipping all watering")
+		return
+	}
+
+	s.CheckWeather()
+
 	schedules, err := s.store.GetAllSchedules()
 	if err != nil {
 		log.Printf("Failed to load schedules: %v", err)
@@ -100,6 +106,12 @@ func (s *Scheduler) evaluate() {
 				continue
 			}
 
+			if !isWithinTimeWindow(z.Config.EarliestWateringTime, z.Config.LatestWateringTime, now) {
+				log.Printf("Schedule: skipping %s, outside watering window (%s-%s)",
+					sc.ZoneName, z.Config.EarliestWateringTime, z.Config.LatestWateringTime)
+				continue
+			}
+
 			if z.Moisture >= float64(z.Config.ThresholdLow) {
 				log.Printf("Schedule: skipping %s, moisture %.1f%% above threshold %d%%",
 					sc.ZoneName, z.Moisture, z.Config.ThresholdLow)
@@ -111,7 +123,16 @@ func (s *Scheduler) evaluate() {
 				continue
 			}
 
-			log.Printf("Schedule: starting watering for %s (duration: %ds)", sc.ZoneName, sc.Duration)
+			multiplier := getSeasonalMultiplier(z.Config.SeasonalMultipliers, month)
+			adjustedDuration := int(float64(sc.Duration) * multiplier)
+			if adjustedDuration < 1 {
+				adjustedDuration = sc.Duration
+			}
+
+			log.Printf("Schedule: starting watering for %s (base: %ds, adjusted: %ds, multiplier: %.2f)",
+				sc.ZoneName, sc.Duration, adjustedDuration, multiplier)
+
+			z.Config.MaxWateringSeconds = adjustedDuration
 			s.zoneManager.OpenValve(sc.ZoneName)
 		}
 	}
@@ -126,36 +147,69 @@ func parseTimeToMinutes(t string) int {
 	return tm.Hour()*60 + tm.Minute()
 }
 
+func isWithinTimeWindow(earliest, latest string, now time.Time) bool {
+	if earliest == "" {
+		earliest = "06:00"
+	}
+	if latest == "" {
+		latest = "10:00"
+	}
+
+	earliestMin := parseTimeToMinutes(earliest)
+	latestMin := parseTimeToMinutes(latest)
+	if earliestMin < 0 || latestMin < 0 {
+		return true
+	}
+
+	currentMin := now.Hour()*60 + now.Minute()
+	return currentMin >= earliestMin && currentMin <= latestMin
+}
+
+func getSeasonalMultiplier(multipliers map[int]float64, month int) float64 {
+	if multipliers == nil {
+		return 1.0
+	}
+	m, ok := multipliers[month]
+	if !ok {
+		return 1.0
+	}
+	return m
+}
+
 func (s *Scheduler) CheckWeather() {
-	if s.cfg.Weather.APIKey == "" {
+	if s.cfg.Weather.Lat == 0 && s.cfg.Weather.Lon == 0 {
 		return
 	}
 	if time.Since(s.weatherCache.FetchedAt) < s.weatherCache.TTL {
 		return
 	}
 
-	forecast, err := s.fetchWeather()
+	rain, err := s.fetchOpenMeteo()
 	if err != nil {
 		log.Printf("Weather fetch failed: %v", err)
 		return
 	}
 
-	s.weatherCache.ForecastRain = forecast
+	s.weatherCache.ForecastRain = rain
 	s.weatherCache.FetchedAt = time.Now()
 }
 
-type OWMResponse struct {
-	Hourly []struct {
-		Weather []struct {
-			Main string `json:"main"`
-		} `json:"weather"`
-	} `json:"hourly"`
+type OpenMeteoResponse struct {
+	Daily struct {
+		Time              []string  `json:"time"`
+		PrecipitationSum  []float64 `json:"precipitation_sum"`
+	} `json:"daily"`
 }
 
-func (s *Scheduler) fetchWeather() (bool, error) {
+func (s *Scheduler) fetchOpenMeteo() (bool, error) {
+	threshold := s.cfg.Weather.RainThresholdMm
+	if threshold <= 0 {
+		threshold = 5.0
+	}
+
 	u := fmt.Sprintf(
-		"https://api.openweathermap.org/data/3.0/onecall?lat=%f&lon=%f&exclude=current,minutely,daily,alerts&appid=%s",
-		s.cfg.Weather.Lat, s.cfg.Weather.Lon, url.QueryEscape(s.cfg.Weather.APIKey),
+		"https://api.open-meteo.com/v1/forecast?latitude=%f&longitude=%f&daily=precipitation_sum&timezone=auto&forecast_days=2",
+		s.cfg.Weather.Lat, s.cfg.Weather.Lon,
 	)
 
 	resp, err := http.Get(u)
@@ -164,16 +218,14 @@ func (s *Scheduler) fetchWeather() (bool, error) {
 	}
 	defer resp.Body.Close()
 
-	var owm OWMResponse
-	if err := json.NewDecoder(resp.Body).Decode(&owm); err != nil {
+	var om OpenMeteoResponse
+	if err := json.NewDecoder(resp.Body).Decode(&om); err != nil {
 		return false, fmt.Errorf("weather decode failed: %w", err)
 	}
 
-	for _, h := range owm.Hourly {
-		for _, w := range h.Weather {
-			if w.Main == "Rain" || w.Main == "Drizzle" || w.Main == "Thunderstorm" {
-				return true, nil
-			}
+	for _, precip := range om.Daily.PrecipitationSum {
+		if precip >= threshold {
+			return true, nil
 		}
 	}
 	return false, nil

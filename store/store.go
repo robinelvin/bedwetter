@@ -215,7 +215,7 @@ func (s *Store) LoadConfigZones(yamlZones []config.ZoneConfig) error {
 		return nil
 	}
 	for _, z := range yamlZones {
-		if err := s.db.Create(&models.ZoneConfig{
+		mz := &models.ZoneConfig{
 			Name:                 z.Name,
 			MoistureSensorTopic:  z.MoistureSensorTopic,
 			MoistureSensorEntity: z.MoistureSensorEntity,
@@ -227,7 +227,9 @@ func (s *Store) LoadConfigZones(yamlZones []config.ZoneConfig) error {
 			MaxWateringSeconds:   z.MaxWateringSeconds,
 			MaxActivationsPerDay: z.MaxActivationsPerDay,
 			CooldownMinutes:      z.CooldownMinutes,
-		}).Error; err != nil {
+		}
+		mz.FromConfigZoneConfig(z)
+		if err := s.db.Create(mz).Error; err != nil {
 			return err
 		}
 	}

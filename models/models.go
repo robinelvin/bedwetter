@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/robinelvin/bedwetter/config"
@@ -67,25 +68,32 @@ type AlertSettings struct {
 }
 
 type ZoneConfig struct {
-	ID                     uint   `gorm:"primaryKey" json:"id"`
-	Name                   string `gorm:"size:128;uniqueIndex" json:"name"`
-	MoistureSensorTopic    string `gorm:"size:256" json:"moisture_sensor_topic"`
-	MoistureSensorEntity   string `gorm:"size:256" json:"moisture_sensor_entity"`
-	HumiditySensorTopic    string `gorm:"size:256" json:"humidity_sensor_topic"`
-	HumiditySensorEntity   string `gorm:"size:256" json:"humidity_sensor_entity"`
-	TemperatureSensorTopic    string `gorm:"size:256" json:"temperature_sensor_topic"`
-	TemperatureSensorEntity   string `gorm:"size:256" json:"temperature_sensor_entity"`
-	ValveCommandTopic      string `gorm:"size:256" json:"valve_command_topic"`
-	ValveStateTopic        string `gorm:"size:256" json:"valve_state_topic"`
-	ValveSwitchEntity      string `gorm:"size:256" json:"valve_switch_entity"`
-	ThresholdLow           int    `json:"threshold_low"`
-	ThresholdHigh          int    `json:"threshold_high"`
-	MaxWateringSeconds     int    `json:"max_watering_seconds"`
-	MaxActivationsPerDay   int    `json:"max_activations_per_day"`
-	CooldownMinutes        int    `json:"cooldown_minutes"`
+	ID                     uint             `gorm:"primaryKey" json:"id"`
+	Name                   string           `gorm:"size:128;uniqueIndex" json:"name"`
+	MoistureSensorTopic    string           `gorm:"size:256" json:"moisture_sensor_topic"`
+	MoistureSensorEntity   string           `gorm:"size:256" json:"moisture_sensor_entity"`
+	HumiditySensorTopic    string           `gorm:"size:256" json:"humidity_sensor_topic"`
+	HumiditySensorEntity   string           `gorm:"size:256" json:"humidity_sensor_entity"`
+	TemperatureSensorTopic    string        `gorm:"size:256" json:"temperature_sensor_topic"`
+	TemperatureSensorEntity   string        `gorm:"size:256" json:"temperature_sensor_entity"`
+	ValveCommandTopic      string           `gorm:"size:256" json:"valve_command_topic"`
+	ValveStateTopic        string           `gorm:"size:256" json:"valve_state_topic"`
+	ValveSwitchEntity      string           `gorm:"size:256" json:"valve_switch_entity"`
+	ThresholdLow           int              `json:"threshold_low"`
+	ThresholdHigh          int              `json:"threshold_high"`
+	MaxWateringSeconds     int              `json:"max_watering_seconds"`
+	MaxActivationsPerDay   int              `json:"max_activations_per_day"`
+	CooldownMinutes        int              `json:"cooldown_minutes"`
+	EarliestWateringTime   string           `gorm:"size:5;default:06:00" json:"earliest_watering_time"`
+	LatestWateringTime     string           `gorm:"size:5;default:10:00" json:"latest_watering_time"`
+	SeasonalMultipliers    string           `gorm:"size:512" json:"seasonal_multipliers"`
 }
 
 func (m *ZoneConfig) ToConfigZoneConfig() config.ZoneConfig {
+	multipliers := make(map[int]float64)
+	if m.SeasonalMultipliers != "" {
+		json.Unmarshal([]byte(m.SeasonalMultipliers), &multipliers)
+	}
 	return config.ZoneConfig{
 		Name:                     m.Name,
 		MoistureSensorTopic:      m.MoistureSensorTopic,
@@ -102,7 +110,32 @@ func (m *ZoneConfig) ToConfigZoneConfig() config.ZoneConfig {
 		MaxWateringSeconds:       m.MaxWateringSeconds,
 		MaxActivationsPerDay:     m.MaxActivationsPerDay,
 		CooldownMinutes:          m.CooldownMinutes,
+		EarliestWateringTime:     m.EarliestWateringTime,
+		LatestWateringTime:       m.LatestWateringTime,
+		SeasonalMultipliers:      multipliers,
 	}
+}
+
+func (m *ZoneConfig) FromConfigZoneConfig(c config.ZoneConfig) {
+	multipliersJSON, _ := json.Marshal(c.SeasonalMultipliers)
+	m.Name = c.Name
+	m.MoistureSensorTopic = c.MoistureSensorTopic
+	m.MoistureSensorEntity = c.MoistureSensorEntity
+	m.HumiditySensorTopic = c.HumiditySensorTopic
+	m.HumiditySensorEntity = c.HumiditySensorEntity
+	m.TemperatureSensorTopic = c.TemperatureSensorTopic
+	m.TemperatureSensorEntity = c.TemperatureSensorEntity
+	m.ValveCommandTopic = c.ValveCommandTopic
+	m.ValveStateTopic = c.ValveStateTopic
+	m.ValveSwitchEntity = c.ValveSwitchEntity
+	m.ThresholdLow = c.ThresholdLow
+	m.ThresholdHigh = c.ThresholdHigh
+	m.MaxWateringSeconds = c.MaxWateringSeconds
+	m.MaxActivationsPerDay = c.MaxActivationsPerDay
+	m.CooldownMinutes = c.CooldownMinutes
+	m.EarliestWateringTime = c.EarliestWateringTime
+	m.LatestWateringTime = c.LatestWateringTime
+	m.SeasonalMultipliers = string(multipliersJSON)
 }
 
 type User struct {

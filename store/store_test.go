@@ -100,6 +100,41 @@ func TestLoadConfigZones(t *testing.T) {
 	}
 }
 
+func TestLoadConfigZonesWithNewFields(t *testing.T) {
+	s := newTestStore(t)
+
+	yamlZones := []config.ZoneConfig{
+		{
+			Name:                 "Garden",
+			ThresholdLow:         30,
+			ThresholdHigh:        60,
+			EarliestWateringTime: "07:00",
+			LatestWateringTime:   "11:00",
+			SeasonalMultipliers:  map[int]float64{1: 0.5, 7: 1.5},
+		},
+	}
+
+	if err := s.LoadConfigZones(yamlZones); err != nil {
+		t.Fatalf("LoadConfigZones failed: %v", err)
+	}
+
+	all, _ := s.GetAllZoneConfigs()
+	if len(all) != 1 {
+		t.Fatalf("expected 1 zone, got %d", len(all))
+	}
+
+	z := all[0]
+	if z.EarliestWateringTime != "07:00" {
+		t.Errorf("expected EarliestWateringTime 07:00, got %q", z.EarliestWateringTime)
+	}
+	if z.LatestWateringTime != "11:00" {
+		t.Errorf("expected LatestWateringTime 11:00, got %q", z.LatestWateringTime)
+	}
+	if z.SeasonalMultipliers == "" {
+		t.Error("expected SeasonalMultipliers to be non-empty")
+	}
+}
+
 func TestLoadConfigZonesIdempotent(t *testing.T) {
 	s := newTestStore(t)
 

@@ -20,6 +20,11 @@ zones:
     max_watering_seconds: 300
     max_activations_per_day: 5
     cooldown_minutes: 90
+    earliest_watering_time: "06:00"    # default
+    latest_watering_time: "10:00"     # default
+    seasonal_multipliers:
+      1: 0.5    # January
+      7: 1.5    # July
 
   - name: Herb Garden
     # Home Assistant entity IDs (reads via HA REST API, controls via HA services)
@@ -30,6 +35,8 @@ zones:
     max_watering_seconds: 240
     max_activations_per_day: 4
     cooldown_minutes: 120
+    earliest_watering_time: "07:00"
+    latest_watering_time: "09:00"
 
 alerts:
   email: you@example.com
@@ -69,9 +76,11 @@ schedules:
             duration: 360
 
 weather:
-  api_key: ""
-  lat: 0.0
-  lon: 0.0
+  # Open-Meteo forecast (free, no API key required)
+  lat: 51.5
+  lon: -0.12
+  rain_threshold_mm: 5.0       # skip watering if ≥5mm rain expected in 24h
+  rain_sensor_topic: ""        # optional MQTT topic for digital rain sensor
 
 web:
   listen_addr: ":8080"

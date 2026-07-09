@@ -41,14 +41,16 @@ type Zone struct {
 }
 
 type Manager struct {
-	zones    map[string]*Zone
-	client   mqtt.ClientInterface
-	store    *store.Store
-	cfg      *config.Config
-	resolver *ha.EntityResolver
-	haAPI    *ha.APIClient
-	mu       sync.RWMutex
-	done     chan struct{}
+	zones       map[string]*Zone
+	client      mqtt.ClientInterface
+	store       *store.Store
+	cfg         *config.Config
+	resolver    *ha.EntityResolver
+	haAPI       *ha.APIClient
+	mu          sync.RWMutex
+	done        chan struct{}
+	rainMu      sync.RWMutex
+	rainDetected bool
 }
 
 func NewManager(cfg *config.Config, client mqtt.ClientInterface, store *store.Store, resolver *ha.EntityResolver, haAPI *ha.APIClient) *Manager {
@@ -97,6 +99,8 @@ func (m *Manager) Start() {
 		m.watchHAHumidity(z)
 		m.watchHATemperature(z)
 	}
+
+	m.subscribeRainSensor()
 
 	go m.syncHAValveStates()
 	go m.watchdogLoop()
@@ -279,6 +283,35 @@ func (m *Manager) subscribeValveState(z *Zone) {
 	}); err != nil {
 		log.Printf("Zone %q: failed to subscribe to valve state topic %s: %v", z.Config.Name, topic, err)
 	}
+}
+
+func (m *Manager) subscribeRainSensor() {
+	topic := m.cfg.Weather.RainSensorTopic
+	if topic == "" {
+		return
+	}
+	log.Printf("Subscribing to rain sensor topic %s", topic)
+	if err := m.client.Subscribe(topic, 0, func(t string, p []byte) {
+		val := strings.TrimSpace(string(p))
+		detected := val == "1" || strings.EqualFold(val, "ON") || strings.EqualFold(val, "true")
+		m.rainMu.Lock()
+		m.rainDetected = detected
+		m.rainMu.Unlock()
+		if detected {
+			log.Printf("Rain detected on %s, closing all valves", topic)
+			m.CloseAllValves()
+		} else {
+			log.Printf("Rain cleared on %s", topic)
+		}
+	}); err != nil {
+		log.Printf("Failed to subscribe to rain sensor topic %s: %v", topic, err)
+	}
+}
+
+func (m *Manager) RainDetected() bool {
+	m.rainMu.RLock()
+	defer m.rainMu.RUnlock()
+	return m.rainDetected
 }
 
 func (m *Manager) Stop() {

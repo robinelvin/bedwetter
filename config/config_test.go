@@ -109,6 +109,90 @@ func TestLoadInvalidYAML(t *testing.T) {
 	}
 }
 
+func TestLoadWithNewFields(t *testing.T) {
+	content := []byte(`
+weather:
+  lat: 51.5
+  lon: -0.12
+  rain_threshold_mm: 3.0
+  rain_sensor_topic: "bedwetter/rain"
+
+zones:
+  - name: Garden
+    moisture_sensor_topic: topic/sensor
+    valve_command_topic: topic/cmd
+    threshold_low: 30
+    threshold_high: 60
+    max_watering_seconds: 120
+    max_activations_per_day: 3
+    cooldown_minutes: 45
+    earliest_watering_time: "07:00"
+    latest_watering_time: "11:00"
+    seasonal_multipliers:
+      1: 0.5
+      7: 1.5
+`)
+	tmp := t.TempDir() + "/config.yaml"
+	if err := os.WriteFile(tmp, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(tmp)
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if cfg.Weather.Lat != 51.5 {
+		t.Errorf("expected Lat 51.5, got %f", cfg.Weather.Lat)
+	}
+	if cfg.Weather.Lon != -0.12 {
+		t.Errorf("expected Lon -0.12, got %f", cfg.Weather.Lon)
+	}
+	if cfg.Weather.RainThresholdMm != 3.0 {
+		t.Errorf("expected RainThresholdMm 3.0, got %f", cfg.Weather.RainThresholdMm)
+	}
+	if cfg.Weather.RainSensorTopic != "bedwetter/rain" {
+		t.Errorf("expected RainSensorTopic bedwetter/rain, got %q", cfg.Weather.RainSensorTopic)
+	}
+
+	if len(cfg.Zones) != 1 {
+		t.Fatalf("expected 1 zone, got %d", len(cfg.Zones))
+	}
+	z := cfg.Zones[0]
+	if z.EarliestWateringTime != "07:00" {
+		t.Errorf("expected EarliestWateringTime 07:00, got %q", z.EarliestWateringTime)
+	}
+	if z.LatestWateringTime != "11:00" {
+		t.Errorf("expected LatestWateringTime 11:00, got %q", z.LatestWateringTime)
+	}
+	if len(z.SeasonalMultipliers) != 2 {
+		t.Errorf("expected 2 seasonal multipliers, got %d", len(z.SeasonalMultipliers))
+	}
+	if z.SeasonalMultipliers[1] != 0.5 {
+		t.Errorf("expected multiplier 0.5 for month 1, got %f", z.SeasonalMultipliers[1])
+	}
+	if z.SeasonalMultipliers[7] != 1.5 {
+		t.Errorf("expected multiplier 1.5 for month 7, got %f", z.SeasonalMultipliers[7])
+	}
+}
+
+func TestWeatherDefaults(t *testing.T) {
+	content := []byte("mqtt:\n  broker: test\n")
+	tmp := t.TempDir() + "/config.yaml"
+	if err := os.WriteFile(tmp, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(tmp)
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if cfg.Weather.RainThresholdMm != 0 {
+		t.Errorf("expected default RainThresholdMm 0, got %f", cfg.Weather.RainThresholdMm)
+	}
+}
+
 func TestZoneConfigStruct(t *testing.T) {
 	z := ZoneConfig{
 		Name:                 "Test Zone",
@@ -122,6 +206,9 @@ func TestZoneConfigStruct(t *testing.T) {
 		MaxWateringSeconds:   600,
 		MaxActivationsPerDay: 10,
 		CooldownMinutes:      30,
+		EarliestWateringTime: "06:00",
+		LatestWateringTime:   "10:00",
+		SeasonalMultipliers:  map[int]float64{1: 0.5, 7: 1.5},
 	}
 
 	if z.Name != "Test Zone" {
@@ -129,5 +216,14 @@ func TestZoneConfigStruct(t *testing.T) {
 	}
 	if z.ThresholdLow != 10 || z.ThresholdHigh != 90 {
 		t.Errorf("Thresholds mismatch")
+	}
+	if z.EarliestWateringTime != "06:00" {
+		t.Errorf("EarliestWateringTime mismatch")
+	}
+	if z.LatestWateringTime != "10:00" {
+		t.Errorf("LatestWateringTime mismatch")
+	}
+	if z.SeasonalMultipliers[1] != 0.5 || z.SeasonalMultipliers[7] != 1.5 {
+		t.Errorf("SeasonalMultipliers mismatch")
 	}
 }
