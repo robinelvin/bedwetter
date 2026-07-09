@@ -50,6 +50,24 @@ func (a *APIClient) Stop() {
 	close(a.done)
 }
 
+func (a *APIClient) UpdateConfig(baseURL, token string) {
+	a.mu.Lock()
+	a.baseURL = strings.TrimRight(baseURL, "/")
+	a.token = token
+	a.mu.Unlock()
+
+	select {
+	case <-a.done:
+	default:
+		close(a.done)
+	}
+	a.done = make(chan struct{})
+
+	if a.baseURL != "" && a.token != "" {
+		go a.loop()
+	}
+}
+
 func (a *APIClient) Watch(entityID string, handler func(entityID string, value float64)) {
 	a.mu.Lock()
 	a.polled[entityID] = handler

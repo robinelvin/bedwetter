@@ -1,0 +1,10 @@
+{{define "_moisture_mqtt"}}
+<div>
+    <label class="block text-sm font-medium text-slate-600 mb-1.5 flex items-center gap-2">
+        Moisture Sensor Topic
+        <span class="text-xs font-normal px-1.5 py-0.5 rounded bg-sky-100 text-sky-700">MQTT</span>
+    </label>
+    <input type="text" name="moisture_sensor_topic" value="{{if .editZone}}{{.editZone.MoistureSensorTopic}}{{end}}"
+        class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+</div>
+{{end}}

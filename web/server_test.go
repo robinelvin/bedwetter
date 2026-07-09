@@ -39,7 +39,7 @@ func newTestServer(t *testing.T) *Server {
 	zoneManager := zones.NewManager(cfg, &mqttClientMock{}, st, nil, nil)
 	alertMgr := alerts.New(cfg, zoneManager)
 
-	return New(cfg, st, zoneManager, alertMgr, &mqttClientMock{})
+	return New(cfg, st, zoneManager, alertMgr, &mqttClientMock{}, nil)
 }
 
 type mqttClientMock struct{}

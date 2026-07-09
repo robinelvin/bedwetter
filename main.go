@@ -164,7 +164,7 @@ func main() {
 	alertMgr.Start()
 
 	gin.SetMode(gin.ReleaseMode)
-	webServer := web.New(cfg, db, zoneManager, alertMgr, mqtt)
+	webServer := web.New(cfg, db, zoneManager, alertMgr, mqtt, haAPI)
 
 	go func() {
 		if err := webServer.Start(cfg.Web.ListenAddr); err != nil {

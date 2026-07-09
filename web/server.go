@@ -29,13 +29,14 @@ type Server struct {
 	zoneManager *zones.Manager
 	alertMgr    *alerts.AlertManager
 	mqttClient  mqtt.ClientInterface
+	haAPI       *ha.APIClient
 	router      *gin.Engine
 	templates   map[string]*template.Template
 	sessions    map[string]string
 	sessionMu   sync.RWMutex
 }
 
-func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.AlertManager, mqttClient mqtt.ClientInterface) *Server {
+func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.AlertManager, mqttClient mqtt.ClientInterface, haAPI *ha.APIClient) *Server {
 	r := gin.Default()
 
 	sv := &Server{
@@ -44,6 +45,7 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 		zoneManager: zm,
 		alertMgr:    am,
 		mqttClient:  mqttClient,
+		haAPI:       haAPI,
 		router:      r,
 		templates:   make(map[string]*template.Template),
 		sessions:    make(map[string]string),
@@ -83,6 +85,19 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 
 	sv.templates["_zone_cards"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_zone_cards.html"),
+	)
+
+	sv.templates["_moisture_mqtt"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_moisture_mqtt.html"),
+	)
+	sv.templates["_moisture_ha"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_moisture_ha.html"),
+	)
+	sv.templates["_valve_mqtt"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_valve_mqtt.html"),
+	)
+	sv.templates["_valve_ha"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_valve_ha.html"),
 	)
 
 	sv.templates["login"] = template.Must(
@@ -226,6 +241,8 @@ func (s *Server) setupRoutes() {
 	s.router.POST("/logout", s.logout)
 	s.router.GET("/setup", s.setupPage)
 	s.router.POST("/setup", s.setupCreate)
+	s.router.GET("/config/zones/fields/moisture", s.zoneMoistureFields)
+	s.router.GET("/config/zones/fields/valve", s.zoneValveFields)
 }
 
 func (s *Server) loginPage(c *gin.Context) {
@@ -491,14 +508,27 @@ func (s *Server) configPage(c *gin.Context) {
 		}
 	}
 
+	moistureType := "mqtt"
+	valveType := "mqtt"
+	if editZone != nil {
+		if editZone.MoistureSensorEntity != "" {
+			moistureType = "ha"
+		}
+		if editZone.ValveSwitchEntity != "" {
+			valveType = "ha"
+		}
+	}
+
 	s.render(c, "config", http.StatusOK, gin.H{
-		"title":    "Configuration",
-		"cfg":      s.cfg,
-		"mqtt":     mqttCfg,
-		"ha":       haCfg,
-		"alerts":   alertCfg,
-		"dbZones":  dbZones,
-		"editZone": editZone,
+		"title":        "Configuration",
+		"cfg":          s.cfg,
+		"mqtt":         mqttCfg,
+		"ha":           haCfg,
+		"alerts":       alertCfg,
+		"dbZones":      dbZones,
+		"editZone":     editZone,
+		"moistureType": moistureType,
+		"valveType":    valveType,
 	})
 }
 
@@ -535,6 +565,9 @@ func (s *Server) saveHA(c *gin.Context) {
 	}
 	s.cfg.HomeAssistant.URL = cfg.URL
 	s.cfg.HomeAssistant.Token = cfg.Token
+	if s.haAPI != nil {
+		s.haAPI.UpdateConfig(cfg.URL, cfg.Token)
+	}
 	s.logEvent("info", "config", "HA config updated", "")
 	c.Redirect(http.StatusFound, "/config")
 }
@@ -650,6 +683,48 @@ func (s *Server) deleteZone(c *gin.Context) {
 	s.refreshHADiscovery()
 	s.logEvent("info", "config", "Zone deleted: "+z.Name, z.Name)
 	c.Redirect(http.StatusFound, "/config")
+}
+
+func (s *Server) zoneMoistureFields(c *gin.Context) {
+	sourceType := c.DefaultQuery("type", "mqtt")
+	var editZone *models.ZoneConfig
+	if idStr := c.Query("edit_id"); idStr != "" {
+		if id, err := strconv.ParseUint(idStr, 10, 64); err == nil {
+			z, _ := s.store.GetAllZoneConfigs()
+			for _, zc := range z {
+				if zc.ID == uint(id) {
+					editZone = &zc
+					break
+				}
+			}
+		}
+	}
+	name := "_moisture_mqtt"
+	if sourceType == "ha" {
+		name = "_moisture_ha"
+	}
+	s.renderPartial(c, name, http.StatusOK, gin.H{"editZone": editZone})
+}
+
+func (s *Server) zoneValveFields(c *gin.Context) {
+	sourceType := c.DefaultQuery("type", "mqtt")
+	var editZone *models.ZoneConfig
+	if idStr := c.Query("edit_id"); idStr != "" {
+		if id, err := strconv.ParseUint(idStr, 10, 64); err == nil {
+			z, _ := s.store.GetAllZoneConfigs()
+			for _, zc := range z {
+				if zc.ID == uint(id) {
+					editZone = &zc
+					break
+				}
+			}
+		}
+	}
+	name := "_valve_mqtt"
+	if sourceType == "ha" {
+		name = "_valve_ha"
+	}
+	s.renderPartial(c, name, http.StatusOK, gin.H{"editZone": editZone})
 }
 
 func (s *Server) refreshHADiscovery() {

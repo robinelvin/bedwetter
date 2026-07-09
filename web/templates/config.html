@@ -123,30 +123,73 @@
         </div>
         <form action="/config/zones" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
             {{if .editZone}}<input type="hidden" name="id" value="{{.editZone.ID}}">{{end}}
-            <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1.5">Name</label>
+            <div class="md:col-span-3">
+                <label class="block text-sm font-medium text-slate-600 mb-1.5">Zone Name</label>
                 <input type="text" name="name" value="{{if .editZone}}{{.editZone.Name}}{{end}}" required class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>
+
             <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1.5">Moisture Sensor Topic</label>
-                <input type="text" name="moisture_sensor_topic" value="{{if .editZone}}{{.editZone.MoistureSensorTopic}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+                <label class="block text-sm font-medium text-slate-600 mb-2">Moisture Source</label>
+                <div class="flex gap-4">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="moisture_source" value="mqtt"
+                            {{if eq .moistureType "mqtt"}}checked{{end}}
+                            hx-get="/config/zones/fields/moisture?type=mqtt{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
+                            hx-trigger="change"
+                            hx-target="#moisture-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-emerald-600 border-slate-300 focus:ring-emerald-500">
+                        <span class="text-sm text-slate-700">MQTT</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="moisture_source" value="ha"
+                            {{if eq .moistureType "ha"}}checked{{end}}
+                            hx-get="/config/zones/fields/moisture?type=ha{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
+                            hx-trigger="change"
+                            hx-target="#moisture-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500">
+                        <span class="text-sm text-slate-700">HA</span>
+                    </label>
+                </div>
             </div>
+            <div id="moisture-fields" class="md:col-span-2"
+                hx-get="/config/zones/fields/moisture?type={{.moistureType}}{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
+                hx-trigger="load"
+                hx-swap="innerHTML">
+            </div>
+
             <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1.5">Moisture Sensor Entity</label>
-                <input type="text" name="moisture_sensor_entity" value="{{if .editZone}}{{.editZone.MoistureSensorEntity}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+                <label class="block text-sm font-medium text-slate-600 mb-2">Valve Source</label>
+                <div class="flex gap-4">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="valve_source" value="mqtt"
+                            {{if eq .valveType "mqtt"}}checked{{end}}
+                            hx-get="/config/zones/fields/valve?type=mqtt{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
+                            hx-trigger="change"
+                            hx-target="#valve-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-emerald-600 border-slate-300 focus:ring-emerald-500">
+                        <span class="text-sm text-slate-700">MQTT</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="valve_source" value="ha"
+                            {{if eq .valveType "ha"}}checked{{end}}
+                            hx-get="/config/zones/fields/valve?type=ha{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
+                            hx-trigger="change"
+                            hx-target="#valve-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500">
+                        <span class="text-sm text-slate-700">HA</span>
+                    </label>
+                </div>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1.5">Valve Command Topic</label>
-                <input type="text" name="valve_command_topic" value="{{if .editZone}}{{.editZone.ValveCommandTopic}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+            <div id="valve-fields" class="md:col-span-2"
+                hx-get="/config/zones/fields/valve?type={{.valveType}}{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
+                hx-trigger="load"
+                hx-swap="innerHTML">
             </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1.5">Valve State Topic</label>
-                <input type="text" name="valve_state_topic" value="{{if .editZone}}{{.editZone.ValveStateTopic}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1.5">Valve Switch Entity</label>
-                <input type="text" name="valve_switch_entity" value="{{if .editZone}}{{.editZone.ValveSwitchEntity}}{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
-            </div>
+
             <div>
                 <label class="block text-sm font-medium text-slate-600 mb-1.5">Threshold Low (%)</label>
                 <input type="number" name="threshold_low" value="{{if .editZone}}{{.editZone.ThresholdLow}}{{else}}40{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
