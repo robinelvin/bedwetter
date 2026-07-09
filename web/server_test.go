@@ -468,7 +468,7 @@ func TestZoneHistory(t *testing.T) {
 	setupGin()
 	sv := newTestServer(t)
 
-	sv.store.SaveSensorReading("Z1", 45.0, 60.0)
+	sv.store.SaveSensorReading("Z1", 45.0, 60.0, 0)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/zones/Z1/history?hours=24", nil)

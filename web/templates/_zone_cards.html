@@ -40,6 +40,10 @@
                 <span class="font-mono tabular-nums text-slate-700">{{printf "%.1f" .Humidity}}%</span>
             </div>
             <div class="flex items-center justify-between">
+                <span class="text-slate-500">Temperature</span>
+                <span class="font-mono tabular-nums text-slate-700">{{printf "%.1f" .Temperature}}°C</span>
+            </div>
+            <div class="flex items-center justify-between">
                 <span class="text-slate-500">Updated</span>
                 <span class="font-mono text-xs text-slate-500">{{formatTime .LastMoistureTime}}</span>
             </div>

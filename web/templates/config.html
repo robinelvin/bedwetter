@@ -191,6 +191,68 @@
             </div>
 
             <div>
+                <label class="block text-sm font-medium text-slate-600 mb-2">Humidity Source</label>
+                <div class="flex gap-4">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="humidity_source" value="mqtt"
+                            {{if eq .humidityType "mqtt"}}checked{{end}}
+                            hx-get="/config/zones/fields/humidity?type=mqtt{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
+                            hx-trigger="change"
+                            hx-target="#humidity-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-emerald-600 border-slate-300 focus:ring-emerald-500">
+                        <span class="text-sm text-slate-700">MQTT</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="humidity_source" value="ha"
+                            {{if eq .humidityType "ha"}}checked{{end}}
+                            hx-get="/config/zones/fields/humidity?type=ha{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
+                            hx-trigger="change"
+                            hx-target="#humidity-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500">
+                        <span class="text-sm text-slate-700">HA</span>
+                    </label>
+                </div>
+            </div>
+            <div id="humidity-fields" class="md:col-span-2"
+                hx-get="/config/zones/fields/humidity?type={{.humidityType}}{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
+                hx-trigger="load"
+                hx-swap="innerHTML">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-2">Temperature Source</label>
+                <div class="flex gap-4">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="temperature_source" value="mqtt"
+                            {{if eq .temperatureType "mqtt"}}checked{{end}}
+                            hx-get="/config/zones/fields/temperature?type=mqtt{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
+                            hx-trigger="change"
+                            hx-target="#temperature-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-emerald-600 border-slate-300 focus:ring-emerald-500">
+                        <span class="text-sm text-slate-700">MQTT</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="temperature_source" value="ha"
+                            {{if eq .temperatureType "ha"}}checked{{end}}
+                            hx-get="/config/zones/fields/temperature?type=ha{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
+                            hx-trigger="change"
+                            hx-target="#temperature-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500">
+                        <span class="text-sm text-slate-700">HA</span>
+                    </label>
+                </div>
+            </div>
+            <div id="temperature-fields" class="md:col-span-2"
+                hx-get="/config/zones/fields/temperature?type={{.temperatureType}}{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
+                hx-trigger="load"
+                hx-swap="innerHTML">
+            </div>
+
+            <div>
                 <label class="block text-sm font-medium text-slate-600 mb-1.5">Threshold Low (%)</label>
                 <input type="number" name="threshold_low" value="{{if .editZone}}{{.editZone.ThresholdLow}}{{else}}40{{end}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
             </div>

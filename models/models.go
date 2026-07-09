@@ -8,11 +8,12 @@ import (
 )
 
 type SensorReading struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	ZoneName  string    `gorm:"index;size:128" json:"zone_name"`
-	Moisture  float64   `json:"moisture"`
-	Humidity  float64   `json:"humidity"`
-	CreatedAt time.Time `gorm:"autoCreateTime;index" json:"created_at"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	ZoneName    string    `gorm:"index;size:128" json:"zone_name"`
+	Moisture    float64   `json:"moisture"`
+	Humidity    float64   `json:"humidity"`
+	Temperature float64   `json:"temperature"`
+	CreatedAt   time.Time `gorm:"autoCreateTime;index" json:"created_at"`
 }
 
 type ValveEvent struct {
@@ -66,33 +67,41 @@ type AlertSettings struct {
 }
 
 type ZoneConfig struct {
-	ID                   uint   `gorm:"primaryKey" json:"id"`
-	Name                 string `gorm:"size:128;uniqueIndex" json:"name"`
-	MoistureSensorTopic  string `gorm:"size:256" json:"moisture_sensor_topic"`
-	MoistureSensorEntity string `gorm:"size:256" json:"moisture_sensor_entity"`
-	ValveCommandTopic    string `gorm:"size:256" json:"valve_command_topic"`
-	ValveStateTopic      string `gorm:"size:256" json:"valve_state_topic"`
-	ValveSwitchEntity    string `gorm:"size:256" json:"valve_switch_entity"`
-	ThresholdLow         int    `json:"threshold_low"`
-	ThresholdHigh        int    `json:"threshold_high"`
-	MaxWateringSeconds   int    `json:"max_watering_seconds"`
-	MaxActivationsPerDay int    `json:"max_activations_per_day"`
-	CooldownMinutes      int    `json:"cooldown_minutes"`
+	ID                     uint   `gorm:"primaryKey" json:"id"`
+	Name                   string `gorm:"size:128;uniqueIndex" json:"name"`
+	MoistureSensorTopic    string `gorm:"size:256" json:"moisture_sensor_topic"`
+	MoistureSensorEntity   string `gorm:"size:256" json:"moisture_sensor_entity"`
+	HumiditySensorTopic    string `gorm:"size:256" json:"humidity_sensor_topic"`
+	HumiditySensorEntity   string `gorm:"size:256" json:"humidity_sensor_entity"`
+	TemperatureSensorTopic    string `gorm:"size:256" json:"temperature_sensor_topic"`
+	TemperatureSensorEntity   string `gorm:"size:256" json:"temperature_sensor_entity"`
+	ValveCommandTopic      string `gorm:"size:256" json:"valve_command_topic"`
+	ValveStateTopic        string `gorm:"size:256" json:"valve_state_topic"`
+	ValveSwitchEntity      string `gorm:"size:256" json:"valve_switch_entity"`
+	ThresholdLow           int    `json:"threshold_low"`
+	ThresholdHigh          int    `json:"threshold_high"`
+	MaxWateringSeconds     int    `json:"max_watering_seconds"`
+	MaxActivationsPerDay   int    `json:"max_activations_per_day"`
+	CooldownMinutes        int    `json:"cooldown_minutes"`
 }
 
 func (m *ZoneConfig) ToConfigZoneConfig() config.ZoneConfig {
 	return config.ZoneConfig{
-		Name:                 m.Name,
-		MoistureSensorTopic:  m.MoistureSensorTopic,
-		MoistureSensorEntity: m.MoistureSensorEntity,
-		ValveCommandTopic:    m.ValveCommandTopic,
-		ValveStateTopic:      m.ValveStateTopic,
-		ValveSwitchEntity:    m.ValveSwitchEntity,
-		ThresholdLow:         m.ThresholdLow,
-		ThresholdHigh:        m.ThresholdHigh,
-		MaxWateringSeconds:   m.MaxWateringSeconds,
-		MaxActivationsPerDay: m.MaxActivationsPerDay,
-		CooldownMinutes:      m.CooldownMinutes,
+		Name:                     m.Name,
+		MoistureSensorTopic:      m.MoistureSensorTopic,
+		MoistureSensorEntity:     m.MoistureSensorEntity,
+		HumiditySensorTopic:      m.HumiditySensorTopic,
+		HumiditySensorEntity:     m.HumiditySensorEntity,
+		TemperatureSensorTopic:   m.TemperatureSensorTopic,
+		TemperatureSensorEntity:  m.TemperatureSensorEntity,
+		ValveCommandTopic:        m.ValveCommandTopic,
+		ValveStateTopic:          m.ValveStateTopic,
+		ValveSwitchEntity:        m.ValveSwitchEntity,
+		ThresholdLow:             m.ThresholdLow,
+		ThresholdHigh:            m.ThresholdHigh,
+		MaxWateringSeconds:       m.MaxWateringSeconds,
+		MaxActivationsPerDay:     m.MaxActivationsPerDay,
+		CooldownMinutes:          m.CooldownMinutes,
 	}
 }
 

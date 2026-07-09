@@ -100,6 +100,19 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_valve_ha.html"),
 	)
 
+	sv.templates["_humidity_mqtt"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_humidity_mqtt.html"),
+	)
+	sv.templates["_humidity_ha"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_humidity_ha.html"),
+	)
+	sv.templates["_temperature_mqtt"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_temperature_mqtt.html"),
+	)
+	sv.templates["_temperature_ha"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_temperature_ha.html"),
+	)
+
 	sv.templates["login"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/login.html"),
 	)
@@ -243,6 +256,8 @@ func (s *Server) setupRoutes() {
 	s.router.POST("/setup", s.setupCreate)
 	s.router.GET("/config/zones/fields/moisture", s.zoneMoistureFields)
 	s.router.GET("/config/zones/fields/valve", s.zoneValveFields)
+	s.router.GET("/config/zones/fields/humidity", s.zoneHumidityFields)
+	s.router.GET("/config/zones/fields/temperature", s.zoneTemperatureFields)
 }
 
 func (s *Server) loginPage(c *gin.Context) {
@@ -510,6 +525,8 @@ func (s *Server) configPage(c *gin.Context) {
 
 	moistureType := "mqtt"
 	valveType := "mqtt"
+	humidityType := "mqtt"
+	temperatureType := "mqtt"
 	if editZone != nil {
 		if editZone.MoistureSensorEntity != "" {
 			moistureType = "ha"
@@ -517,18 +534,26 @@ func (s *Server) configPage(c *gin.Context) {
 		if editZone.ValveSwitchEntity != "" {
 			valveType = "ha"
 		}
+		if editZone.HumiditySensorEntity != "" {
+			humidityType = "ha"
+		}
+		if editZone.TemperatureSensorEntity != "" {
+			temperatureType = "ha"
+		}
 	}
 
 	s.render(c, "config", http.StatusOK, gin.H{
-		"title":        "Configuration",
-		"cfg":          s.cfg,
-		"mqtt":         mqttCfg,
-		"ha":           haCfg,
-		"alerts":       alertCfg,
-		"dbZones":      dbZones,
-		"editZone":     editZone,
-		"moistureType": moistureType,
-		"valveType":    valveType,
+		"title":           "Configuration",
+		"cfg":             s.cfg,
+		"mqtt":            mqttCfg,
+		"ha":              haCfg,
+		"alerts":          alertCfg,
+		"dbZones":         dbZones,
+		"editZone":        editZone,
+		"moistureType":    moistureType,
+		"valveType":       valveType,
+		"humidityType":    humidityType,
+		"temperatureType": temperatureType,
 	})
 }
 
@@ -611,12 +636,16 @@ func (s *Server) saveZone(c *gin.Context) {
 	idStr := c.PostForm("id")
 
 	zc := models.ZoneConfig{
-		Name:                 c.PostForm("name"),
-		MoistureSensorTopic:  c.PostForm("moisture_sensor_topic"),
-		MoistureSensorEntity: c.PostForm("moisture_sensor_entity"),
-		ValveCommandTopic:    c.PostForm("valve_command_topic"),
-		ValveStateTopic:      c.PostForm("valve_state_topic"),
-		ValveSwitchEntity:    c.PostForm("valve_switch_entity"),
+		Name:                   c.PostForm("name"),
+		MoistureSensorTopic:    c.PostForm("moisture_sensor_topic"),
+		MoistureSensorEntity:   c.PostForm("moisture_sensor_entity"),
+		HumiditySensorTopic:    c.PostForm("humidity_sensor_topic"),
+		HumiditySensorEntity:   c.PostForm("humidity_sensor_entity"),
+		TemperatureSensorTopic: c.PostForm("temperature_sensor_topic"),
+		TemperatureSensorEntity: c.PostForm("temperature_sensor_entity"),
+		ValveCommandTopic:      c.PostForm("valve_command_topic"),
+		ValveStateTopic:        c.PostForm("valve_state_topic"),
+		ValveSwitchEntity:      c.PostForm("valve_switch_entity"),
 	}
 
 	zc.ThresholdLow, _ = strconv.Atoi(c.PostForm("threshold_low"))
@@ -723,6 +752,48 @@ func (s *Server) zoneValveFields(c *gin.Context) {
 	name := "_valve_mqtt"
 	if sourceType == "ha" {
 		name = "_valve_ha"
+	}
+	s.renderPartial(c, name, http.StatusOK, gin.H{"editZone": editZone})
+}
+
+func (s *Server) zoneHumidityFields(c *gin.Context) {
+	sourceType := c.DefaultQuery("type", "mqtt")
+	var editZone *models.ZoneConfig
+	if idStr := c.Query("edit_id"); idStr != "" {
+		if id, err := strconv.ParseUint(idStr, 10, 64); err == nil {
+			z, _ := s.store.GetAllZoneConfigs()
+			for _, zc := range z {
+				if zc.ID == uint(id) {
+					editZone = &zc
+					break
+				}
+			}
+		}
+	}
+	name := "_humidity_mqtt"
+	if sourceType == "ha" {
+		name = "_humidity_ha"
+	}
+	s.renderPartial(c, name, http.StatusOK, gin.H{"editZone": editZone})
+}
+
+func (s *Server) zoneTemperatureFields(c *gin.Context) {
+	sourceType := c.DefaultQuery("type", "mqtt")
+	var editZone *models.ZoneConfig
+	if idStr := c.Query("edit_id"); idStr != "" {
+		if id, err := strconv.ParseUint(idStr, 10, 64); err == nil {
+			z, _ := s.store.GetAllZoneConfigs()
+			for _, zc := range z {
+				if zc.ID == uint(id) {
+					editZone = &zc
+					break
+				}
+			}
+		}
+	}
+	name := "_temperature_mqtt"
+	if sourceType == "ha" {
+		name = "_temperature_ha"
 	}
 	s.renderPartial(c, name, http.StatusOK, gin.H{"editZone": editZone})
 }

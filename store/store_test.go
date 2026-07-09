@@ -120,13 +120,13 @@ func TestLoadConfigZonesIdempotent(t *testing.T) {
 func TestSensorReadings(t *testing.T) {
 	s := newTestStore(t)
 
-	if err := s.SaveSensorReading("Z1", 45.5, 60.0); err != nil {
+	if err := s.SaveSensorReading("Z1", 45.5, 60.0, 0); err != nil {
 		t.Fatalf("SaveSensorReading failed: %v", err)
 	}
-	if err := s.SaveSensorReading("Z1", 50.0, 62.0); err != nil {
+	if err := s.SaveSensorReading("Z1", 50.0, 62.0, 0); err != nil {
 		t.Fatalf("SaveSensorReading failed: %v", err)
 	}
-	if err := s.SaveSensorReading("Z2", 30.0, 55.0); err != nil {
+	if err := s.SaveSensorReading("Z2", 30.0, 55.0, 0); err != nil {
 		t.Fatalf("SaveSensorReading failed: %v", err)
 	}
 
@@ -319,7 +319,7 @@ func TestSaveSensorReadingBoundaries(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if err := s.SaveSensorReading("Z1", tt.moisture, tt.humidity); err != nil {
+		if err := s.SaveSensorReading("Z1", tt.moisture, tt.humidity, 0); err != nil {
 			t.Errorf("SaveSensorReading(%f, %f): %v", tt.moisture, tt.humidity, err)
 		}
 	}
@@ -328,7 +328,7 @@ func TestSaveSensorReadingBoundaries(t *testing.T) {
 func TestRecentReadingsTimeFilter(t *testing.T) {
 	s := newTestStore(t)
 
-	s.SaveSensorReading("Z1", 50, 60)
+	s.SaveSensorReading("Z1", 50, 60, 0)
 
 	readings, err := s.RecentReadings("Z1", 1)
 	if err != nil {

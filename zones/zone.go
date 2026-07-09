@@ -90,8 +90,12 @@ func (m *Manager) Start() {
 
 	for _, z := range m.zones {
 		m.subscribeSensor(z)
+		m.subscribeHumidity(z)
+		m.subscribeTemperature(z)
 		m.subscribeValveState(z)
 		m.watchHAEntity(z)
+		m.watchHAHumidity(z)
+		m.watchHATemperature(z)
 	}
 
 	go m.syncHAValveStates()
@@ -157,10 +161,44 @@ func (m *Manager) watchHAEntity(z *Zone) {
 		z.LastMoistureTime = time.Now()
 		z.mu.Unlock()
 		log.Printf("Zone %q: HA API update %s = %.1f%%", z.Config.Name, eid, value)
-		if err := m.store.SaveSensorReading(z.Config.Name, value, z.Humidity); err != nil {
+		if err := m.store.SaveSensorReading(z.Config.Name, value, z.Humidity, z.Temperature); err != nil {
 			log.Printf("Failed to save sensor reading: %v", err)
 		}
 		m.evaluateZone(z.Config.Name)
+	})
+}
+
+func (m *Manager) watchHAHumidity(z *Zone) {
+	if m.haAPI == nil {
+		return
+	}
+	entityID := z.Config.HumiditySensorEntity
+	if entityID == "" || z.Config.HumiditySensorTopic != "" {
+		return
+	}
+	log.Printf("Zone %q: watching HA humidity entity %s via API", z.Config.Name, entityID)
+	m.haAPI.Watch(entityID, func(eid string, value float64) {
+		z.mu.Lock()
+		z.Humidity = value
+		z.mu.Unlock()
+		log.Printf("Zone %q: HA API humidity update %s = %.1f%%", z.Config.Name, eid, value)
+	})
+}
+
+func (m *Manager) watchHATemperature(z *Zone) {
+	if m.haAPI == nil {
+		return
+	}
+	entityID := z.Config.TemperatureSensorEntity
+	if entityID == "" || z.Config.TemperatureSensorTopic != "" {
+		return
+	}
+	log.Printf("Zone %q: watching HA temperature entity %s via API", z.Config.Name, entityID)
+	m.haAPI.Watch(entityID, func(eid string, value float64) {
+		z.mu.Lock()
+		z.Temperature = value
+		z.mu.Unlock()
+		log.Printf("Zone %q: HA API temperature update %s = %.1f", z.Config.Name, eid, value)
 	})
 }
 
@@ -180,6 +218,44 @@ func (m *Manager) subscribeSensor(z *Zone) {
 		m.handleSensorReading(z.Config.Name, p)
 	}); err != nil {
 		log.Printf("Zone %q: failed to subscribe to sensor topic %s: %v", z.Config.Name, topic, err)
+	}
+}
+
+func (m *Manager) subscribeHumidity(z *Zone) {
+	topic := z.Config.HumiditySensorTopic
+	if topic == "" && z.Config.HumiditySensorEntity != "" && m.resolver != nil {
+		topics := m.resolver.GetTopics(z.Config.HumiditySensorEntity)
+		if topics != nil {
+			topic = topics.StateTopic
+		}
+	}
+	if topic == "" {
+		return
+	}
+	log.Printf("Zone %q: subscribing to humidity topic %s", z.Config.Name, topic)
+	if err := m.client.Subscribe(topic, 0, func(t string, p []byte) {
+		m.handleHumidityReading(z.Config.Name, p)
+	}); err != nil {
+		log.Printf("Zone %q: failed to subscribe to humidity topic %s: %v", z.Config.Name, topic, err)
+	}
+}
+
+func (m *Manager) subscribeTemperature(z *Zone) {
+	topic := z.Config.TemperatureSensorTopic
+	if topic == "" && z.Config.TemperatureSensorEntity != "" && m.resolver != nil {
+		topics := m.resolver.GetTopics(z.Config.TemperatureSensorEntity)
+		if topics != nil {
+			topic = topics.StateTopic
+		}
+	}
+	if topic == "" {
+		return
+	}
+	log.Printf("Zone %q: subscribing to temperature topic %s", z.Config.Name, topic)
+	if err := m.client.Subscribe(topic, 0, func(t string, p []byte) {
+		m.handleTemperatureReading(z.Config.Name, p)
+	}); err != nil {
+		log.Printf("Zone %q: failed to subscribe to temperature topic %s: %v", z.Config.Name, topic, err)
 	}
 }
 
@@ -237,11 +313,60 @@ func (m *Manager) handleSensorReading(zoneName string, payload []byte) {
 	z.LastMoistureTime = time.Now()
 	z.mu.Unlock()
 
-	if err := m.store.SaveSensorReading(zoneName, moisture, z.Humidity); err != nil {
+	if err := m.store.SaveSensorReading(zoneName, moisture, z.Humidity, z.Temperature); err != nil {
 		log.Printf("Failed to save sensor reading: %v", err)
 	}
 
 	m.evaluateZone(zoneName)
+}
+
+func (m *Manager) handleHumidityReading(zoneName string, payload []byte) {
+	m.mu.RLock()
+	z, ok := m.zones[zoneName]
+	m.mu.RUnlock()
+	if !ok {
+		return
+	}
+	val := strings.TrimSpace(string(payload))
+	humidity, err := strconv.ParseFloat(val, 64)
+	if err != nil {
+		log.Printf("Invalid humidity reading %q for zone %s: %v", val, zoneName, err)
+		return
+	}
+	if math.IsNaN(humidity) || humidity < 0 {
+		humidity = 0
+	}
+	if humidity > 100 {
+		humidity = 100
+	}
+
+	z.mu.Lock()
+	z.Humidity = humidity
+	z.mu.Unlock()
+	log.Printf("Zone %s: humidity update = %.1f%%", zoneName, humidity)
+}
+
+func (m *Manager) handleTemperatureReading(zoneName string, payload []byte) {
+	m.mu.RLock()
+	z, ok := m.zones[zoneName]
+	m.mu.RUnlock()
+	if !ok {
+		return
+	}
+	val := strings.TrimSpace(string(payload))
+	temp, err := strconv.ParseFloat(val, 64)
+	if err != nil {
+		log.Printf("Invalid temperature reading %q for zone %s: %v", val, zoneName, err)
+		return
+	}
+	if math.IsNaN(temp) {
+		temp = 0
+	}
+
+	z.mu.Lock()
+	z.Temperature = temp
+	z.mu.Unlock()
+	log.Printf("Zone %s: temperature update = %.1f", zoneName, temp)
 }
 
 func (m *Manager) handleValveState(zoneName string, payload []byte) {
@@ -445,8 +570,12 @@ func (m *Manager) AddZone(zc config.ZoneConfig) {
 	m.zones[zc.Name] = z
 
 	m.subscribeSensor(z)
+	m.subscribeHumidity(z)
+	m.subscribeTemperature(z)
 	m.subscribeValveState(z)
 	m.watchHAEntity(z)
+	m.watchHAHumidity(z)
+	m.watchHATemperature(z)
 
 	if m.resolver != nil {
 		ha.ResolveZoneAsync(m.resolver, &z.Config)

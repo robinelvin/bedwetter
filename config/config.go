@@ -17,6 +17,10 @@ type ZoneConfig struct {
 	Name                  string `yaml:"name"`
 	MoistureSensorTopic   string `yaml:"moisture_sensor_topic"`
 	MoistureSensorEntity  string `yaml:"moisture_sensor_entity"`
+	HumiditySensorTopic   string `yaml:"humidity_sensor_topic"`
+	HumiditySensorEntity  string `yaml:"humidity_sensor_entity"`
+	TemperatureSensorTopic   string `yaml:"temperature_sensor_topic"`
+	TemperatureSensorEntity  string `yaml:"temperature_sensor_entity"`
 	ValveCommandTopic     string `yaml:"valve_command_topic"`
 	ValveStateTopic       string `yaml:"valve_state_topic"`
 	ValveSwitchEntity     string `yaml:"valve_switch_entity"`
