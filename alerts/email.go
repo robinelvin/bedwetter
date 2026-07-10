@@ -13,9 +13,9 @@ import (
 type AlertType string
 
 const (
-	AlertStaleSensor  AlertType = "stale_sensor"
-	AlertMaxWatering  AlertType = "max_watering"
-	AlertValveStuck   AlertType = "valve_stuck"
+	AlertStaleSensor AlertType = "stale_sensor"
+	AlertMaxWatering AlertType = "max_watering"
+	AlertValveStuck  AlertType = "valve_stuck"
 )
 
 type AlertManager struct {
@@ -60,7 +60,7 @@ func (a *AlertManager) checkAlerts() {
 	if a.cfg.Alerts.Email == "" {
 		return
 	}
-	zones := a.zoneManager.GetAllZones()
+	zones := a.zoneManager.GetAllZoneSnapshots()
 	staleThreshold := time.Duration(a.cfg.Alerts.StaleSensorMinutes) * time.Minute
 
 	for _, z := range zones {

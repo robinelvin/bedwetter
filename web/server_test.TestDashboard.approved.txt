@@ -93,6 +93,12 @@
 
         <div class="space-y-3 text-sm">
             <div class="flex items-center justify-between">
+                <span class="text-foreground-muted">Next watering</span>
+                
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-background-muted text-foreground-muted">none</span>
+                
+            </div>
+            <div class="flex items-center justify-between">
                 <span class="text-foreground-muted">Moisture</span>
                 
                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-background-muted text-foreground-muted">unset</span>

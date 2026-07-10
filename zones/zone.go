@@ -40,16 +40,28 @@ type Zone struct {
 	mu               sync.RWMutex
 }
 
+type ZoneSnapshot struct {
+	Config           config.ZoneConfig
+	Moisture         float64
+	Humidity         float64
+	Temperature      float64
+	State            ZoneState
+	LastMoistureTime time.Time
+	LastWaterEnd     time.Time
+	LastStateChange  time.Time
+	WateringStarted  time.Time
+}
+
 type Manager struct {
-	zones       map[string]*Zone
-	client      mqtt.ClientInterface
-	store       *store.Store
-	cfg         *config.Config
-	resolver    *ha.EntityResolver
-	haAPI       *ha.APIClient
-	mu          sync.RWMutex
-	done        chan struct{}
-	rainMu      sync.RWMutex
+	zones        map[string]*Zone
+	client       mqtt.ClientInterface
+	store        *store.Store
+	cfg          *config.Config
+	resolver     *ha.EntityResolver
+	haAPI        *ha.APIClient
+	mu           sync.RWMutex
+	done         chan struct{}
+	rainMu       sync.RWMutex
 	rainDetected bool
 }
 
@@ -726,6 +738,35 @@ func (m *Manager) GetAllZones() []*Zone {
 	result := make([]*Zone, 0, len(m.zones))
 	for _, z := range m.zones {
 		result = append(result, z)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Config.Name < result[j].Config.Name
+	})
+	return result
+}
+
+func (z *Zone) Snapshot() ZoneSnapshot {
+	z.mu.RLock()
+	defer z.mu.RUnlock()
+	return ZoneSnapshot{
+		Config:           z.Config,
+		Moisture:         z.Moisture,
+		Humidity:         z.Humidity,
+		Temperature:      z.Temperature,
+		State:            z.State,
+		LastMoistureTime: z.LastMoistureTime,
+		LastWaterEnd:     z.LastWaterEnd,
+		LastStateChange:  z.LastStateChange,
+		WateringStarted:  z.WateringStarted,
+	}
+}
+
+func (m *Manager) GetAllZoneSnapshots() []ZoneSnapshot {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	result := make([]ZoneSnapshot, 0, len(m.zones))
+	for _, z := range m.zones {
+		result = append(result, z.Snapshot())
 	}
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Config.Name < result[j].Config.Name

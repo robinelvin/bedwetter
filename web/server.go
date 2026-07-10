@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -33,6 +34,12 @@ type Server struct {
 	scheduler   *scheduler.Scheduler
 	router      *gin.Engine
 	templates   map[string]*template.Template
+}
+
+type zoneView struct {
+	zones.ZoneSnapshot
+	NextWatering       time.Time
+	NextWateringReason string
 }
 
 func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.AlertManager, mqttClient mqtt.ClientInterface, haAPI *ha.APIClient, sched *scheduler.Scheduler) *Server {
@@ -360,10 +367,34 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/config/weather/fields/rain", s.rainSensorFields)
 }
 
+func (s *Server) zoneViews() []zoneView {
+	snapshots := s.zoneManager.GetAllZoneSnapshots()
+	scheduleMap := make(map[string][]models.ScheduleConfig)
+	if schedules, err := s.store.GetAllSchedules(); err == nil {
+		for _, sc := range schedules {
+			scheduleMap[sc.ZoneName] = append(scheduleMap[sc.ZoneName], sc)
+		}
+	} else {
+		log.Printf("Failed to load schedules for zone view: %v", err)
+	}
+
+	now := time.Now()
+	results := make([]zoneView, len(snapshots))
+	for i, snap := range snapshots {
+		nextTime, reason := nextWateringForZone(now, snap, scheduleMap[snap.Config.Name])
+		results[i] = zoneView{
+			ZoneSnapshot:       snap,
+			NextWatering:       nextTime,
+			NextWateringReason: reason,
+		}
+	}
+	return results
+}
+
 func (s *Server) loginPage(c *gin.Context) {
 	count, _ := s.store.CountUsers()
 	s.render(c, "login", http.StatusOK, gin.H{
-		"title":    "Sign In",
+		"title":     "Sign In",
 		"showSetup": count == 0,
 	})
 }
@@ -386,8 +417,8 @@ func (s *Server) login(c *gin.Context) {
 			return
 		}
 		s.render(c, "login", http.StatusOK, gin.H{
-			"title":    "Sign In",
-			"error":    "Invalid credentials",
+			"title":     "Sign In",
+			"error":     "Invalid credentials",
 			"showSetup": true,
 		})
 		return
@@ -476,18 +507,18 @@ func (s *Server) setupCreate(c *gin.Context) {
 }
 
 func (s *Server) dashboard(c *gin.Context) {
-	zoneStates := s.zoneManager.GetAllZones()
+	zoneStates := s.zoneViews()
 	weather := s.scheduler.GetWeather()
 	s.render(c, "dashboard", http.StatusOK, gin.H{
-		"title":          "Dashboard",
-		"zones":          zoneStates,
-		"weather":        weather,
-		"upcomingHours":  weather.UpcomingHours(8),
+		"title":         "Dashboard",
+		"zones":         zoneStates,
+		"weather":       weather,
+		"upcomingHours": weather.UpcomingHours(8),
 	})
 }
 
 func (s *Server) dashboardZones(c *gin.Context) {
-	zoneStates := s.zoneManager.GetAllZones()
+	zoneStates := s.zoneViews()
 	s.renderPartial(c, "_zone_cards", http.StatusOK, gin.H{
 		"zones": zoneStates,
 	})
@@ -811,16 +842,16 @@ func (s *Server) saveZone(c *gin.Context) {
 	idStr := c.PostForm("id")
 
 	zc := models.ZoneConfig{
-		Name:                   c.PostForm("name"),
-		MoistureSensorTopic:    c.PostForm("moisture_sensor_topic"),
-		MoistureSensorEntity:   c.PostForm("moisture_sensor_entity"),
-		HumiditySensorTopic:    c.PostForm("humidity_sensor_topic"),
-		HumiditySensorEntity:   c.PostForm("humidity_sensor_entity"),
-		TemperatureSensorTopic: c.PostForm("temperature_sensor_topic"),
+		Name:                    c.PostForm("name"),
+		MoistureSensorTopic:     c.PostForm("moisture_sensor_topic"),
+		MoistureSensorEntity:    c.PostForm("moisture_sensor_entity"),
+		HumiditySensorTopic:     c.PostForm("humidity_sensor_topic"),
+		HumiditySensorEntity:    c.PostForm("humidity_sensor_entity"),
+		TemperatureSensorTopic:  c.PostForm("temperature_sensor_topic"),
 		TemperatureSensorEntity: c.PostForm("temperature_sensor_entity"),
-		ValveCommandTopic:      c.PostForm("valve_command_topic"),
-		ValveStateTopic:        c.PostForm("valve_state_topic"),
-		ValveSwitchEntity:      c.PostForm("valve_switch_entity"),
+		ValveCommandTopic:       c.PostForm("valve_command_topic"),
+		ValveStateTopic:         c.PostForm("valve_state_topic"),
+		ValveSwitchEntity:       c.PostForm("valve_switch_entity"),
 	}
 
 	zc.ThresholdLow, _ = strconv.Atoi(c.PostForm("threshold_low"))
@@ -1052,7 +1083,7 @@ func (s *Server) eventsPage(c *gin.Context) {
 }
 
 func (s *Server) apiZones(c *gin.Context) {
-	zoneStates := s.zoneManager.GetAllZones()
+	zoneStates := s.zoneViews()
 	results := make([]gin.H, len(zoneStates))
 	for i, z := range zoneStates {
 		results[i] = gin.H{
@@ -1063,8 +1094,114 @@ func (s *Server) apiZones(c *gin.Context) {
 			"state":       z.State,
 			"last_update": z.LastMoistureTime.Format(time.RFC3339),
 		}
+		if !z.NextWatering.IsZero() {
+			results[i]["next_watering"] = z.NextWatering.Format(time.RFC3339)
+			results[i]["next_watering_reason"] = z.NextWateringReason
+		}
 	}
 	c.JSON(http.StatusOK, results)
+}
+
+func nextWateringForZone(now time.Time, snap zones.ZoneSnapshot, scheduleEntries []models.ScheduleConfig) (time.Time, string) {
+	var next time.Time
+	var reason string
+
+	if t, ok := nextScheduledOccurrence(now, scheduleEntries); ok {
+		next = t
+		reason = "Schedule"
+	}
+
+	if snap.State == zones.StateCooldown && snap.Config.CooldownMinutes > 0 && !snap.LastWaterEnd.IsZero() {
+		target := snap.LastWaterEnd.Add(time.Duration(snap.Config.CooldownMinutes) * time.Minute)
+		if snap.Moisture > 0 && snap.Moisture < float64(snap.Config.ThresholdLow) {
+			if target.Before(now) {
+				target = now
+			}
+			if next.IsZero() || target.Before(next) {
+				next = target
+				reason = "Cooldown"
+			}
+		}
+	}
+
+	return next, reason
+}
+
+func nextScheduledOccurrence(now time.Time, entries []models.ScheduleConfig) (time.Time, bool) {
+	if len(entries) == 0 {
+		return time.Time{}, false
+	}
+	loc := now.Location()
+	var best time.Time
+	for _, entry := range entries {
+		if t, ok := nextOccurrenceForEntry(now, entry, loc); ok {
+			if best.IsZero() || t.Before(best) {
+				best = t
+			}
+		}
+	}
+	if best.IsZero() {
+		return time.Time{}, false
+	}
+	return best, true
+}
+
+func nextOccurrenceForEntry(now time.Time, entry models.ScheduleConfig, loc *time.Location) (time.Time, bool) {
+	if entry.Time == "" {
+		return time.Time{}, false
+	}
+	schedTime, err := time.ParseInLocation("15:04", entry.Time, loc)
+	if err != nil {
+		return time.Time{}, false
+	}
+	for days := 0; days <= 366; days++ {
+		candidateDate := now.AddDate(0, 0, days)
+		if entry.Month > 0 && int(candidateDate.Month()) != entry.Month {
+			continue
+		}
+		if entry.DayOfWeek != "" {
+			if wd, ok := weekdayFromString(entry.DayOfWeek); ok {
+				if candidateDate.Weekday() != wd {
+					continue
+				}
+			} else {
+				continue
+			}
+		}
+		candidate := time.Date(candidateDate.Year(), candidateDate.Month(), candidateDate.Day(), schedTime.Hour(), schedTime.Minute(), 0, 0, loc)
+		if candidate.After(now) {
+			return candidate, true
+		}
+	}
+	return time.Time{}, false
+}
+
+func weekdayFromString(s string) (time.Weekday, bool) {
+	if s == "" {
+		return time.Sunday, false
+	}
+	key := strings.ToLower(strings.TrimSpace(s))
+	if len(key) >= 3 {
+		key = key[:3]
+	}
+	switch key {
+	case "mon":
+		return time.Monday, true
+	case "tue":
+		return time.Tuesday, true
+	case "wed":
+		return time.Wednesday, true
+	case "thu":
+		return time.Thursday, true
+	case "fri":
+		return time.Friday, true
+	case "sat":
+		return time.Saturday, true
+	case "sun":
+		return time.Sunday, true
+	default:
+		return time.Sunday, false
+	}
 }
 
 func (s *Server) Start(addr string) error {
