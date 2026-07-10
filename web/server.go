@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -34,8 +33,6 @@ type Server struct {
 	scheduler   *scheduler.Scheduler
 	router      *gin.Engine
 	templates   map[string]*template.Template
-	sessions    map[string]string
-	sessionMu   sync.RWMutex
 }
 
 func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.AlertManager, mqttClient mqtt.ClientInterface, haAPI *ha.APIClient, sched *scheduler.Scheduler) *Server {
@@ -51,7 +48,6 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 		scheduler:   sched,
 		router:      r,
 		templates:   make(map[string]*template.Template),
-		sessions:    make(map[string]string),
 	}
 
 	funcMap := template.FuncMap{
@@ -255,10 +251,8 @@ func (s *Server) isAuthenticated(c *gin.Context) bool {
 	if err != nil {
 		return false
 	}
-	s.sessionMu.RLock()
-	_, ok := s.sessions[cookie]
-	s.sessionMu.RUnlock()
-	return ok
+	_, err = s.store.GetSessionByID(cookie)
+	return err == nil
 }
 
 func (s *Server) generateSessionID() string {
@@ -269,9 +263,9 @@ func (s *Server) generateSessionID() string {
 
 func (s *Server) createSession(username string) string {
 	id := s.generateSessionID()
-	s.sessionMu.Lock()
-	s.sessions[id] = username
-	s.sessionMu.Unlock()
+	if err := s.store.CreateSession(id, username); err != nil {
+		log.Printf("Failed to create session: %v", err)
+	}
 	return id
 }
 
@@ -291,10 +285,8 @@ func (s *Server) authRequired() gin.HandlerFunc {
 
 		cookie, err := c.Cookie("session")
 		if err == nil {
-			s.sessionMu.RLock()
-			username, ok := s.sessions[cookie]
-			s.sessionMu.RUnlock()
-			if ok {
+			username, err := s.store.GetSessionByID(cookie)
+			if err == nil {
 				c.Set("username", username)
 				c.Next()
 				return
@@ -307,8 +299,13 @@ func (s *Server) authRequired() gin.HandlerFunc {
 				c.Next()
 				return
 			}
-			c.Redirect(http.StatusFound, "/setup")
-			c.Abort()
+			if c.GetHeader("HX-Request") == "true" {
+				c.Header("HX-Redirect", "/setup")
+				c.AbortWithStatus(http.StatusOK)
+			} else {
+				c.Redirect(http.StatusFound, "/setup")
+				c.Abort()
+			}
 			return
 		}
 
@@ -316,8 +313,13 @@ func (s *Server) authRequired() gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		c.Redirect(http.StatusFound, "/login")
-		c.Abort()
+		if c.GetHeader("HX-Request") == "true" {
+			c.Header("HX-Redirect", "/login")
+			c.AbortWithStatus(http.StatusOK)
+		} else {
+			c.Redirect(http.StatusFound, "/login")
+			c.Abort()
+		}
 	}
 }
 
@@ -416,9 +418,7 @@ func (s *Server) login(c *gin.Context) {
 func (s *Server) logout(c *gin.Context) {
 	cookie, err := c.Cookie("session")
 	if err == nil {
-		s.sessionMu.Lock()
-		delete(s.sessions, cookie)
-		s.sessionMu.Unlock()
+		s.store.DeleteSession(cookie)
 	}
 	c.SetCookie("session", "", -1, "/", "", false, true)
 	c.Redirect(http.StatusFound, "/login")

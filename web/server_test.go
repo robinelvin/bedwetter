@@ -587,11 +587,9 @@ func TestLogin_DefaultCreds(t *testing.T) {
 		t.Error("expected non-empty session cookie value")
 	}
 
-	sv.sessionMu.RLock()
-	username, ok := sv.sessions[sessionCookie.Value]
-	sv.sessionMu.RUnlock()
-	if !ok {
-		t.Error("expected session to exist in server")
+	username, err := sv.store.GetSessionByID(sessionCookie.Value)
+	if err != nil {
+		t.Errorf("expected session to exist in server: %v", err)
 	}
 	if username != "admin" {
 		t.Errorf("expected username 'admin', got %q", username)
@@ -619,9 +617,7 @@ func TestLogin_DefaultCreds_Wrong(t *testing.T) {
 		t.Error("expected setup link still shown")
 	}
 
-	sv.sessionMu.RLock()
-	sessionCount := len(sv.sessions)
-	sv.sessionMu.RUnlock()
+	sessionCount, _ := sv.store.CountSessions()
 	if sessionCount != 0 {
 		t.Errorf("expected 0 sessions, got %d", sessionCount)
 	}
@@ -655,11 +651,9 @@ func TestLogin_RealCreds(t *testing.T) {
 		t.Fatal("expected session cookie")
 	}
 
-	sv.sessionMu.RLock()
-	username, ok := sv.sessions[sessionCookie.Value]
-	sv.sessionMu.RUnlock()
-	if !ok {
-		t.Error("expected session to exist in server")
+	username, err := sv.store.GetSessionByID(sessionCookie.Value)
+	if err != nil {
+		t.Errorf("expected session to exist in server: %v", err)
 	}
 	if username != "alice" {
 		t.Errorf("expected username 'alice', got %q", username)
@@ -848,10 +842,8 @@ func TestLogout(t *testing.T) {
 		t.Errorf("expected redirect to /login, got %q", loc)
 	}
 
-	sv.sessionMu.RLock()
-	_, ok := sv.sessions[sessionID]
-	sv.sessionMu.RUnlock()
-	if ok {
+	_, err := sv.store.GetSessionByID(sessionID)
+	if err == nil {
 		t.Error("expected session to be removed after logout")
 	}
 

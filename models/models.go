@@ -163,6 +163,13 @@ type EventLog struct {
 	CreatedAt time.Time `gorm:"autoCreateTime;index" json:"created_at"`
 }
 
+type Session struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	SessionID string    `gorm:"size:128;uniqueIndex" json:"session_id"`
+	Username  string    `gorm:"size:128" json:"username"`
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+}
+
 func AutoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&SensorReading{},
@@ -176,6 +183,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&WeatherConfig{},
 		&User{},
 		&EventLog{},
+		&Session{},
 	)
 }
 

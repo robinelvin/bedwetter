@@ -272,6 +272,29 @@ func (s *Store) CountUsers() (int64, error) {
 	return count, err
 }
 
+func (s *Store) CreateSession(sessionID, username string) error {
+	return s.db.Create(&models.Session{SessionID: sessionID, Username: username}).Error
+}
+
+func (s *Store) GetSessionByID(sessionID string) (string, error) {
+	var session models.Session
+	err := s.db.Where("session_id = ?", sessionID).First(&session).Error
+	if err != nil {
+		return "", err
+	}
+	return session.Username, nil
+}
+
+func (s *Store) DeleteSession(sessionID string) error {
+	return s.db.Where("session_id = ?", sessionID).Delete(&models.Session{}).Error
+}
+
+func (s *Store) CountSessions() (int64, error) {
+	var count int64
+	err := s.db.Model(&models.Session{}).Count(&count).Error
+	return count, err
+}
+
 func (s *Store) LoadConfigSchedules(zoneSchedules []config.ZoneSchedule) error {
 	for _, zs := range zoneSchedules {
 		var entries []models.ScheduleConfig
