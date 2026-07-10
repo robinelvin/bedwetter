@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BedWetter - Configuration</title>
+    <script src="/static/htmx.min.js"></script>
+    <link rel="stylesheet" href="/static/tailwind.css">
+</head>
+<body class="bg-background min-h-screen antialiased">
+
+    <nav class="bg-gradient-to-r from-emerald-800 to-emerald-700 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <a href="/" class="flex items-center gap-2 text-xl font-bold tracking-tight">
+                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                    BedWetter
+                </a>
+                <div class="flex items-center gap-1">
+                    
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 class="text-2xl font-bold text-foreground mb-8 tracking-tight">Configuration</h1>
+        
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <div class="bg-card rounded-xl shadow-sm border border-border p-6">
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center">
+                <svg class="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+            <h2 class="text-lg font-semibold text-card-foreground">MQTT Broker</h2>
+        </div>
+        <form action="/config/mqtt" method="POST" class="space-y-4">
+            <div class="grid grid-cols-3 gap-4">
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Broker</label>
+                    <input type="text" name="broker" value="localhost" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Port</label>
+                    <input type="number" name="port" value="1883" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Username</label>
+                    <input type="text" name="username" value="" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Password</label>
+                    <input type="password" name="password" value="" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+                </div>
+            </div>
+            <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                Save
+            </button>
+        </form>
+    </div>
+
+    <div class="bg-card rounded-xl shadow-sm border border-border p-6">
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            </div>
+            <h2 class="text-lg font-semibold text-card-foreground">Home Assistant</h2>
+        </div>
+        <form action="/config/ha" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">API URL</label>
+                <input type="text" name="url" value="" placeholder="http://homeassistant:8123" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Long-Lived Access Token</label>
+                <input type="password" name="token" value="" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+            <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                Save
+            </button>
+        </form>
+    </div>
+
+    <div class="bg-card rounded-xl shadow-sm border border-border p-6">
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+            </div>
+            <h2 class="text-lg font-semibold text-card-foreground">Alert Configuration</h2>
+        </div>
+        <form action="/config/alerts" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Alert Email</label>
+                <input type="email" name="email" value="test@example.com" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">From Email</label>
+                <input type="email" name="from_email" value="" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Stale Sensor Threshold (minutes)</label>
+                <input type="number" name="stale_sensor_minutes" value="60" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+            <div class="pt-4 border-t border-border">
+                <h3 class="text-sm font-semibold text-foreground mb-3">SMTP Settings</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Server</label>
+                        <input type="text" name="smtp_server" value="" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Port</label>
+                        <input type="number" name="smtp_port" value="0" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Username</label>
+                        <input type="text" name="smtp_username" value="" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Password</label>
+                        <input type="password" name="smtp_password" value="" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                Save
+            </button>
+        </form>
+    </div>
+
+    <div class="bg-card rounded-xl shadow-sm border border-border p-6">
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-9 h-9 rounded-lg bg-sky-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+            </div>
+            <h2 class="text-lg font-semibold text-card-foreground">Weather & Rain Sensor</h2>
+        </div>
+        <form action="/config/weather" method="POST" class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Latitude</label>
+                    <input type="number" step="any" name="lat" value="0" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Longitude</label>
+                    <input type="number" step="any" name="lon" value="0" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Rain Threshold (mm) — skip watering if ≥ this amount forecast in 24h</label>
+                <input type="number" step="0.1" name="rain_threshold_mm" value="0" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-2">Rain Sensor Source</label>
+                <div class="flex gap-4 mb-3">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="rain_source" value="mqtt"
+                            checked
+                            hx-get="/config/weather/fields/rain?type=mqtt"
+                            hx-trigger="change"
+                            hx-target="#rain-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-primary border-border focus:ring-ring">
+                        <span class="text-sm text-foreground">MQTT</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="rain_source" value="ha"
+                            
+                            hx-get="/config/weather/fields/rain?type=ha"
+                            hx-trigger="change"
+                            hx-target="#rain-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-indigo-600 border-border focus:ring-indigo-500">
+                        <span class="text-sm text-foreground">HA</span>
+                    </label>
+                </div>
+            </div>
+            <div id="rain-fields"
+                hx-get="/config/weather/fields/rain?type=mqtt"
+                hx-trigger="load"
+                hx-swap="innerHTML">
+            </div>
+            <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                Save
+            </button>
+        </form>
+    </div>
+
+    <div id="zone-form" class="bg-card rounded-xl shadow-sm border border-border p-6 lg:col-span-2">
+        <div class="flex items-center justify-between mb-5">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-sky-100 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                </div>
+                <h2 class="text-lg font-semibold text-card-foreground">Add Zone</h2>
+            </div>
+            
+        </div>
+        <form action="/config/zones" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <div class="md:col-span-3">
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Zone Name</label>
+                <input type="text" name="name" value="" required class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-2">Moisture Source</label>
+                <div class="flex gap-4">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="moisture_source" value="mqtt"
+                            checked
+                            hx-get="/config/zones/fields/moisture?type=mqtt"
+                            hx-trigger="change"
+                            hx-target="#moisture-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-primary border-border focus:ring-ring">
+                        <span class="text-sm text-foreground">MQTT</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="moisture_source" value="ha"
+                            
+                            hx-get="/config/zones/fields/moisture?type=ha"
+                            hx-trigger="change"
+                            hx-target="#moisture-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-indigo-600 border-border focus:ring-indigo-500">
+                        <span class="text-sm text-foreground">HA</span>
+                    </label>
+                </div>
+            </div>
+            <div id="moisture-fields" class="md:col-span-2"
+                hx-get="/config/zones/fields/moisture?type=mqtt"
+                hx-trigger="load"
+                hx-swap="innerHTML">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-2">Valve Source</label>
+                <div class="flex gap-4">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="valve_source" value="mqtt"
+                            checked
+                            hx-get="/config/zones/fields/valve?type=mqtt"
+                            hx-trigger="change"
+                            hx-target="#valve-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-primary border-border focus:ring-ring">
+                        <span class="text-sm text-foreground">MQTT</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="valve_source" value="ha"
+                            
+                            hx-get="/config/zones/fields/valve?type=ha"
+                            hx-trigger="change"
+                            hx-target="#valve-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-indigo-600 border-border focus:ring-indigo-500">
+                        <span class="text-sm text-foreground">HA</span>
+                    </label>
+                </div>
+            </div>
+            <div id="valve-fields" class="md:col-span-2"
+                hx-get="/config/zones/fields/valve?type=mqtt"
+                hx-trigger="load"
+                hx-swap="innerHTML">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-2">Humidity Source</label>
+                <div class="flex gap-4">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="humidity_source" value="mqtt"
+                            checked
+                            hx-get="/config/zones/fields/humidity?type=mqtt"
+                            hx-trigger="change"
+                            hx-target="#humidity-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-primary border-border focus:ring-ring">
+                        <span class="text-sm text-foreground">MQTT</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="humidity_source" value="ha"
+                            
+                            hx-get="/config/zones/fields/humidity?type=ha"
+                            hx-trigger="change"
+                            hx-target="#humidity-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-indigo-600 border-border focus:ring-indigo-500">
+                        <span class="text-sm text-foreground">HA</span>
+                    </label>
+                </div>
+            </div>
+            <div id="humidity-fields" class="md:col-span-2"
+                hx-get="/config/zones/fields/humidity?type=mqtt"
+                hx-trigger="load"
+                hx-swap="innerHTML">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-2">Temperature Source</label>
+                <div class="flex gap-4">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="temperature_source" value="mqtt"
+                            checked
+                            hx-get="/config/zones/fields/temperature?type=mqtt"
+                            hx-trigger="change"
+                            hx-target="#temperature-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-primary border-border focus:ring-ring">
+                        <span class="text-sm text-foreground">MQTT</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="temperature_source" value="ha"
+                            
+                            hx-get="/config/zones/fields/temperature?type=ha"
+                            hx-trigger="change"
+                            hx-target="#temperature-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-indigo-600 border-border focus:ring-indigo-500">
+                        <span class="text-sm text-foreground">HA</span>
+                    </label>
+                </div>
+            </div>
+            <div id="temperature-fields" class="md:col-span-2"
+                hx-get="/config/zones/fields/temperature?type=mqtt"
+                hx-trigger="load"
+                hx-swap="innerHTML">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Threshold Low (%)</label>
+                <input type="number" name="threshold_low" value="40" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Threshold High (%)</label>
+                <input type="number" name="threshold_high" value="60" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Max Watering (s)</label>
+                <input type="number" name="max_watering_seconds" value="300" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Max Activations / Day</label>
+                <input type="number" name="max_activations_per_day" value="5" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Cooldown (min)</label>
+                <input type="number" name="cooldown_minutes" value="90" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Earliest Watering Time</label>
+                <input type="time" name="earliest_watering_time" value="06:00" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Latest Watering Time</label>
+                <input type="time" name="latest_watering_time" value="10:00" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+            <div class="md:col-span-3 border-t border-border pt-4">
+                <h3 class="text-sm font-semibold text-foreground mb-3">Seasonal Multipliers (× duration per month)</h3>
+                <div class="grid grid-cols-3 md:grid-cols-4 gap-3">
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-foreground-muted mb-1">Jan</label>
+                        <input type="number" step="0.1" name="seasonal_multiplier_1" value="1" class="w-full rounded-lg border border-input px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow" placeholder="1.0">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-foreground-muted mb-1">Feb</label>
+                        <input type="number" step="0.1" name="seasonal_multiplier_2" value="1" class="w-full rounded-lg border border-input px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow" placeholder="1.0">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-foreground-muted mb-1">Mar</label>
+                        <input type="number" step="0.1" name="seasonal_multiplier_3" value="1" class="w-full rounded-lg border border-input px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow" placeholder="1.0">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-foreground-muted mb-1">Apr</label>
+                        <input type="number" step="0.1" name="seasonal_multiplier_4" value="1" class="w-full rounded-lg border border-input px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow" placeholder="1.0">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-foreground-muted mb-1">May</label>
+                        <input type="number" step="0.1" name="seasonal_multiplier_5" value="1" class="w-full rounded-lg border border-input px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow" placeholder="1.0">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-foreground-muted mb-1">Jun</label>
+                        <input type="number" step="0.1" name="seasonal_multiplier_6" value="1" class="w-full rounded-lg border border-input px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow" placeholder="1.0">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-foreground-muted mb-1">Jul</label>
+                        <input type="number" step="0.1" name="seasonal_multiplier_7" value="1" class="w-full rounded-lg border border-input px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow" placeholder="1.0">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-foreground-muted mb-1">Aug</label>
+                        <input type="number" step="0.1" name="seasonal_multiplier_8" value="1" class="w-full rounded-lg border border-input px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow" placeholder="1.0">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-foreground-muted mb-1">Sep</label>
+                        <input type="number" step="0.1" name="seasonal_multiplier_9" value="1" class="w-full rounded-lg border border-input px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow" placeholder="1.0">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-foreground-muted mb-1">Oct</label>
+                        <input type="number" step="0.1" name="seasonal_multiplier_10" value="1" class="w-full rounded-lg border border-input px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow" placeholder="1.0">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-foreground-muted mb-1">Nov</label>
+                        <input type="number" step="0.1" name="seasonal_multiplier_11" value="1" class="w-full rounded-lg border border-input px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow" placeholder="1.0">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-foreground-muted mb-1">Dec</label>
+                        <input type="number" step="0.1" name="seasonal_multiplier_12" value="1" class="w-full rounded-lg border border-input px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow" placeholder="1.0">
+                    </div>
+                    
+                </div>
+            </div>
+            <div class="md:col-span-3 flex gap-3 pt-2">
+                <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    Add Zone
+                </button>
+                
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-card rounded-xl shadow-sm border border-border p-6 lg:col-span-2">
+        <h2 class="text-lg font-semibold text-card-foreground mb-5">Configured Zones</h2>
+        <div class="overflow-x-auto rounded-lg border border-border">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-background-secondary">
+                        <th class="text-left px-4 py-3 font-medium text-foreground-muted">Zone</th>
+                        <th class="text-left px-4 py-3 font-medium text-foreground-muted">Source</th>
+                        <th class="text-left px-4 py-3 font-medium text-foreground-muted">Moisture</th>
+                        <th class="text-left px-4 py-3 font-medium text-foreground-muted">Valve</th>
+                        <th class="text-left px-4 py-3 font-medium text-foreground-muted">Threshold</th>
+                        <th class="text-left px-4 py-3 font-medium text-foreground-muted">Max Water</th>
+                        <th class="text-left px-4 py-3 font-medium text-foreground-muted">Cooldown</th>
+                        <th class="text-left px-4 py-3 font-medium text-foreground-muted">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-border">
+                    
+                    <tr class="hover:bg-background-secondary transition-colors">
+                        <td class="px-4 py-3 font-medium text-card-foreground">Z1</td>
+                        <td class="px-4 py-3">
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-background-muted text-foreground-secondary">
+                                MQTT
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 font-mono text-xs text-foreground-secondary max-w-[10rem] truncate" title=""></td>
+                        <td class="px-4 py-3 font-mono text-xs text-foreground-secondary max-w-[10rem] truncate" title=""></td>
+                        <td class="px-4 py-3 text-foreground-secondary">30% – 60%</td>
+                        <td class="px-4 py-3 text-foreground-secondary">0s</td>
+                        <td class="px-4 py-3 text-foreground-secondary">0m</td>
+                        <td class="px-4 py-3">
+                            <div class="flex gap-2">
+                                <a href="/config?edit=1#zone-form" class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-emerald-800 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                    Edit
+                                </a>
+                                <form action="/config/zones/N/delete" method="POST" class="inline" onsubmit="return confirm('Delete zone Z1?')">
+                                    <button type="submit" class="inline-flex items-center gap-1 text-sm font-medium text-error hover:text-red-800 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+    </main>
+</body>
+</html>

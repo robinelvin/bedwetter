@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/approvals/go-approval-tests"
 	"github.com/gin-gonic/gin"
 	"github.com/robinelvin/bedwetter/alerts"
 	"github.com/robinelvin/bedwetter/config"
@@ -61,47 +62,16 @@ func TestConfigPage(t *testing.T) {
 	setupGin()
 	sv := newTestServer(t)
 
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/config", nil)
-	sv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
-	}
-
-	body := w.Body.String()
-	if !strings.Contains(body, "Configuration") {
-		t.Error("expected page to contain Configuration")
-	}
-	if !strings.Contains(body, "Z1") {
-		t.Error("expected page to contain zone Z1")
-	}
-	if !strings.Contains(body, "test@example.com") {
-		t.Error("expected page to contain alert email")
-	}
+	verifyPage(t, sv, "/config")
 }
 
 func TestConfigPageEdit(t *testing.T) {
 	setupGin()
 	sv := newTestServer(t)
 
-	// First create a zone in DB
 	sv.store.CreateZoneConfig(&models.ZoneConfig{Name: "Edit Zone", ThresholdLow: 20, ThresholdHigh: 80})
 
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/config?edit=1", nil)
-	sv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "Edit Zone") {
-		t.Error("expected page to contain edit zone name")
-	}
-	if !strings.Contains(body, "Update Zone") {
-		t.Error("expected page to contain Update Zone button")
-	}
+	verifyPage(t, sv, "/config?edit=1")
 }
 
 func TestSaveAlerts(t *testing.T) {
@@ -327,20 +297,7 @@ func TestSchedulesPage(t *testing.T) {
 	setupGin()
 	sv := newTestServer(t)
 
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/schedules", nil)
-	sv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "Watering Schedules") {
-		t.Error("expected schedules page heading")
-	}
-	if !strings.Contains(body, "Z1") {
-		t.Error("expected zone in zone dropdown")
-	}
+	verifyPage(t, sv, "/schedules")
 }
 
 func TestSaveSchedule(t *testing.T) {
@@ -402,17 +359,7 @@ func TestDashboard(t *testing.T) {
 	setupGin()
 	sv := newTestServer(t)
 
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/", nil)
-	sv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "Z1") {
-		t.Error("expected dashboard to contain zone name")
-	}
+	verifyPage(t, sv, "/")
 }
 
 func TestDashboardZones(t *testing.T) {
@@ -426,6 +373,28 @@ func TestDashboardZones(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
+}
+
+func TestDashboardZonesUnsetBadge(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	z := sv.zoneManager.GetZone("Z1")
+	if z == nil {
+		t.Fatal("expected zone Z1 to exist")
+	}
+
+	t.Run("defaults show unset", func(t *testing.T) {
+		verifyPage(t, sv, "/dashboard/zones")
+	})
+
+	z.Moisture = 45.0
+	z.Humidity = 62.0
+	z.Temperature = 22.5
+
+	t.Run("values rendered", func(t *testing.T) {
+		verifyPage(t, sv, "/dashboard/zones")
+	})
 }
 
 func TestOpenValve(t *testing.T) {
@@ -472,17 +441,7 @@ func TestZoneHistory(t *testing.T) {
 
 	sv.store.SaveSensorReading("Z1", 45.0, 60.0, 0)
 
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/zones/Z1/history?hours=24", nil)
-	sv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "Z1") {
-		t.Error("expected history page to contain zone name")
-	}
+	verifyPage(t, sv, "/zones/Z1/history?hours=24")
 }
 
 func TestAPIZones(t *testing.T) {
@@ -515,23 +474,7 @@ func TestLoginPage_NoUsers(t *testing.T) {
 	setupGin()
 	sv := newTestServer(t)
 
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/login", nil)
-	sv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "Sign In") {
-		t.Error("expected login page heading")
-	}
-	if !strings.Contains(body, "Create Admin User") {
-		t.Error("expected setup link when no users exist")
-	}
-	if !strings.Contains(body, "admin") || !strings.Contains(body, "bedwetter") {
-		t.Error("expected default credentials hint")
-	}
+	verifyPage(t, sv, "/login")
 }
 
 func TestLoginPage_WithUsers(t *testing.T) {
@@ -539,23 +482,7 @@ func TestLoginPage_WithUsers(t *testing.T) {
 	sv := newTestServer(t)
 	sv.store.CreateUser("testuser", "hash")
 
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/login", nil)
-	sv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "Sign In") {
-		t.Error("expected login page heading")
-	}
-	if strings.Contains(body, "Create Admin User") {
-		t.Error("expected no setup link when users exist")
-	}
-	if strings.Contains(body, "bedwetter") {
-		t.Error("expected no default credentials hint when users exist")
-	}
+	verifyPage(t, sv, "/login")
 }
 
 func TestLogin_DefaultCreds(t *testing.T) {
@@ -601,21 +528,7 @@ func TestLogin_DefaultCreds_Wrong(t *testing.T) {
 	sv := newTestServer(t)
 
 	form := url.Values{"username": {"admin"}, "password": {"wrong"}}
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", "/login", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	sv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200 (re-render login), got %d", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "Invalid credentials") {
-		t.Error("expected error message for invalid credentials")
-	}
-	if !strings.Contains(body, "Create Admin User") {
-		t.Error("expected setup link still shown")
-	}
+	verifyPagePost(t, sv, "/login", form)
 
 	sessionCount, _ := sv.store.CountSessions()
 	if sessionCount != 0 {
@@ -667,18 +580,7 @@ func TestLogin_RealCreds_Wrong(t *testing.T) {
 	sv.store.CreateUser("alice", string(hash))
 
 	form := url.Values{"username": {"alice"}, "password": {"wrong"}}
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", "/login", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	sv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200 (re-render login), got %d", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "Invalid username or password") {
-		t.Error("expected error message for invalid credentials")
-	}
+	verifyPagePost(t, sv, "/login", form)
 }
 
 func TestLogin_RealCreds_UnknownUser(t *testing.T) {
@@ -687,38 +589,14 @@ func TestLogin_RealCreds_UnknownUser(t *testing.T) {
 	sv.store.CreateUser("alice", "hash")
 
 	form := url.Values{"username": {"bob"}, "password": {"secret"}}
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", "/login", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	sv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200 (re-render login), got %d", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "Invalid username or password") {
-		t.Error("expected error message for unknown user")
-	}
+	verifyPagePost(t, sv, "/login", form)
 }
 
 func TestSetupPage_NoUsers(t *testing.T) {
 	setupGin()
 	sv := newTestServer(t)
 
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/setup", nil)
-	sv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "First-Time Setup") {
-		t.Error("expected setup page heading")
-	}
-	if !strings.Contains(body, "Create Account") {
-		t.Error("expected create account button")
-	}
+	verifyPage(t, sv, "/setup")
 }
 
 func TestSetupPage_WithUsers(t *testing.T) {
@@ -744,18 +622,7 @@ func TestSetupCreate(t *testing.T) {
 	sv := newTestServer(t)
 
 	form := url.Values{"username": {"newuser"}, "password": {"mypassword"}, "confirm_password": {"mypassword"}}
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", "/setup", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	sv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200 (redirect to login), got %d", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "Account created successfully") {
-		t.Error("expected success message")
-	}
+	verifyPagePost(t, sv, "/setup", form)
 
 	user, err := sv.store.GetUserByUsername("newuser")
 	if err != nil {
@@ -774,18 +641,7 @@ func TestSetupCreate_PasswordMismatch(t *testing.T) {
 	sv := newTestServer(t)
 
 	form := url.Values{"username": {"newuser"}, "password": {"mypassword"}, "confirm_password": {"different"}}
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", "/setup", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	sv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "Passwords do not match") {
-		t.Error("expected password mismatch error")
-	}
+	verifyPagePost(t, sv, "/setup", form)
 }
 
 func TestSetupCreate_ShortPassword(t *testing.T) {
@@ -793,18 +649,7 @@ func TestSetupCreate_ShortPassword(t *testing.T) {
 	sv := newTestServer(t)
 
 	form := url.Values{"username": {"newuser"}, "password": {"ab"}, "confirm_password": {"ab"}}
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", "/setup", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	sv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "at least 6 characters") {
-		t.Error("expected short password error")
-	}
+	verifyPagePost(t, sv, "/setup", form)
 }
 
 func TestSetupCreate_DuplicateUser(t *testing.T) {
@@ -968,10 +813,8 @@ func TestAuthMiddleware_AuthenticatedSessionProceeds(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200 for authenticated request, got %d", w.Code)
 	}
-	body := w.Body.String()
-	if !strings.Contains(body, "Dashboard") {
-		t.Error("expected dashboard page content")
-	}
+
+	approvals.VerifyString(t, w.Body.String(), standardScrubbers())
 }
 
 func TestOpenAllValves(t *testing.T) {
@@ -1031,24 +874,7 @@ func TestConfigPageContainsWeatherSection(t *testing.T) {
 	setupGin()
 	sv := newTestServer(t)
 
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/config", nil)
-	sv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
-	}
-
-	body := w.Body.String()
-	if !strings.Contains(body, "Weather") {
-		t.Error("expected page to contain Weather section")
-	}
-	if !strings.Contains(body, "rain_threshold_mm") {
-		t.Error("expected page to contain rain threshold field")
-	}
-	if !strings.Contains(body, "Rain Sensor Source") {
-		t.Error("expected page to contain rain sensor source toggle")
-	}
+	verifyPage(t, sv, "/config")
 }
 
 func TestSaveWeatherConfigMQTT(t *testing.T) {
