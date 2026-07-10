@@ -1,5 +1,5 @@
 {{define "_rain_ha"}}
-<label class="block text-sm font-medium text-slate-600 mb-1.5">Rain Sensor HA Entity</label>
-<input type="text" name="rain_sensor_entity" value="{{.weather.RainSensorEntity}}" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
-<p class="text-xs text-slate-400 mt-1.5">Entity ID like <code>binary_sensor.rain</code> or <code>sensor.rain_sensor</code>. State "on"/"true"/"1" = rain detected</p>
+<label class="block text-sm font-medium text-foreground-secondary mb-1.5">Rain Sensor HA Entity</label>
+<input type="text" name="rain_sensor_entity" value="{{.weather.RainSensorEntity}}" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+<p class="text-xs text-foreground-muted mt-1.5">Entity ID like <code>binary_sensor.rain</code> or <code>sensor.rain_sensor</code>. State "on"/"true"/"1" = rain detected</p>
 {{end}}

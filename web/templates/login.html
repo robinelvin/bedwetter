@@ -2,48 +2,48 @@
 {{define "heading"}}Login{{end}}
 {{define "content"}}
 <div class="max-w-md mx-auto mt-12">
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+    <div class="bg-card rounded-xl shadow-sm border border-border p-8">
         <div class="flex items-center gap-3 mb-6">
-            <div class="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-                <svg class="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            <div class="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
+                <svg class="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
             </div>
-            <h2 class="text-xl font-semibold text-slate-800">Sign In</h2>
+            <h2 class="text-xl font-semibold text-card-foreground">Sign In</h2>
         </div>
 
         {{if .error}}
-        <div class="mb-5 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{{.error}}</div>
+        <div class="mb-5 p-3 bg-error/10 border border-error/20 text-error rounded-lg text-sm">{{.error}}</div>
         {{end}}
 
         {{if .info}}
-        <div class="mb-5 p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm">{{.info}}</div>
+        <div class="mb-5 p-3 bg-info/10 border border-info/20 text-info rounded-lg text-sm">{{.info}}</div>
         {{end}}
 
         <form action="/login" method="POST" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1.5">Username</label>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Username</label>
                 <input type="text" name="username" required autocomplete="username"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+                    class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
             </div>
             <div>
-                <label class="block text-sm font-medium text-slate-600 mb-1.5">Password</label>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Password</label>
                 <input type="password" name="password" required autocomplete="current-password"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow">
+                    class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
             </div>
             <button type="submit"
-                class="w-full inline-flex items-center justify-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                class="w-full inline-flex items-center justify-center gap-1.5 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
                 Sign In
             </button>
         </form>
 
         {{if .showSetup}}
-        <div class="mt-6 pt-5 border-t border-slate-200 text-center">
-            <p class="text-sm text-slate-500 mb-3">No user accounts exist yet.</p>
+        <div class="mt-6 pt-5 border-t border-border text-center">
+            <p class="text-sm text-foreground-muted mb-3">No user accounts exist yet.</p>
             <a href="/setup"
-                class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                 Create Admin User
             </a>
-            <p class="mt-2 text-xs text-slate-400">Or sign in with default credentials: <span class="font-mono">admin</span> / <span class="font-mono">bedwetter</span></p>
+            <p class="mt-2 text-xs text-foreground-muted">Or sign in with default credentials: <span class="font-mono">admin</span> / <span class="font-mono">bedwetter</span></p>
         </div>
         {{end}}
     </div>
