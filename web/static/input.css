@@ -1,23 +1,32 @@
+@source "../templates/**/*.html" "../templates/**/*.tmpl" "../../**/*.go";
+
 @import "tailwindcss";
+@plugin "daisyui" {
+    themes:
+        corporate --default,
+        business --prefersdark;
+}
 
 @theme {
-  --color-background: #FAFFFE;
-  --color-background-secondary: #ECFDF5;
-  --color-background-muted: #D1FAE5;
-  --color-card: #FFFFFF;
-  --color-card-foreground: #022C22;
-  --color-foreground: #022C22;
-  --color-foreground-secondary: #374151;
-  --color-foreground-muted: #6B7280;
-  --color-primary: #059669;
-  --color-primary-foreground: #FFFFFF;
-  --color-secondary: #D1FAE5;
-  --color-secondary-foreground: #065F46;
-  --color-border: #A7F3D0;
-  --color-input: #ECFDF5;
-  --color-ring: #059669;
-  --color-success: #16A34A;
-  --color-warning: #D97706;
-  --color-error: #DC2626;
-  --color-info: #2563EB;
+    --color-background: var(--color-base-100);
+    --color-background-muted: var(--color-base-200);
+    --color-background-secondary: var(--color-base-200);
+    --color-card: var(--color-base-100);
+    --color-card-foreground: var(--color-base-content);
+    --color-foreground: var(--color-base-content);
+    --color-foreground-muted: color-mix(
+        in oklch,
+        var(--color-base-content) 60%,
+        var(--color-base-100)
+    );
+    --color-foreground-secondary: color-mix(
+        in oklch,
+        var(--color-base-content) 75%,
+        var(--color-base-100)
+    );
+    --color-border: var(--color-base-300);
+    --color-input: var(--color-base-300);
+    --color-ring: var(--color-primary);
+    --color-primary-foreground: var(--color-primary-content);
+    --color-secondary-foreground: var(--color-secondary-content);
 }

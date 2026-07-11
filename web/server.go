@@ -38,8 +38,11 @@ type Server struct {
 
 type zoneView struct {
 	zones.ZoneSnapshot
-	NextWatering       time.Time
-	NextWateringReason string
+	NextWatering            time.Time
+	NextWateringReason      string
+	NextWateringNote        string
+	NextWateringNoteVariant string
+	NextWateringBadgeClass  string
 }
 
 func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.AlertManager, mqttClient mqtt.ClientInterface, haAPI *ha.APIClient, sched *scheduler.Scheduler) *Server {
@@ -379,13 +382,32 @@ func (s *Server) zoneViews() []zoneView {
 	}
 
 	now := time.Now()
+	rainActive := s.zoneManager.RainDetected()
 	results := make([]zoneView, len(snapshots))
 	for i, snap := range snapshots {
 		nextTime, reason := nextWateringForZone(now, snap, scheduleMap[snap.Config.Name])
+		activations := int64(0)
+		if count, err := s.store.ActivationsToday(snap.Config.Name); err == nil {
+			activations = count
+		} else {
+			log.Printf("Failed to fetch activations for %s: %v", snap.Config.Name, err)
+		}
+		note := ""
+		noteVariant := ""
+		badgeClass := ""
+		if nextTime.IsZero() {
+			note, noteVariant = s.noWateringNote(now, snap, scheduleMap[snap.Config.Name], rainActive, activations)
+			if note != "" {
+				badgeClass = badgeClassForVariant(noteVariant)
+			}
+		}
 		results[i] = zoneView{
-			ZoneSnapshot:       snap,
-			NextWatering:       nextTime,
-			NextWateringReason: reason,
+			ZoneSnapshot:            snap,
+			NextWatering:            nextTime,
+			NextWateringReason:      reason,
+			NextWateringNote:        note,
+			NextWateringNoteVariant: noteVariant,
+			NextWateringBadgeClass:  badgeClass,
 		}
 	}
 	return results
@@ -1097,9 +1119,62 @@ func (s *Server) apiZones(c *gin.Context) {
 		if !z.NextWatering.IsZero() {
 			results[i]["next_watering"] = z.NextWatering.Format(time.RFC3339)
 			results[i]["next_watering_reason"] = z.NextWateringReason
+		} else if z.NextWateringNote != "" {
+			results[i]["next_watering_reason"] = z.NextWateringNote
+			if z.NextWateringNoteVariant != "" {
+				results[i]["next_watering_reason_variant"] = z.NextWateringNoteVariant
+			}
 		}
 	}
 	c.JSON(http.StatusOK, results)
+}
+
+func (s *Server) noWateringNote(now time.Time, snap zones.ZoneSnapshot, scheduleEntries []models.ScheduleConfig, rainActive bool, activations int64) (string, string) {
+	if snap.State == zones.StateFailsafe {
+		return "Failsafe active", "error"
+	}
+	if snap.State == zones.StateManualOpen || snap.State == zones.StateWatering {
+		return "Valve currently open", "info"
+	}
+	if rainActive {
+		return "Rain sensor active", "info"
+	}
+	if snap.State == zones.StateCooldown && snap.Config.CooldownMinutes > 0 && !snap.LastWaterEnd.IsZero() {
+		cooldownEnd := snap.LastWaterEnd.Add(time.Duration(snap.Config.CooldownMinutes) * time.Minute)
+		if cooldownEnd.After(now) {
+			return fmt.Sprintf("Cooldown until %s", cooldownEnd.Format("15:04")), "info"
+		}
+	}
+	if snap.Config.MaxActivationsPerDay > 0 && activations >= int64(snap.Config.MaxActivationsPerDay) {
+		if snap.Moisture == 0 || snap.Moisture < float64(snap.Config.ThresholdLow) {
+			return "Max daily activations reached", "warn"
+		}
+	}
+	if snap.Moisture == 0 {
+		return "Awaiting sensor reading", "muted"
+	}
+	if snap.Config.ThresholdLow > 0 && snap.Moisture >= float64(snap.Config.ThresholdLow) {
+		return fmt.Sprintf("Moisture %.1f%% above threshold %d%%", snap.Moisture, snap.Config.ThresholdLow), "success"
+	}
+	if len(scheduleEntries) == 0 {
+		return "No schedule configured", "muted"
+	}
+	return "No upcoming watering", "muted"
+}
+
+func badgeClassForVariant(variant string) string {
+	switch variant {
+	case "error":
+		return "badge-error"
+	case "warn":
+		return "badge-warning"
+	case "info":
+		return "badge-info"
+	case "success":
+		return "badge-success"
+	default:
+		return "badge-neutral"
+	}
 }
 
 func nextWateringForZone(now time.Time, snap zones.ZoneSnapshot, scheduleEntries []models.ScheduleConfig) (time.Time, string) {

@@ -3,7 +3,7 @@ tmp_dir = "tmp"
 
 [build]
   entrypoint = "."
-  cmd = "npx tailwindcss -i web/static/input.css -o web/static/tailwind.css && go build -o tmp/bedwetter ."
+  cmd = "npx postcss web/static/input.css -o web/static/tailwind.css && go build -o tmp/bedwetter ."
   delay = 500
   exclude_dir = ["tmp", "web/static"]
   exclude_file = []

@@ -1,7 +1,7 @@
 .PHONY: build dev css clean test
 
 css:
-	npx tailwindcss -i web/static/input.css -o web/static/tailwind.css
+	npx postcss web/static/input.css -o web/static/tailwind.css
 
 build: css
 	go build -o bedwetter .
