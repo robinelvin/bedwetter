@@ -146,7 +146,7 @@ func (s *Scheduler) evaluate() {
 	}
 
 	for _, sc := range active {
-		scheduleMinute := parseTimeToMinutes(sc.Time)
+		scheduleMinute := zones.ParseTimeToMinutes(sc.Time)
 		if scheduleMinute < 0 {
 			continue
 		}
@@ -156,7 +156,7 @@ func (s *Scheduler) evaluate() {
 				continue
 			}
 
-			if !isWithinTimeWindow(z.Config.EarliestWateringTime, z.Config.LatestWateringTime, now) {
+			if !zones.IsWithinWateringWindow(z.Config.EarliestWateringTime, z.Config.LatestWateringTime, now) {
 				log.Printf("Schedule: skipping %s, outside watering window (%s-%s)",
 					sc.ZoneName, z.Config.EarliestWateringTime, z.Config.LatestWateringTime)
 				continue
@@ -183,36 +183,10 @@ func (s *Scheduler) evaluate() {
 				sc.ZoneName, sc.Duration, adjustedDuration, multiplier)
 
 			z.Config.MaxWateringSeconds = adjustedDuration
+			s.zoneManager.LogEvent("info", "valve", fmt.Sprintf("Watering started: %s (schedule)", sc.ZoneName), sc.ZoneName)
 			s.zoneManager.OpenValve(sc.ZoneName)
 		}
 	}
-}
-
-func parseTimeToMinutes(t string) int {
-	tm, err := time.Parse("15:04", t)
-	if err != nil {
-		log.Printf("Invalid schedule time %q: %v", t, err)
-		return -1
-	}
-	return tm.Hour()*60 + tm.Minute()
-}
-
-func isWithinTimeWindow(earliest, latest string, now time.Time) bool {
-	if earliest == "" {
-		earliest = "06:00"
-	}
-	if latest == "" {
-		latest = "10:00"
-	}
-
-	earliestMin := parseTimeToMinutes(earliest)
-	latestMin := parseTimeToMinutes(latest)
-	if earliestMin < 0 || latestMin < 0 {
-		return true
-	}
-
-	currentMin := now.Hour()*60 + now.Minute()
-	return currentMin >= earliestMin && currentMin <= latestMin
 }
 
 func getSeasonalMultiplier(multipliers map[int]float64, month int) float64 {

@@ -51,7 +51,7 @@ func TestParseTimeToMinutes(t *testing.T) {
 		{"", -1},
 	}
 	for _, tt := range tests {
-		got := parseTimeToMinutes(tt.input)
+		got := zones.ParseTimeToMinutes(tt.input)
 		if got != tt.want {
 			t.Errorf("parseTimeToMinutes(%q): got %d, want %d", tt.input, got, tt.want)
 		}
@@ -79,7 +79,7 @@ func TestIsWithinTimeWindow(t *testing.T) {
 	for _, tt := range tests {
 		tm, _ := time.Parse("15:04", tt.timeStr)
 		now := time.Date(2026, 7, 9, tm.Hour(), tm.Minute(), 0, 0, time.UTC)
-		got := isWithinTimeWindow(tt.earliest, tt.latest, now)
+		got := zones.IsWithinWateringWindow(tt.earliest, tt.latest, now)
 		if got != tt.want {
 			t.Errorf("isWithinTimeWindow(%q, %q, %s): got %v, want %v", tt.earliest, tt.latest, tt.timeStr, got, tt.want)
 		}
@@ -90,13 +90,13 @@ func TestIsWithinTimeWindowDefaults(t *testing.T) {
 	// Default is 06:00-10:00 when earliest/latest are empty
 	tm, _ := time.Parse("15:04", "08:00")
 	now := time.Date(2026, 7, 9, tm.Hour(), tm.Minute(), 0, 0, time.UTC)
-	if !isWithinTimeWindow("", "", now) {
+	if !zones.IsWithinWateringWindow("", "", now) {
 		t.Error("expected 08:00 to be within default window")
 	}
 
 	tm, _ = time.Parse("15:04", "04:00")
 	now = time.Date(2026, 7, 9, tm.Hour(), tm.Minute(), 0, 0, time.UTC)
-	if isWithinTimeWindow("", "", now) {
+	if zones.IsWithinWateringWindow("", "", now) {
 		t.Error("expected 04:00 to be outside default window")
 	}
 }

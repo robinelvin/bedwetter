@@ -1,6 +1,7 @@
 package zones
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -296,7 +297,7 @@ func TestHandleValveStateNonexistent(t *testing.T) {
 
 func TestEvaluateZoneWatering(t *testing.T) {
 	m := newTestManager(t, []config.ZoneConfig{
-		{Name: "Z1", ThresholdLow: 50, ThresholdHigh: 70, MaxWateringSeconds: 300, MaxActivationsPerDay: 5, CooldownMinutes: 60, ValveCommandTopic: "valve/z1"},
+		{Name: "Z1", ThresholdLow: 50, ThresholdHigh: 70, MaxWateringSeconds: 300, MaxActivationsPerDay: 5, CooldownMinutes: 60, ValveCommandTopic: "valve/z1", EarliestWateringTime: "00:00", LatestWateringTime: "23:59"},
 	})
 	fake := m.client.(*fakeMQTTClient)
 
@@ -511,5 +512,94 @@ func TestManagerHasRainSensorField(t *testing.T) {
 
 	if !m.RainDetected() {
 		t.Error("expected rain detected after setting")
+	}
+}
+
+func TestParseTimeToMinutes(t *testing.T) {
+	tests := []struct {
+		input string
+		want  int
+	}{
+		{"00:00", 0},
+		{"06:00", 360},
+		{"10:00", 600},
+		{"12:30", 750},
+		{"23:59", 1439},
+		{"invalid", -1},
+		{"", -1},
+	}
+	for _, tt := range tests {
+		got := ParseTimeToMinutes(tt.input)
+		if got != tt.want {
+			t.Errorf("ParseTimeToMinutes(%q): got %d, want %d", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestIsWithinWateringWindow(t *testing.T) {
+	tests := []struct {
+		earliest string
+		latest   string
+		timeStr  string
+		want     bool
+	}{
+		{"06:00", "10:00", "06:00", true},
+		{"06:00", "10:00", "08:00", true},
+		{"06:00", "10:00", "10:00", true},
+		{"06:00", "10:00", "05:59", false},
+		{"06:00", "10:00", "10:01", false},
+		{"", "", "06:00", true},
+		{"", "", "12:00", false},
+		{"07:00", "09:00", "06:30", false},
+		{"07:00", "09:00", "09:30", false},
+		{"07:00", "09:00", "08:00", true},
+	}
+	for _, tt := range tests {
+		tm, _ := time.Parse("15:04", tt.timeStr)
+		now := time.Date(2026, 7, 9, tm.Hour(), tm.Minute(), 0, 0, time.UTC)
+		got := IsWithinWateringWindow(tt.earliest, tt.latest, now)
+		if got != tt.want {
+			t.Errorf("IsWithinWateringWindow(%q, %q, %s): got %v, want %v", tt.earliest, tt.latest, tt.timeStr, got, tt.want)
+		}
+	}
+}
+
+func TestEvaluateZoneRespectsTimeWindow(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, EarliestWateringTime: "06:00", LatestWateringTime: "10:00"},
+	})
+	fake := m.client.(*fakeMQTTClient)
+
+	// Simulate a sensor reading arriving at 14:00 (outside window)
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.LastMoistureTime = time.Now()
+	z.mu.Unlock()
+
+	// Directly call evaluateZone - it uses time.Now() internally for the window check
+	// We can't easily mock time.Now(), so test with a zone whose window includes now
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m2 := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z2", ThresholdLow: 50, MaxWateringSeconds: 300, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+	_ = fake
+
+	m2.handleSensorReading("Z2", []byte("30"))
+	z2 := m2.GetZone("Z2")
+	if z2.State != StateWatering {
+		t.Errorf("expected StateWatering (within window), got %v", z2.State)
+	}
+
+	// Zone outside window should not water
+	m3 := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z3", ThresholdLow: 50, MaxWateringSeconds: 300, EarliestWateringTime: "02:00", LatestWateringTime: "03:00"},
+	})
+	m3.handleSensorReading("Z3", []byte("30"))
+	z3 := m3.GetZone("Z3")
+	if z3.State != StateIdle {
+		t.Errorf("expected StateIdle (outside window), got %v", z3.State)
 	}
 }
