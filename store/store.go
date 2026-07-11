@@ -192,6 +192,38 @@ type EventLogPage struct {
 	TotalPages int
 }
 
+func (s *Store) GetEventLogsByZone(zoneName string, page, perPage int) (*EventLogPage, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 50
+	}
+	var total int64
+	s.db.Model(&models.EventLog{}).Where("zone_name = ?", zoneName).Count(&total)
+
+	var events []models.EventLog
+	err := s.db.Where("zone_name = ?", zoneName).
+		Order("created_at desc").
+		Offset((page - 1) * perPage).
+		Limit(perPage).
+		Find(&events).Error
+	if err != nil {
+		return nil, err
+	}
+	totalPages := int(total) / perPage
+	if int(total)%perPage > 0 {
+		totalPages++
+	}
+	return &EventLogPage{
+		Events:     events,
+		Total:      total,
+		Page:       page,
+		PerPage:    perPage,
+		TotalPages: totalPages,
+	}, nil
+}
+
 func (s *Store) GetEventLogs(page, perPage int) (*EventLogPage, error) {
 	if page < 1 {
 		page = 1

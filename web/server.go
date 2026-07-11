@@ -173,6 +173,9 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 	sv.templates["events"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/events.html"),
 	)
+	sv.templates["zone_detail"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/zone_detail.html"),
+	)
 
 	sv.templates["_zone_cards"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_zone_cards.html"),
@@ -345,6 +348,7 @@ func (s *Server) setupRoutes() {
 	s.router.POST("/zones/:name/close", s.closeValve)
 	s.router.POST("/zones/all/open", s.openAllValves)
 	s.router.POST("/zones/all/close", s.closeAllValves)
+	s.router.GET("/zones/:name", s.zoneDetail)
 	s.router.GET("/zones/:name/history", s.zoneHistory)
 	s.router.GET("/schedules", s.schedulesPage)
 	s.router.POST("/schedules", s.saveSchedule)
@@ -574,6 +578,59 @@ func (s *Server) openAllValves(c *gin.Context) {
 func (s *Server) closeAllValves(c *gin.Context) {
 	s.zoneManager.CloseAllValves()
 	c.Redirect(http.StatusFound, "/dashboard")
+}
+
+func (s *Server) zoneDetail(c *gin.Context) {
+	name := c.Param("name")
+
+	zone := s.zoneManager.GetZone(name)
+	if zone == nil {
+		s.render(c, "dashboard", http.StatusNotFound, gin.H{
+			"title": "Zone Not Found",
+			"error": fmt.Sprintf("Zone '%s' not found", name),
+		})
+		return
+	}
+
+	snap := zone.Snapshot()
+
+	schedules, _ := s.store.GetSchedule(name)
+	now := time.Now()
+	rainActive := s.zoneManager.RainDetected()
+	nextTime, reason := nextWateringForZone(now, snap, schedules)
+
+	activations := int64(0)
+	if count, err := s.store.ActivationsToday(name); err == nil {
+		activations = count
+	}
+
+	note := ""
+	noteVariant := ""
+	badgeClass := ""
+	if nextTime.IsZero() {
+		note, noteVariant = s.noWateringNote(now, snap, schedules, rainActive, activations)
+		if note != "" {
+			badgeClass = badgeClassForVariant(noteVariant)
+		}
+	}
+
+	zv := zoneView{
+		ZoneSnapshot:            snap,
+		NextWatering:            nextTime,
+		NextWateringReason:      reason,
+		NextWateringNote:        note,
+		NextWateringNoteVariant: noteVariant,
+		NextWateringBadgeClass:  badgeClass,
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	events, _ := s.store.GetEventLogsByZone(name, page, 50)
+
+	s.render(c, "zone_detail", http.StatusOK, gin.H{
+		"title":  name,
+		"zone":   zv,
+		"events": events,
+	})
 }
 
 func (s *Server) zoneHistory(c *gin.Context) {

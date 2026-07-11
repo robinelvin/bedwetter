@@ -15,7 +15,7 @@
                     </svg>
                 </div>
                 <div>
-                    <h2 class="text-base font-semibold text-card-foreground">Z1</h2>
+                    <a href="/zones/Z1" class="text-base font-semibold text-card-foreground hover:text-primary transition-colors">Z1</a>
                     <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-background-muted text-foreground-secondary">
                         <span class="w-1.5 h-1.5 rounded-full bg-foreground-muted"></span>
                         Idle
