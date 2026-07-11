@@ -116,6 +116,13 @@
     
     
     <div class="group bg-card rounded-xl shadow-sm border border-border p-5 transition-all duration-200 hover:shadow-md hover:border-foreground-muted/30 ">
+        
+
+
+
+
+
+
         <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-background-muted flex items-center justify-center">
@@ -138,8 +145,7 @@
                 <span class="text-foreground-muted">Next watering</span>
                 
                 <div class="text-right leading-tight">
-                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-background-muted text-foreground-muted">none</span>
-                    <span class="mt-2 badge badge-sm gap-1 badge-outline badge-neutral">Awaiting sensor reading</span>
+                    <span class="badge badge-sm gap-1 badge-outline badge-neutral">Awaiting sensor reading</span>
                 </div>
                 
             </div>
@@ -182,6 +188,7 @@
                 </button>
             </form>
         </div>
+
     </div>
     
 

@@ -162,7 +162,7 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 
 	sv.templates["dashboard"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS,
-			"templates/base.html", "templates/dashboard.html", "templates/_zone_cards.html", "templates/_weather.html"),
+			"templates/base.html", "templates/dashboard.html", "templates/_zone_cards.html", "templates/_zone_card.html", "templates/_weather.html"),
 	)
 	sv.templates["schedules"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/schedules.html"),
@@ -174,11 +174,11 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/events.html"),
 	)
 	sv.templates["zone_detail"] = template.Must(
-		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/zone_detail.html"),
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/zone_detail.html", "templates/_zone_card.html"),
 	)
 
 	sv.templates["_zone_cards"] = template.Must(
-		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_zone_cards.html"),
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_zone_cards.html", "templates/_zone_card.html"),
 	)
 	sv.templates["_weather"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_weather.html"),
