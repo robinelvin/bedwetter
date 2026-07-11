@@ -10,7 +10,9 @@
 {{define "content"}}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <div class="bg-card rounded-xl shadow-sm border border-border p-6">
-        {{template "_zone_card" .zone}}
+        <div id="zone-card-{{.zone.Config.ConfigID}}" hx-get="/zones/{{.zone.Config.ConfigID}}/card" hx-trigger="every 5s" hx-swap="outerHTML">
+            {{template "_zone_card" .zone}}
+        </div>
     </div>
 
     <div class="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
@@ -68,12 +70,12 @@
             </div>
             <div class="flex gap-2">
                 {{if gt .events.Page 1}}
-                <a href="/zones/{{$.zone.Config.Name}}?page={{sub .events.Page 1}}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-card border border-input rounded-lg hover:bg-background-secondary text-xs font-medium text-foreground transition-colors">
+                <a href="/zones/{{$.zone.Config.ConfigID}}?page={{sub .events.Page 1}}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-card border border-input rounded-lg hover:bg-background-secondary text-xs font-medium text-foreground transition-colors">
                     Previous
                 </a>
                 {{end}}
                 {{if lt .events.Page .events.TotalPages}}
-                <a href="/zones/{{$.zone.Config.Name}}?page={{add .events.Page 1}}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-card border border-input rounded-lg hover:bg-background-secondary text-xs font-medium text-foreground transition-colors">
+                <a href="/zones/{{$.zone.Config.ConfigID}}?page={{add .events.Page 1}}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-card border border-input rounded-lg hover:bg-background-secondary text-xs font-medium text-foreground transition-colors">
                     Next
                 </a>
                 {{end}}

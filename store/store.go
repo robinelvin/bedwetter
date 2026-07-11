@@ -112,6 +112,15 @@ func (s *Store) GetAllZoneConfigs() ([]models.ZoneConfig, error) {
 	return zones, err
 }
 
+func (s *Store) GetZoneConfigByID(id uint) (*models.ZoneConfig, error) {
+	var zc models.ZoneConfig
+	err := s.db.First(&zc, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &zc, nil
+}
+
 func (s *Store) CreateZoneConfig(zc *models.ZoneConfig) error {
 	return s.db.Create(zc).Error
 }

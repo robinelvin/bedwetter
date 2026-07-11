@@ -14,7 +14,8 @@ type MQTTConfig struct {
 }
 
 type ZoneConfig struct {
-	Name                  string `yaml:"name"`
+	ConfigID                uint             `yaml:"-" json:"id"`
+	Name                    string           `yaml:"name"`
 	MoistureSensorTopic   string `yaml:"moisture_sensor_topic"`
 	MoistureSensorEntity  string `yaml:"moisture_sensor_entity"`
 	HumiditySensorTopic   string `yaml:"humidity_sensor_topic"`

@@ -35,8 +35,13 @@ func newTestServer(t *testing.T) *Server {
 		t.Fatalf("store.New: %v", err)
 	}
 
-	// Create zone in DB for testing
+	// Create zone in DB for testing, then reload config from DB (mirrors main.go init)
 	st.CreateZoneConfig(&models.ZoneConfig{Name: "Z1", ThresholdLow: 30, ThresholdHigh: 60})
+	dbZones, _ := st.GetAllZoneConfigs()
+	cfg.Zones = make([]config.ZoneConfig, len(dbZones))
+	for i, z := range dbZones {
+		cfg.Zones[i] = z.ToConfigZoneConfig()
+	}
 
 	zoneManager := zones.NewManager(cfg, &mqttClientMock{}, st, nil, nil)
 	alertMgr := alerts.New(cfg, zoneManager)
@@ -441,7 +446,7 @@ func TestZoneHistory(t *testing.T) {
 
 	sv.store.SaveSensorReading("Z1", 45.0, 60.0, 0)
 
-	verifyPage(t, sv, "/zones/Z1/history?hours=24")
+	verifyPage(t, sv, "/zones/1/history?hours=24")
 }
 
 func TestAPIZones(t *testing.T) {

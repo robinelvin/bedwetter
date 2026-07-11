@@ -1,0 +1,5 @@
+{{define "_zone_card_fragment"}}
+<div id="zone-card-{{.zone.Config.ConfigID}}" hx-get="/zones/{{.zone.Config.ConfigID}}/card" hx-trigger="every 5s" hx-swap="outerHTML">
+    {{template "_zone_card" .zone}}
+</div>
+{{end}}

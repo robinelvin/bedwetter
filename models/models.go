@@ -104,6 +104,7 @@ func (m *ZoneConfig) ToConfigZoneConfig() config.ZoneConfig {
 		json.Unmarshal([]byte(m.SeasonalMultipliers), &multipliers)
 	}
 	return config.ZoneConfig{
+		ConfigID:                 m.ID,
 		Name:                     m.Name,
 		MoistureSensorTopic:      m.MoistureSensorTopic,
 		MoistureSensorEntity:     m.MoistureSensorEntity,

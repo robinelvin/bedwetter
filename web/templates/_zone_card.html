@@ -13,7 +13,7 @@
                     </svg>
                 </div>
                 <div>
-                    <a href="/zones/{{.Config.Name}}" class="text-base font-semibold text-card-foreground hover:text-primary transition-colors">{{.Config.Name}}</a>
+                    <a href="/zones/{{.Config.ConfigID}}" class="text-base font-semibold text-card-foreground hover:text-primary transition-colors">{{.Config.Name}}</a>
                     <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full {{if $failsafe}}bg-error/10 text-error{{else if $watering}}bg-secondary text-secondary-foreground{{else if $manual}}bg-info/10 text-info{{else if $cooldown}}bg-warning/10 text-warning{{else}}bg-background-muted text-foreground-secondary{{end}}">
                         <span class="w-1.5 h-1.5 rounded-full {{if $failsafe}}bg-error{{else if $active}}bg-primary{{else if $cooldown}}bg-warning{{else}}bg-foreground-muted{{end}}"></span>
                         {{if eq .State 0}}Idle{{else if eq .State 1}}Watering{{else if eq .State 2}}Cooldown{{else if eq .State 3}}Manual{{else}}Failsafe{{end}}

@@ -174,11 +174,14 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/events.html"),
 	)
 	sv.templates["zone_detail"] = template.Must(
-		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/zone_detail.html", "templates/_zone_card.html"),
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/zone_detail.html", "templates/_zone_card.html", "templates/_zone_card_fragment.html"),
 	)
 
 	sv.templates["_zone_cards"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_zone_cards.html", "templates/_zone_card.html"),
+	)
+	sv.templates["_zone_card_fragment"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_zone_card_fragment.html", "templates/_zone_card.html"),
 	)
 	sv.templates["_weather"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_weather.html"),
@@ -348,8 +351,9 @@ func (s *Server) setupRoutes() {
 	s.router.POST("/zones/:name/close", s.closeValve)
 	s.router.POST("/zones/all/open", s.openAllValves)
 	s.router.POST("/zones/all/close", s.closeAllValves)
-	s.router.GET("/zones/:name", s.zoneDetail)
-	s.router.GET("/zones/:name/history", s.zoneHistory)
+	s.router.GET("/zones/:id", s.zoneDetail)
+	s.router.GET("/zones/:id/card", s.zoneCard)
+	s.router.GET("/zones/:id/history", s.zoneHistory)
 	s.router.GET("/schedules", s.schedulesPage)
 	s.router.POST("/schedules", s.saveSchedule)
 	s.router.POST("/schedules/:id/delete", s.deleteSchedule)
@@ -376,6 +380,7 @@ func (s *Server) setupRoutes() {
 
 func (s *Server) zoneViews() []zoneView {
 	snapshots := s.zoneManager.GetAllZoneSnapshots()
+
 	scheduleMap := make(map[string][]models.ScheduleConfig)
 	if schedules, err := s.store.GetAllSchedules(); err == nil {
 		for _, sc := range schedules {
@@ -581,26 +586,42 @@ func (s *Server) closeAllValves(c *gin.Context) {
 }
 
 func (s *Server) zoneDetail(c *gin.Context) {
-	name := c.Param("name")
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		s.render(c, "dashboard", http.StatusNotFound, gin.H{
+			"title": "Zone Not Found",
+			"error": "Invalid zone ID",
+		})
+		return
+	}
 
-	zone := s.zoneManager.GetZone(name)
+	zc, err := s.store.GetZoneConfigByID(uint(id))
+	if err != nil {
+		s.render(c, "dashboard", http.StatusNotFound, gin.H{
+			"title": "Zone Not Found",
+			"error": fmt.Sprintf("Zone with ID %d not found", id),
+		})
+		return
+	}
+
+	zone := s.zoneManager.GetZone(zc.Name)
 	if zone == nil {
 		s.render(c, "dashboard", http.StatusNotFound, gin.H{
 			"title": "Zone Not Found",
-			"error": fmt.Sprintf("Zone '%s' not found", name),
+			"error": fmt.Sprintf("Zone '%s' not found", zc.Name),
 		})
 		return
 	}
 
 	snap := zone.Snapshot()
 
-	schedules, _ := s.store.GetSchedule(name)
+	schedules, _ := s.store.GetSchedule(zc.Name)
 	now := time.Now()
 	rainActive := s.zoneManager.RainDetected()
 	nextTime, reason := nextWateringForZone(now, snap, schedules)
 
 	activations := int64(0)
-	if count, err := s.store.ActivationsToday(name); err == nil {
+	if count, err := s.store.ActivationsToday(zc.Name); err == nil {
 		activations = count
 	}
 
@@ -624,17 +645,90 @@ func (s *Server) zoneDetail(c *gin.Context) {
 	}
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	events, _ := s.store.GetEventLogsByZone(name, page, 50)
+	events, _ := s.store.GetEventLogsByZone(zc.Name, page, 50)
 
 	s.render(c, "zone_detail", http.StatusOK, gin.H{
-		"title":  name,
+		"title":  zc.Name,
 		"zone":   zv,
 		"events": events,
 	})
 }
 
+func (s *Server) zoneCard(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	zc, err := s.store.GetZoneConfigByID(uint(id))
+	if err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	zone := s.zoneManager.GetZone(zc.Name)
+	if zone == nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	snap := zone.Snapshot()
+
+	schedules, _ := s.store.GetSchedule(zc.Name)
+	now := time.Now()
+	rainActive := s.zoneManager.RainDetected()
+	nextTime, reason := nextWateringForZone(now, snap, schedules)
+
+	activations := int64(0)
+	if count, err := s.store.ActivationsToday(zc.Name); err == nil {
+		activations = count
+	}
+
+	note := ""
+	noteVariant := ""
+	badgeClass := ""
+	if nextTime.IsZero() {
+		note, noteVariant = s.noWateringNote(now, snap, schedules, rainActive, activations)
+		if note != "" {
+			badgeClass = badgeClassForVariant(noteVariant)
+		}
+	}
+
+	zv := zoneView{
+		ZoneSnapshot:            snap,
+		NextWatering:            nextTime,
+		NextWateringReason:      reason,
+		NextWateringNote:        note,
+		NextWateringNoteVariant: noteVariant,
+		NextWateringBadgeClass:  badgeClass,
+	}
+
+	s.renderPartial(c, "_zone_card_fragment", http.StatusOK, gin.H{
+		"zone": zv,
+	})
+}
+
 func (s *Server) zoneHistory(c *gin.Context) {
-	name := c.Param("name")
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		s.render(c, "dashboard", http.StatusNotFound, gin.H{
+			"title": "Zone Not Found",
+			"error": "Invalid zone ID",
+		})
+		return
+	}
+
+	zc, err := s.store.GetZoneConfigByID(uint(id))
+	if err != nil {
+		s.render(c, "dashboard", http.StatusNotFound, gin.H{
+			"title": "Zone Not Found",
+			"error": fmt.Sprintf("Zone with ID %d not found", id),
+		})
+		return
+	}
+	name := zc.Name
+
 	hoursStr := c.DefaultQuery("hours", "24")
 	hours, err := strconv.Atoi(hoursStr)
 	if err != nil || hours < 1 {
