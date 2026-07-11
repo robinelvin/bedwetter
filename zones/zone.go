@@ -522,6 +522,18 @@ func (m *Manager) evaluateZone(zoneName string) {
 				z.LastWaterEnd = time.Now()
 				z.LastStateChange = time.Now()
 			}
+			return
+		}
+		if z.State == StateManualOpen {
+			if z.Config.ThresholdHigh > 0 && z.Moisture >= float64(z.Config.ThresholdHigh) {
+				log.Printf("Zone %s: moisture %.1f%% reached target %d%%, closing manually-opened valve", zoneName, z.Moisture, z.Config.ThresholdHigh)
+				m.LogEvent("info", "valve", fmt.Sprintf("Target moisture reached for %s (%.1f%% >= %d%%), closing valve", zoneName, z.Moisture, z.Config.ThresholdHigh), zoneName)
+				go m.CloseValve(zoneName)
+				z.State = StateIdle
+				z.LastWaterEnd = time.Now()
+				z.LastStateChange = time.Now()
+			}
+			return
 		}
 		return
 	}

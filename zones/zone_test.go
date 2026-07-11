@@ -345,6 +345,70 @@ func TestEvaluateZoneManualOpen(t *testing.T) {
 	}
 }
 
+func TestManualOpenClosesWhenMoistureReachesTarget(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 30, ThresholdHigh: 60, MaxWateringSeconds: 300, ValveCommandTopic: "valve/z1"},
+	})
+	fake := m.client.(*fakeMQTTClient)
+
+	// Manually open the valve
+	m.handleValveState("Z1", []byte("ON"))
+	z := m.GetZone("Z1")
+	if z.State != StateManualOpen {
+		t.Fatalf("expected StateManualOpen, got %v", z.State)
+	}
+
+	// Simulate sensor reading reaching target moisture (>= ThresholdHigh)
+	m.handleSensorReading("Z1", []byte("60"))
+	time.Sleep(time.Millisecond)
+
+	z = m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Errorf("expected StateIdle after moisture reached target, got %v", z.State)
+	}
+	if !containsPublish(fake.published, "valve/z1:OFF") {
+		t.Errorf("expected valve/z1:OFF, got %v", fake.published)
+	}
+}
+
+func TestManualOpenStaysOpenWhenMoistureBelowTarget(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 30, ThresholdHigh: 60, MaxWateringSeconds: 300},
+	})
+
+	// Manually open the valve
+	m.handleValveState("Z1", []byte("ON"))
+	z := m.GetZone("Z1")
+	if z.State != StateManualOpen {
+		t.Fatalf("expected StateManualOpen, got %v", z.State)
+	}
+
+	// Simulate sensor reading still below target moisture (< ThresholdHigh)
+	m.handleSensorReading("Z1", []byte("45"))
+
+	z = m.GetZone("Z1")
+	if z.State != StateManualOpen {
+		t.Errorf("expected StateManualOpen (moisture below target), got %v", z.State)
+	}
+}
+
+func TestManualOpenNoShutoffWhenThresholdHighZero(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 30, ThresholdHigh: 0, MaxWateringSeconds: 300},
+	})
+
+	// Manually open the valve
+	m.handleValveState("Z1", []byte("ON"))
+
+	// Simulate sensor reading — ThresholdHigh is 0, so no moisture shutoff
+	m.handleSensorReading("Z1", []byte("80"))
+
+	z := m.GetZone("Z1")
+	if z.State != StateManualOpen {
+		t.Errorf("expected StateManualOpen (ThresholdHigh=0 disables moisture shutoff), got %v", z.State)
+	}
+}
+
 func TestEvaluateZoneFailsafe(t *testing.T) {
 	m := newTestManager(t, []config.ZoneConfig{
 		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300},
