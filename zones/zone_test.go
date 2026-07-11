@@ -457,7 +457,6 @@ func TestEvaluateZoneCooldown(t *testing.T) {
 	m := newTestManager(t, []config.ZoneConfig{
 		{Name: "Z1", ThresholdLow: 50, CooldownMinutes: 60},
 	})
-	m.handleSensorReading("Z1", []byte("30"))
 
 	z := m.GetZone("Z1")
 	z.mu.Lock()

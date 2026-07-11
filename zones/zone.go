@@ -544,7 +544,7 @@ func (m *Manager) evaluateZone(zoneName string) {
 		log.Printf("Error checking activations for %s: %v", zoneName, err)
 		return
 	}
-	if count >= int64(z.Config.MaxActivationsPerDay) {
+	if z.Config.MaxActivationsPerDay > 0 && count >= int64(z.Config.MaxActivationsPerDay) {
 		log.Printf("Zone %s: max daily activations reached (%d)", zoneName, z.Config.MaxActivationsPerDay)
 		return
 	}

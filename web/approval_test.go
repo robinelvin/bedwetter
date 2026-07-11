@@ -4,12 +4,19 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/approvals/go-approval-tests"
+	"github.com/approvals/go-approval-tests/reporters"
 )
+
+func TestMain(m *testing.M) {
+	approvals.UseReporter(reporters.NewDiffReporter())
+	os.Exit(m.Run())
+}
 
 func standardScrubbers() approvals.VerifyOptions {
 	return approvals.Options().

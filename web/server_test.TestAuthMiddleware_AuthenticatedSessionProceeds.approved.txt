@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="autumn">
+<html lang="en" data-theme="corporate">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -85,7 +85,7 @@
 </h1>
          
 <div
-    class="bg-card rounded-xl shadow-sm border border-border p-6"
+    class="bg-card rounded-xl shadow-sm border border-border p-6 mb-4"
     id="weather-widget"
     hx-get="/dashboard/weather"
     hx-trigger="every 300s"

@@ -62,7 +62,8 @@ func (s *Store) RecentValveEvents(zoneName string, limit int) ([]models.ValveEve
 
 func (s *Store) ActivationsToday(zoneName string) (int64, error) {
 	var count int64
-	today := time.Now().Truncate(24 * time.Hour)
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	err := s.db.Model(&models.ValveEvent{}).
 		Where("zone_name = ? AND state = ? AND created_at >= ?", zoneName, "open", today).
 		Count(&count).Error
