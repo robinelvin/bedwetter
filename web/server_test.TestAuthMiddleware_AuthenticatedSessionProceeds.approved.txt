@@ -151,12 +151,10 @@
                 <span class="text-xs text-foreground-muted">No schedule</span>
                 
             </div>
-            
             <div class="flex items-center justify-between">
                 <span class="text-foreground-muted">Status</span>
                 <span class="badge badge-sm gap-1 badge-outline badge-neutral">Awaiting sensor</span>
             </div>
-            
             <div class="flex items-center justify-between">
                 <span class="text-foreground-muted">Moisture</span>
                 

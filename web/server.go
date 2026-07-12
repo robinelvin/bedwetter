@@ -75,6 +75,7 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 			return t.Format("2006-01-02 15:04:05")
 		},
 		"floatVal": func(f float64) float64 { return f },
+		"toF":      func(i int) float64 { return float64(i) },
 		"add":      func(a, b int) int { return a + b },
 		"sub":      func(a, b int) int { return a - b },
 		"weatherDesc": func(code int) string {
@@ -1504,7 +1505,10 @@ func (s *Server) statusNote(now time.Time, snap zones.ZoneSnapshot, rainActive b
 	if snap.Config.ThresholdLow > 0 && snap.Moisture >= float64(snap.Config.ThresholdLow) {
 		return fmt.Sprintf("Soil moisture OK (%.1f%%)", snap.Moisture), "success"
 	}
-	return "", ""
+	if snap.Config.ThresholdLow > 0 && snap.Moisture < float64(snap.Config.ThresholdLow) {
+		return fmt.Sprintf("Soil moisture low (%.1f%%)", snap.Moisture), "warn"
+	}
+	return "Idle", "neutral"
 }
 
 func nullableFloat(f float64) interface{} {

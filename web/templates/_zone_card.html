@@ -37,24 +37,22 @@
                 </div>
                 {{end}}
             </div>
-            {{if .StatusNote}}
             <div class="flex items-center justify-between">
                 <span class="text-foreground-muted">Status</span>
                 <span class="badge badge-sm gap-1 badge-outline {{.StatusBadgeClass}}">{{.StatusNote}}</span>
             </div>
-            {{end}}
             <div class="flex items-center justify-between">
                 <span class="text-foreground-muted">Moisture</span>
                 {{if isUnset .Moisture}}
                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-background-muted text-foreground-muted">unset</span>
                 {{else}}
-                <span class="font-semibold font-mono tabular-nums {{if lt .Moisture 40.0}}text-error{{else}}text-primary{{end}}">{{printf "%.1f" .Moisture}}%</span>
+                <span class="font-semibold font-mono tabular-nums {{if lt .Moisture (toF .Config.ThresholdLow)}}text-error{{else}}text-primary{{end}}">{{printf "%.1f" .Moisture}}%</span>
                 {{end}}
             </div>
             {{if not (isUnset .Moisture)}}
             <div>
                 <div class="w-full h-2 bg-background-muted rounded-full overflow-hidden">
-                    <div class="h-full rounded-full transition-all duration-500 {{if lt .Moisture 40.0}}bg-error{{else}}bg-primary{{end}}" style="width: {{printf "%.0f" .Moisture}}%"></div>
+                    <div class="h-full rounded-full transition-all duration-500 {{if lt .Moisture (toF .Config.ThresholdLow)}}bg-error{{else}}bg-primary{{end}}" style="width: {{printf "%.0f" .Moisture}}%"></div>
                 </div>
             </div>
             {{end}}
