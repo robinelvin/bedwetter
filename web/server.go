@@ -827,15 +827,27 @@ func (s *Server) schedulesPage(c *gin.Context) {
 	for i, z := range dbZones {
 		zoneNames[i] = z.ToConfigZoneConfig()
 	}
+
+	var editEntry *models.ScheduleConfig
+	editIDStr := c.Query("edit")
+	if editIDStr != "" {
+		if id, err := strconv.ParseUint(editIDStr, 10, 64); err == nil {
+			editEntry, _ = s.store.GetScheduleByID(uint(id))
+		}
+	}
+
 	s.render(c, "schedules", http.StatusOK, gin.H{
 		"title":     "Watering Schedules",
 		"schedules": schedules,
 		"zones":     zoneNames,
 		"days":      []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"},
+		"months":    []string{"", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"},
+		"editEntry": editEntry,
 	})
 }
 
 func (s *Server) saveSchedule(c *gin.Context) {
+	idStr := c.PostForm("id")
 	zoneName := c.PostForm("zone_name")
 	dayOfWeek := c.PostForm("day_of_week")
 	time := c.PostForm("time")
@@ -845,14 +857,39 @@ func (s *Server) saveSchedule(c *gin.Context) {
 		duration = 300
 	}
 
-	entry := &models.ScheduleConfig{
-		ZoneName:  zoneName,
-		DayOfWeek: dayOfWeek,
-		Time:      time,
-		Duration:  duration,
+	monthStr := c.PostForm("month")
+	month := 0
+	if monthStr != "" {
+		monthLabels := map[string]int{"Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6, "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12}
+		month = monthLabels[monthStr]
 	}
-	if err := s.store.CreateScheduleEntry(entry); err != nil {
-		log.Printf("Failed to save schedule: %v", err)
+
+	if idStr != "" {
+		id, _ := strconv.ParseUint(idStr, 10, 64)
+		entry, err := s.store.GetScheduleByID(uint(id))
+		if err != nil {
+			c.Redirect(http.StatusFound, "/schedules")
+			return
+		}
+		entry.ZoneName = zoneName
+		entry.DayOfWeek = dayOfWeek
+		entry.Time = time
+		entry.Duration = duration
+		entry.Month = month
+		if err := s.store.UpdateScheduleEntry(entry); err != nil {
+			log.Printf("Failed to update schedule: %v", err)
+		}
+	} else {
+		entry := &models.ScheduleConfig{
+			ZoneName:  zoneName,
+			DayOfWeek: dayOfWeek,
+			Time:      time,
+			Duration:  duration,
+			Month:     month,
+		}
+		if err := s.store.CreateScheduleEntry(entry); err != nil {
+			log.Printf("Failed to save schedule: %v", err)
+		}
 	}
 	c.Redirect(http.StatusFound, "/schedules")
 }

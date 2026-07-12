@@ -102,6 +102,19 @@ func (s *Store) CreateScheduleEntry(entry *models.ScheduleConfig) error {
 	return s.db.Create(entry).Error
 }
 
+func (s *Store) GetScheduleByID(id uint) (*models.ScheduleConfig, error) {
+	var entry models.ScheduleConfig
+	err := s.db.First(&entry, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &entry, nil
+}
+
+func (s *Store) UpdateScheduleEntry(entry *models.ScheduleConfig) error {
+	return s.db.Save(entry).Error
+}
+
 func (s *Store) DeleteScheduleByID(id uint) error {
 	return s.db.Delete(&models.ScheduleConfig{}, id).Error
 }

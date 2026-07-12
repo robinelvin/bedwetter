@@ -27,13 +27,74 @@
         <h1 class="text-2xl font-bold text-foreground mb-8 tracking-tight">Watering Schedules</h1>
         
 <div class="bg-card rounded-xl shadow-sm border border-border p-6 mb-6">
-    <h2 class="text-lg font-semibold text-card-foreground mb-5">Add Schedule</h2>
-    <form action="/schedules" method="POST" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-semibold text-card-foreground">Add Schedule</h2>
+        
+    </div>
+    <form action="/schedules" method="POST" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        
         <div>
             <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Zone</label>
             <select name="zone_name" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
                 
-                <option value="Z1">Z1</option>
+                <option value="Z1" >Z1</option>
+                
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Month Override</label>
+            <select name="month" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+                <option value="">Every month</option>
+                
+                
+                
+                
+                <option value="Jan" >Jan</option>
+                
+                
+                
+                <option value="Feb" >Feb</option>
+                
+                
+                
+                <option value="Mar" >Mar</option>
+                
+                
+                
+                <option value="Apr" >Apr</option>
+                
+                
+                
+                <option value="May" >May</option>
+                
+                
+                
+                <option value="Jun" >Jun</option>
+                
+                
+                
+                <option value="Jul" >Jul</option>
+                
+                
+                
+                <option value="Aug" >Aug</option>
+                
+                
+                
+                <option value="Sep" >Sep</option>
+                
+                
+                
+                <option value="Oct" >Oct</option>
+                
+                
+                
+                <option value="Nov" >Nov</option>
+                
+                
+                
+                <option value="Dec" >Dec</option>
+                
                 
             </select>
         </div>
@@ -41,19 +102,19 @@
             <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Day</label>
             <select name="day_of_week" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
                 
-                <option value="Mon">Mon</option>
+                <option value="Mon" >Mon</option>
                 
-                <option value="Tue">Tue</option>
+                <option value="Tue" >Tue</option>
                 
-                <option value="Wed">Wed</option>
+                <option value="Wed" >Wed</option>
                 
-                <option value="Thu">Thu</option>
+                <option value="Thu" >Thu</option>
                 
-                <option value="Fri">Fri</option>
+                <option value="Fri" >Fri</option>
                 
-                <option value="Sat">Sat</option>
+                <option value="Sat" >Sat</option>
                 
-                <option value="Sun">Sun</option>
+                <option value="Sun" >Sun</option>
                 
             </select>
         </div>
