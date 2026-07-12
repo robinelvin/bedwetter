@@ -20,12 +20,13 @@ type ClientInterface interface {
 }
 
 type Client struct {
-	client  mqtt.Client
-	broker  string
-	handlers map[string]MessageHandler
+	client           mqtt.Client
+	broker           string
+	handlers         map[string]MessageHandler
+	availabilityTopic string
 }
 
-func New(broker string, port int, username, password string) *Client {
+func New(broker string, port int, username, password string, availabilityTopic string) *Client {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", broker, port))
 	opts.SetClientID(fmt.Sprintf("bedwetter-%d", time.Now().UnixNano()))
@@ -37,15 +38,22 @@ func New(broker string, port int, username, password string) *Client {
 	opts.SetConnectionLostHandler(func(c mqtt.Client, err error) {
 		log.Printf("MQTT connection lost: %v", err)
 	})
+	if availabilityTopic != "" {
+		opts.SetWill(availabilityTopic, "offline", 1, true)
+	}
 	opts.SetOnConnectHandler(func(c mqtt.Client) {
 		log.Println("MQTT connected/reconnected")
+		if availabilityTopic != "" {
+			c.Publish(availabilityTopic, 1, true, "online")
+		}
 	})
 
 	client := mqtt.NewClient(opts)
 	return &Client{
-		client:   client,
-		broker:   broker,
-		handlers: make(map[string]MessageHandler),
+		client:            client,
+		broker:            broker,
+		handlers:          make(map[string]MessageHandler),
+		availabilityTopic: availabilityTopic,
 	}
 }
 

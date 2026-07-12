@@ -18,6 +18,8 @@ func slug(name string) string { return Slug(name) }
 
 const discoveryPrefix = "homeassistant"
 
+const AvailabilityTopic = "bedwetter/availability"
+
 type DiscoveryPayload struct {
 	Name              string      `json:"name"`
 	UniqueID          string      `json:"unique_id"`
@@ -35,6 +37,9 @@ type DiscoveryPayload struct {
 	Device            *DeviceInfo `json:"device,omitempty"`
 	Origin            *OriginInfo `json:"origin,omitempty"`
 	Icon              string      `json:"icon,omitempty"`
+	AvailabilityTopic string      `json:"availability_topic,omitempty"`
+	PayloadAvailable  string      `json:"payload_available,omitempty"`
+	PayloadNotAvailable string    `json:"payload_not_available,omitempty"`
 }
 
 type DeviceInfo struct {
@@ -78,15 +83,18 @@ func publishMoistureSensor(client mqtt.ClientInterface, z config.ZoneConfig, dev
 	uid := fmt.Sprintf("bedwetter_moisture_%s", slug(z.Name))
 	topic := fmt.Sprintf("%s/sensor/%s/config", discoveryPrefix, uid)
 	payload := DiscoveryPayload{
-		Name:              fmt.Sprintf("%s Moisture", z.Name),
-		UniqueID:          uid,
-		StateTopic:        z.MoistureSensorTopic,
-		UnitOfMeasurement: "%",
-		DeviceClass:       "moisture",
-		QoS:               1,
-		Retain:            true,
-		Device:            device,
-		Origin:            origin,
+		Name:                fmt.Sprintf("%s Moisture", z.Name),
+		UniqueID:            uid,
+		StateTopic:          z.MoistureSensorTopic,
+		UnitOfMeasurement:   "%",
+		DeviceClass:         "moisture",
+		QoS:                 1,
+		Retain:              true,
+		Device:              device,
+		Origin:              origin,
+		AvailabilityTopic:   AvailabilityTopic,
+		PayloadAvailable:    "online",
+		PayloadNotAvailable: "offline",
 	}
 	data, _ := json.Marshal(payload)
 	log.Printf("Publishing HA sensor discovery: %s → %s", topic, string(data))
@@ -106,19 +114,22 @@ func publishSwitch(client mqtt.ClientInterface, z config.ZoneConfig, device *Dev
 	}
 	topic := fmt.Sprintf("%s/switch/%s/config", discoveryPrefix, uid)
 	payload := DiscoveryPayload{
-		Name:         fmt.Sprintf("%s Valve", z.Name),
-		UniqueID:     uid,
-		StateTopic:   stateTopic,
-		CommandTopic: z.ValveCommandTopic,
-		PayloadOn:    "ON",
-		PayloadOff:   "OFF",
-		StateOn:      "ON",
-		StateOff:     "OFF",
-		Icon:         "mdi:water",
-		QoS:          1,
-		Retain:       true,
-		Device:       device,
-		Origin:       origin,
+		Name:                fmt.Sprintf("%s Valve", z.Name),
+		UniqueID:            uid,
+		StateTopic:          stateTopic,
+		CommandTopic:        z.ValveCommandTopic,
+		PayloadOn:           "ON",
+		PayloadOff:          "OFF",
+		StateOn:             "ON",
+		StateOff:            "OFF",
+		Icon:                "mdi:water",
+		QoS:                 1,
+		Retain:              true,
+		Device:              device,
+		Origin:              origin,
+		AvailabilityTopic:   AvailabilityTopic,
+		PayloadAvailable:    "online",
+		PayloadNotAvailable: "offline",
 	}
 	data, _ := json.Marshal(payload)
 	log.Printf("Publishing HA switch discovery: %s → %s", topic, string(data))

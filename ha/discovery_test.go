@@ -210,6 +210,42 @@ func TestPublishAllRetained(t *testing.T) {
 	}
 }
 
+func TestPublishAllAvailability(t *testing.T) {
+	fake := &fakeMQTT{}
+	cfg := &config.Config{
+		Zones: []config.ZoneConfig{
+			{
+				Name:                "Test Zone",
+				MoistureSensorTopic: "sensor/topic",
+				ValveCommandTopic:   "valve/cmd",
+				ValveStateTopic:     "valve/state",
+			},
+		},
+	}
+
+	PublishAll(fake, cfg)
+
+	if len(fake.published) != 2 {
+		t.Fatalf("expected 2 publishes, got %d", len(fake.published))
+	}
+
+	for _, p := range fake.published {
+		var payload DiscoveryPayload
+		if err := json.Unmarshal([]byte(p.payload), &payload); err != nil {
+			t.Fatalf("payload parse error: %v", err)
+		}
+		if payload.AvailabilityTopic != AvailabilityTopic {
+			t.Errorf("AvailabilityTopic: got %q, want %q", payload.AvailabilityTopic, AvailabilityTopic)
+		}
+		if payload.PayloadAvailable != "online" {
+			t.Errorf("PayloadAvailable: got %q, want online", payload.PayloadAvailable)
+		}
+		if payload.PayloadNotAvailable != "offline" {
+			t.Errorf("PayloadNotAvailable: got %q, want offline", payload.PayloadNotAvailable)
+		}
+	}
+}
+
 func TestSubscribeToCommands(t *testing.T) {
 	fake := &fakeMQTT{}
 	cfg := &config.Config{

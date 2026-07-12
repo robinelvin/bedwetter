@@ -195,7 +195,7 @@ func main() {
 		cfg.Ntfy.AlertAlarm = ntfyCfg.AlertAlarm
 	}
 
-	mqtt := mqttclient.New(cfg.MQTT.Broker, cfg.MQTT.Port, cfg.MQTT.Username, cfg.MQTT.Password)
+	mqtt := mqttclient.New(cfg.MQTT.Broker, cfg.MQTT.Port, cfg.MQTT.Username, cfg.MQTT.Password, ha.AvailabilityTopic)
 
 	if err := mqtt.Connect(); err != nil {
 		log.Fatalf("Failed to connect to MQTT broker: %v", err)
