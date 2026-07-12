@@ -40,13 +40,13 @@
             </div>
             <div class="flex items-center justify-between">
                 <span class="text-foreground-muted">Moisture</span>
-                {{if eq .Moisture 0.0}}
+                {{if isUnset .Moisture}}
                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-background-muted text-foreground-muted">unset</span>
                 {{else}}
                 <span class="font-semibold font-mono tabular-nums {{if lt .Moisture 40.0}}text-error{{else}}text-primary{{end}}">{{printf "%.1f" .Moisture}}%</span>
                 {{end}}
             </div>
-            {{if ne .Moisture 0.0}}
+            {{if not (isUnset .Moisture)}}
             <div>
                 <div class="w-full h-2 bg-background-muted rounded-full overflow-hidden">
                     <div class="h-full rounded-full transition-all duration-500 {{if lt .Moisture 40.0}}bg-error{{else}}bg-primary{{end}}" style="width: {{printf "%.0f" .Moisture}}%"></div>
@@ -55,7 +55,7 @@
             {{end}}
             <div class="flex items-center justify-between">
                 <span class="text-foreground-muted">Humidity</span>
-                {{if eq .Humidity 0.0}}
+                {{if isUnset .Humidity}}
                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-background-muted text-foreground-muted">unset</span>
                 {{else}}
                 <span class="font-mono tabular-nums text-foreground">{{printf "%.1f" .Humidity}}%</span>
@@ -63,7 +63,7 @@
             </div>
             <div class="flex items-center justify-between">
                 <span class="text-foreground-muted">Temperature</span>
-                {{if eq .Temperature 0.0}}
+                {{if isUnset .Temperature}}
                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-background-muted text-foreground-muted">unset</span>
                 {{else}}
                 <span class="font-mono tabular-nums text-foreground">{{printf "%.1f" .Temperature}}°C</span>

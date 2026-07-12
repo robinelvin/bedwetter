@@ -79,8 +79,11 @@ func NewManager(cfg *config.Config, client mqtt.ClientInterface, store *store.St
 	}
 	for _, zc := range cfg.Zones {
 		m.zones[zc.Name] = &Zone{
-			Config: zc,
-			State:  StateIdle,
+			Config:      zc,
+			State:       StateIdle,
+			Moisture:    math.NaN(),
+			Humidity:    math.NaN(),
+			Temperature: math.NaN(),
 		}
 	}
 	return m
@@ -564,6 +567,10 @@ func (m *Manager) evaluateZone(zoneName string) {
 		return
 	}
 
+	if math.IsNaN(z.Moisture) {
+		return
+	}
+
 	if z.Moisture >= float64(z.Config.ThresholdLow) {
 		return
 	}
@@ -726,8 +733,11 @@ func (m *Manager) AddZone(zc config.ZoneConfig) {
 	}
 
 	z := &Zone{
-		Config: zc,
-		State:  StateIdle,
+		Config:      zc,
+		State:       StateIdle,
+		Moisture:    math.NaN(),
+		Humidity:    math.NaN(),
+		Temperature: math.NaN(),
 	}
 	m.zones[zc.Name] = z
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -61,6 +62,7 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 	}
 
 	funcMap := template.FuncMap{
+		"isUnset": func(f float64) bool { return math.IsNaN(f) },
 		"formatTime": func(t time.Time) string {
 			if t.IsZero() {
 				return "never"
@@ -1320,9 +1322,9 @@ func (s *Server) apiZones(c *gin.Context) {
 	for i, z := range zoneStates {
 		results[i] = gin.H{
 			"name":        z.Config.Name,
-			"moisture":    z.Moisture,
-			"humidity":    z.Humidity,
-			"temperature": z.Temperature,
+			"moisture":    nullableFloat(z.Moisture),
+			"humidity":    nullableFloat(z.Humidity),
+			"temperature": nullableFloat(z.Temperature),
 			"state":       z.State,
 			"last_update": z.LastMoistureTime.Format(time.RFC3339),
 		}
@@ -1356,11 +1358,11 @@ func (s *Server) noWateringNote(now time.Time, snap zones.ZoneSnapshot, schedule
 		}
 	}
 	if snap.Config.MaxActivationsPerDay > 0 && activations >= int64(snap.Config.MaxActivationsPerDay) {
-		if snap.Moisture == 0 || snap.Moisture < float64(snap.Config.ThresholdLow) {
+		if math.IsNaN(snap.Moisture) || snap.Moisture < float64(snap.Config.ThresholdLow) {
 			return "Max daily activations reached", "warn"
 		}
 	}
-	if snap.Moisture == 0 {
+	if math.IsNaN(snap.Moisture) {
 		return "Awaiting sensor reading", "muted"
 	}
 	if snap.Config.ThresholdLow > 0 && snap.Moisture >= float64(snap.Config.ThresholdLow) {
@@ -1370,6 +1372,13 @@ func (s *Server) noWateringNote(now time.Time, snap zones.ZoneSnapshot, schedule
 		return "No schedule configured", "muted"
 	}
 	return "No upcoming watering", "muted"
+}
+
+func nullableFloat(f float64) interface{} {
+	if math.IsNaN(f) {
+		return nil
+	}
+	return f
 }
 
 func badgeClassForVariant(variant string) string {

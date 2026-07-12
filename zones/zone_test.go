@@ -2,6 +2,7 @@ package zones
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -227,8 +228,8 @@ func TestHandleSensorReadingInvalid(t *testing.T) {
 
 	m.handleSensorReading("Z1", []byte("not-a-number"))
 	z := m.GetZone("Z1")
-	if z.Moisture != 0 {
-		t.Errorf("expected moisture 0 for invalid input, got %f", z.Moisture)
+	if !math.IsNaN(z.Moisture) {
+		t.Errorf("expected moisture NaN for invalid input, got %f", z.Moisture)
 	}
 }
 
