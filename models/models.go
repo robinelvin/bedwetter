@@ -76,6 +76,17 @@ type AlertSettings struct {
 	Enabled            bool   `gorm:"default:true" json:"enabled"`
 }
 
+type NtfyConfig struct {
+	ID         uint   `gorm:"primaryKey" json:"id"`
+	Enabled    bool   `gorm:"default:false" json:"enabled"`
+	Server     string `gorm:"size:256;default:https://ntfy.sh" json:"server"`
+	UUID       string `gorm:"size:36" json:"uuid"`
+	Token      string `gorm:"size:256" json:"token"`
+	AlertInfo  bool   `gorm:"default:true" json:"alert_info"`
+	AlertWarn  bool   `gorm:"default:true" json:"alert_warn"`
+	AlertAlarm bool   `gorm:"default:true" json:"alert_alarm"`
+}
+
 type ZoneConfig struct {
 	ID                     uint             `gorm:"primaryKey" json:"id"`
 	Name                   string           `gorm:"size:128;uniqueIndex" json:"name"`
@@ -181,6 +192,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&MQTTConfig{},
 		&HAConfig{},
 		&AlertSettings{},
+		&NtfyConfig{},
 		&WeatherConfig{},
 		&User{},
 		&EventLog{},

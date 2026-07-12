@@ -175,6 +175,20 @@ func (s *Store) SaveAlertSettings(cfg *models.AlertSettings) error {
 	return s.db.Save(cfg).Error
 }
 
+func (s *Store) GetNtfyConfig() (*models.NtfyConfig, error) {
+	var cfg models.NtfyConfig
+	err := s.db.First(&cfg, 1).Error
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func (s *Store) SaveNtfyConfig(cfg *models.NtfyConfig) error {
+	cfg.ID = 1
+	return s.db.Save(cfg).Error
+}
+
 func (s *Store) GetWeatherConfig() (*models.WeatherConfig, error) {
 	var cfg models.WeatherConfig
 	err := s.db.First(&cfg, 1).Error

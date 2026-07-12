@@ -113,6 +113,63 @@
 
     <div class="bg-card rounded-xl shadow-sm border border-border p-6">
         <div class="flex items-center gap-3 mb-5">
+            <div class="w-9 h-9 rounded-lg bg-violet-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            </div>
+            <h2 class="text-lg font-semibold text-card-foreground">Push Notifications (ntfy)</h2>
+        </div>
+        <form action="/config/ntfy" method="POST" class="space-y-4">
+            <div>
+                <label class="inline-flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" name="enabled" value="true" {{if .ntfy.Enabled}}checked{{end}} class="w-4 h-4 text-primary border-border rounded focus:ring-ring">
+                    <span class="text-sm font-medium text-foreground">Enable Push Notifications</span>
+                </label>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Server URL</label>
+                <input type="text" name="server" value="{{if .ntfy}}{{.ntfy.Server}}{{end}}" placeholder="https://ntfy.sh" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Install UUID</label>
+                <input type="hidden" name="uuid" value="{{if .ntfy}}{{.ntfy.UUID}}{{end}}">
+                <div class="flex items-center gap-2">
+                    <input type="text" value="{{if .ntfy}}{{.ntfy.UUID}}{{end}}" readonly class="flex-1 rounded-lg border border-input px-3 py-2.5 text-sm font-mono bg-background-muted text-foreground-secondary cursor-not-allowed">
+                </div>
+                <p class="mt-1.5 text-xs text-foreground-muted">Topic: <code class="bg-background-muted px-1 py-0.5 rounded">{{if .ntfy}}{{.ntfy.UUID}}{{end}}</code> — severity indicated by message priority</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Auth Token (optional)</label>
+                <input type="password" name="token" value="{{if .ntfy}}{{.ntfy.Token}}{{end}}" placeholder="Leave empty for public server" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
+            <div class="pt-3 border-t border-border">
+                <h3 class="text-sm font-semibold text-foreground mb-3">Alert Types</h3>
+                <div class="space-y-2.5">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="alert_info" value="true" {{if .ntfy.AlertInfo}}checked{{end}} class="w-4 h-4 text-primary border-border rounded focus:ring-ring">
+                        <span class="text-sm text-foreground">Info</span>
+                        <span class="text-xs text-foreground-muted">— valve opened/closed</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="alert_warn" value="true" {{if .ntfy.AlertWarn}}checked{{end}} class="w-4 h-4 text-amber-500 border-border rounded focus:ring-amber-500">
+                        <span class="text-sm text-foreground">Warning</span>
+                        <span class="text-xs text-foreground-muted">— stale sensor, max watering (coming soon)</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="alert_alarm" value="true" {{if .ntfy.AlertAlarm}}checked{{end}} class="w-4 h-4 text-red-500 border-border rounded focus:ring-red-500">
+                        <span class="text-sm text-foreground">Alarm</span>
+                        <span class="text-xs text-foreground-muted">— failsafe activated (coming soon)</span>
+                    </label>
+                </div>
+            </div>
+            <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                Save
+            </button>
+        </form>
+    </div>
+
+    <div class="bg-card rounded-xl shadow-sm border border-border p-6">
+        <div class="flex items-center gap-3 mb-5">
             <div class="w-9 h-9 rounded-lg bg-sky-100 flex items-center justify-center">
                 <svg class="w-5 h-5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
             </div>

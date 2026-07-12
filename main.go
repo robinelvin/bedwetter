@@ -153,6 +153,34 @@ func main() {
 		cfg.Alerts.FromEmail = alertCfg.FromEmail
 	}
 
+	// Load ntfy config from DB, seed from YAML on first run
+	if _, err := db.GetNtfyConfig(); err != nil {
+		uuid := alerts.GenerateNtfyUUID()
+		if cfg.Ntfy.UUID != "" {
+			uuid = cfg.Ntfy.UUID
+		}
+		if err := db.SaveNtfyConfig(&models.NtfyConfig{
+			Enabled:    cfg.Ntfy.Enabled,
+			Server:     cfg.Ntfy.Server,
+			UUID:       uuid,
+			Token:      cfg.Ntfy.Token,
+			AlertInfo:  cfg.Ntfy.AlertInfo,
+			AlertWarn:  cfg.Ntfy.AlertWarn,
+			AlertAlarm: cfg.Ntfy.AlertAlarm,
+		}); err != nil {
+			log.Printf("Failed to seed ntfy config: %v", err)
+		}
+	}
+	if ntfyCfg, err := db.GetNtfyConfig(); err == nil {
+		cfg.Ntfy.Enabled = ntfyCfg.Enabled
+		cfg.Ntfy.Server = ntfyCfg.Server
+		cfg.Ntfy.UUID = ntfyCfg.UUID
+		cfg.Ntfy.Token = ntfyCfg.Token
+		cfg.Ntfy.AlertInfo = ntfyCfg.AlertInfo
+		cfg.Ntfy.AlertWarn = ntfyCfg.AlertWarn
+		cfg.Ntfy.AlertAlarm = ntfyCfg.AlertAlarm
+	}
+
 	mqtt := mqttclient.New(cfg.MQTT.Broker, cfg.MQTT.Port, cfg.MQTT.Username, cfg.MQTT.Password)
 
 	if err := mqtt.Connect(); err != nil {
@@ -170,6 +198,8 @@ func main() {
 	}
 
 	zoneManager := zones.NewManager(cfg, mqtt, db, resolver, haAPI)
+	ntfyClient := alerts.NewNtfyClient(cfg)
+	zoneManager.SetNtfySender(ntfyClient.Send)
 	zoneManager.Start()
 	haAPI.Start()
 

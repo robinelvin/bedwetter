@@ -47,6 +47,15 @@ alerts:
   smtp_password: app_password
   from_email: bedwetter@example.com
 
+ntfy:
+  enabled: false
+  server: https://ntfy.sh
+  uuid: ""                # auto-generated on first run
+  token: ""               # optional, for private ntfy servers
+  alert_info: true        # valve opened/closed
+  alert_warn: true        # stale sensor, max watering (coming soon)
+  alert_alarm: true       # failsafe activated (coming soon)
+
 schedules:
   - zone_name: Raised Bed 1
     schedule:

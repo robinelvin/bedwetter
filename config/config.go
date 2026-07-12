@@ -45,6 +45,16 @@ type AlertsConfig struct {
 	FromEmail           string `yaml:"from_email"`
 }
 
+type NtfyConfig struct {
+	Enabled    bool   `yaml:"enabled"`
+	Server     string `yaml:"server"`
+	UUID       string `yaml:"uuid"`
+	Token      string `yaml:"token"`
+	AlertInfo  bool   `yaml:"alert_info"`
+	AlertWarn  bool   `yaml:"alert_warn"`
+	AlertAlarm bool   `yaml:"alert_alarm"`
+}
+
 type ScheduleEntry struct {
 	DayOfWeek string `yaml:"day_of_week"`
 	Time      string `yaml:"time"`
@@ -84,6 +94,7 @@ type Config struct {
 	HomeAssistant HomeAssistantConfig  `yaml:"homeassistant"`
 	Zones         []ZoneConfig         `yaml:"zones"`
 	Alerts        AlertsConfig         `yaml:"alerts"`
+	Ntfy          NtfyConfig           `yaml:"ntfy"`
 	Schedules     []ZoneSchedule       `yaml:"schedules"`
 	Weather       WeatherConfig        `yaml:"weather"`
 	Web           WebConfig            `yaml:"web"`
@@ -98,6 +109,10 @@ func Load(path string) (*Config, error) {
 	cfg := &Config{}
 	cfg.Web.ListenAddr = ":8080"
 	cfg.Alerts.SMTPPort = 587
+	cfg.Ntfy.Server = "https://ntfy.sh"
+	cfg.Ntfy.AlertInfo = true
+	cfg.Ntfy.AlertWarn = true
+	cfg.Ntfy.AlertAlarm = true
 	cfg.DBPath = "bedwetter.db"
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, err

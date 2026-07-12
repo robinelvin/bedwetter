@@ -359,6 +359,7 @@ func (s *Server) setupRoutes() {
 	s.router.POST("/schedules/:id/delete", s.deleteSchedule)
 	s.router.GET("/config", s.configPage)
 	s.router.POST("/config/alerts", s.saveAlerts)
+	s.router.POST("/config/ntfy", s.saveNtfy)
 	s.router.POST("/config/mqtt", s.saveMQTT)
 	s.router.POST("/config/ha", s.saveHA)
 	s.router.POST("/config/weather", s.saveWeather)
@@ -821,6 +822,19 @@ func (s *Server) configPage(c *gin.Context) {
 		}
 	}
 
+	ntfyCfg, err := s.store.GetNtfyConfig()
+	if err != nil {
+		ntfyCfg = &models.NtfyConfig{
+			Enabled:    s.cfg.Ntfy.Enabled,
+			Server:     s.cfg.Ntfy.Server,
+			UUID:       s.cfg.Ntfy.UUID,
+			Token:      s.cfg.Ntfy.Token,
+			AlertInfo:  s.cfg.Ntfy.AlertInfo,
+			AlertWarn:  s.cfg.Ntfy.AlertWarn,
+			AlertAlarm: s.cfg.Ntfy.AlertAlarm,
+		}
+	}
+
 	editIDStr := c.Query("edit")
 	var editZone *models.ZoneConfig
 	if editIDStr != "" {
@@ -881,6 +895,7 @@ func (s *Server) configPage(c *gin.Context) {
 		"mqtt":            mqttCfg,
 		"ha":              haCfg,
 		"alerts":          alertCfg,
+		"ntfy":            ntfyCfg,
 		"dbZones":         dbZones,
 		"editZone":        editZone,
 		"moistureType":    moistureType,
@@ -1008,6 +1023,50 @@ func (s *Server) saveAlerts(c *gin.Context) {
 	s.cfg.Alerts.SMTPPassword = cfg.SMTPPassword
 	s.cfg.Alerts.FromEmail = cfg.FromEmail
 	s.logEvent("info", "config", "Alert settings updated", "")
+	c.Redirect(http.StatusFound, "/config")
+}
+
+func (s *Server) saveNtfy(c *gin.Context) {
+	uuid := c.PostForm("uuid")
+
+	existing, err := s.store.GetNtfyConfig()
+	if err == nil && existing.UUID != "" {
+		if uuid == "" {
+			uuid = existing.UUID
+		}
+	}
+	if uuid == "" {
+		uuid = alerts.GenerateNtfyUUID()
+	}
+
+	cfg := &models.NtfyConfig{
+		ID:         1,
+		Enabled:    c.PostForm("enabled") == "true",
+		Server:     c.PostForm("server"),
+		UUID:       uuid,
+		Token:      c.PostForm("token"),
+		AlertInfo:  c.PostForm("alert_info") == "true",
+		AlertWarn:  c.PostForm("alert_warn") == "true",
+		AlertAlarm: c.PostForm("alert_alarm") == "true",
+	}
+
+	if cfg.Server == "" {
+		cfg.Server = "https://ntfy.sh"
+	}
+
+	if err := s.store.SaveNtfyConfig(cfg); err != nil {
+		log.Printf("Failed to save ntfy config: %v", err)
+	}
+
+	s.cfg.Ntfy.Enabled = cfg.Enabled
+	s.cfg.Ntfy.Server = cfg.Server
+	s.cfg.Ntfy.UUID = cfg.UUID
+	s.cfg.Ntfy.Token = cfg.Token
+	s.cfg.Ntfy.AlertInfo = cfg.AlertInfo
+	s.cfg.Ntfy.AlertWarn = cfg.AlertWarn
+	s.cfg.Ntfy.AlertAlarm = cfg.AlertAlarm
+
+	s.logEvent("info", "config", "Push notification config updated", "")
 	c.Redirect(http.StatusFound, "/config")
 }
 

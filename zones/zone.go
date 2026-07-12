@@ -64,6 +64,7 @@ type Manager struct {
 	done         chan struct{}
 	rainMu       sync.RWMutex
 	rainDetected bool
+	sendNtfy     func(level, title, message string)
 }
 
 func NewManager(cfg *config.Config, client mqtt.ClientInterface, store *store.Store, resolver *ha.EntityResolver, haAPI *ha.APIClient) *Manager {
@@ -83,6 +84,10 @@ func NewManager(cfg *config.Config, client mqtt.ClientInterface, store *store.St
 		}
 	}
 	return m
+}
+
+func (m *Manager) SetNtfySender(fn func(level, title, message string)) {
+	m.sendNtfy = fn
 }
 
 func (m *Manager) Start() {
@@ -485,6 +490,9 @@ func (m *Manager) handleValveState(zoneName string, payload []byte) {
 			z.State = StateManualOpen
 			z.LastStateChange = time.Now()
 			m.LogEvent("info", "valve", "Valve manually opened: "+zoneName, zoneName)
+			if m.sendNtfy != nil {
+				go m.sendNtfy("info", "Valve Opened", fmt.Sprintf("Zone '%s' valve has been manually opened", zoneName))
+			}
 		}
 	} else {
 		if z.State == StateManualOpen || z.State == StateWatering {
@@ -492,6 +500,9 @@ func (m *Manager) handleValveState(zoneName string, payload []byte) {
 			z.LastWaterEnd = time.Now()
 			z.LastStateChange = time.Now()
 			m.LogEvent("info", "valve", "Valve manually closed: "+zoneName, zoneName)
+			if m.sendNtfy != nil {
+				go m.sendNtfy("info", "Valve Closed", fmt.Sprintf("Zone '%s' valve has been manually closed", zoneName))
+			}
 			go func() {
 				m.store.SaveValveEvent(zoneName, "close", 0)
 			}()
@@ -549,7 +560,7 @@ func (m *Manager) evaluateZone(zoneName string) {
 	}
 
 	if !IsWithinWateringWindow(z.Config.EarliestWateringTime, z.Config.LatestWateringTime, time.Now()) {
-		log.Printf("Zone %s: outside watering window (%s-%s)", zoneName, z.Config.EarliestWateringTime, z.Config.LatestWateringTime)
+		log.Printf("Zone %q: outside watering window (%s-%s)", zoneName, z.Config.EarliestWateringTime, z.Config.LatestWateringTime)
 		return
 	}
 
@@ -608,6 +619,9 @@ func (m *Manager) OpenValve(zoneName string) {
 	}
 	z.mu.Unlock()
 	m.LogEvent("info", "valve", "Valve opened: "+zoneName, zoneName)
+	if m.sendNtfy != nil {
+		go m.sendNtfy("info", "Valve Opened", fmt.Sprintf("Zone '%s' valve has been opened", zoneName))
+	}
 }
 
 func (m *Manager) CloseValve(zoneName string) {
@@ -641,6 +655,9 @@ func (m *Manager) CloseValve(zoneName string) {
 	}
 	z.mu.Unlock()
 	m.LogEvent("info", "valve", "Valve closed: "+zoneName, zoneName)
+	if m.sendNtfy != nil {
+		go m.sendNtfy("info", "Valve Closed", fmt.Sprintf("Zone '%s' valve has been closed", zoneName))
+	}
 }
 
 // ParseTimeToMinutes converts a "HH:MM" time string to minutes since midnight.
