@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/robinelvin/bedwetter/config"
+	"github.com/robinelvin/bedwetter/models"
 	"github.com/robinelvin/bedwetter/mqtt"
 	"github.com/robinelvin/bedwetter/store"
 	"github.com/robinelvin/bedwetter/zones"
@@ -168,5 +169,294 @@ func TestSchedulerSkipsWhenRainDetected(t *testing.T) {
 
 	if s.zoneManager.RainDetected() {
 		t.Error("expected no rain initially")
+	}
+}
+
+func TestBuildWeekSchedule(t *testing.T) {
+	now := time.Date(2026, 7, 12, 10, 0, 0, 0, time.UTC) // Sunday
+
+	entries := []models.ScheduleConfig{
+		{ZoneName: "Z1", DayOfWeek: "Mon", Time: "06:00", Duration: 1800},
+		{ZoneName: "Z1", DayOfWeek: "Wed", Time: "06:30", Duration: 3600},
+		{ZoneName: "Z1", DayOfWeek: "Mon", Time: "18:00", Duration: 900},
+		{ZoneName: "Z1", Month: 7, DayOfWeek: "Fri", Time: "07:00", Duration: 1200},
+	}
+
+	result := BuildWeekSchedule(now, entries)
+
+	if len(result) != 7 {
+		t.Fatalf("expected 7 days, got %d", len(result))
+	}
+
+	if len(result[0].Bars) != 0 {
+		t.Errorf("Sunday: expected 0 bars, got %d", len(result[0].Bars))
+	}
+	if len(result[1].Bars) != 2 {
+		t.Errorf("Monday: expected 2 bars, got %d", len(result[1].Bars))
+	}
+	if len(result[2].Bars) != 0 {
+		t.Errorf("Tuesday: expected 0 bars, got %d", len(result[2].Bars))
+	}
+	if len(result[3].Bars) != 1 {
+		t.Errorf("Wednesday: expected 1 bar, got %d", len(result[3].Bars))
+	}
+	if len(result[4].Bars) != 0 {
+		t.Errorf("Thursday: expected 0 bars, got %d", len(result[4].Bars))
+	}
+	if len(result[5].Bars) != 1 {
+		t.Errorf("Friday: expected 1 bar (month override), got %d", len(result[5].Bars))
+	}
+	if len(result[6].Bars) != 0 {
+		t.Errorf("Saturday: expected 0 bars, got %d", len(result[6].Bars))
+	}
+
+	monBar0 := result[1].Bars[0]
+	if monBar0.StartPct != 25.0 {
+		t.Errorf("Monday bar 0 StartPct: got %.2f, want 25.00", monBar0.StartPct)
+	}
+	if monBar0.WidthPct != float64(30)/float64(1440)*100 {
+		t.Errorf("Monday bar 0 WidthPct: got %.4f, want %.4f", monBar0.WidthPct, float64(30)/float64(1440)*100)
+	}
+	if monBar0.Start != "06:00" {
+		t.Errorf("Monday bar 0 Start: got %q, want 06:00", monBar0.Start)
+	}
+
+	wedBar := result[3].Bars[0]
+	if wedBar.Start != "06:30" {
+		t.Errorf("Wednesday bar Start: got %q, want 06:30", wedBar.Start)
+	}
+	if wedBar.Label != "60m" {
+		t.Errorf("Wednesday bar Label: got %q, want 60m", wedBar.Label)
+	}
+}
+
+func TestBuildWeekScheduleEmpty(t *testing.T) {
+	now := time.Date(2026, 7, 12, 10, 0, 0, 0, time.UTC)
+	result := BuildWeekSchedule(now, nil)
+
+	if len(result) != 7 {
+		t.Fatalf("expected 7 days, got %d", len(result))
+	}
+	for i, d := range result {
+		if len(d.Bars) != 0 {
+			t.Errorf("day %d: expected 0 bars, got %d", i, len(d.Bars))
+		}
+	}
+}
+
+func TestBuildWeekScheduleMonthOverride(t *testing.T) {
+	now := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC) // January
+
+	entries := []models.ScheduleConfig{
+		{ZoneName: "Z1", DayOfWeek: "Mon", Time: "06:00", Duration: 1800},
+		{ZoneName: "Z1", Month: 1, DayOfWeek: "Mon", Time: "08:00", Duration: 7200},
+	}
+
+	result := BuildWeekSchedule(now, entries)
+
+	for _, d := range result {
+		if d.Day == "Mon" {
+			if len(d.Bars) != 1 {
+				t.Fatalf("Monday in January: expected 1 bar (month override only), got %d", len(d.Bars))
+			}
+			if d.Bars[0].Start != "08:00" {
+				t.Errorf("expected month override start 08:00, got %q", d.Bars[0].Start)
+			}
+			return
+		}
+	}
+	t.Fatal("Monday not found in week schedule")
+}
+
+func TestNextScheduledOccurrence(t *testing.T) {
+	loc := time.UTC
+	now := time.Date(2026, 7, 12, 10, 0, 0, 0, loc) // Sunday
+
+	entries := []models.ScheduleConfig{
+		{ZoneName: "Z1", DayOfWeek: "Mon", Time: "06:00", Duration: 1800},
+		{ZoneName: "Z1", DayOfWeek: "Wed", Time: "14:00", Duration: 3600},
+	}
+
+	got, ok := NextScheduledOccurrence(now, entries)
+	if !ok {
+		t.Fatal("expected an occurrence")
+	}
+	// Next Monday is July 13
+	want := time.Date(2026, 7, 13, 6, 0, 0, 0, loc)
+	if !got.Equal(want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestNextScheduledOccurrenceEmpty(t *testing.T) {
+	now := time.Date(2026, 7, 12, 10, 0, 0, 0, time.UTC)
+	_, ok := NextScheduledOccurrence(now, nil)
+	if ok {
+		t.Error("expected no occurrence for empty entries")
+	}
+}
+
+func TestNextWindowOpen_BeforeWindow(t *testing.T) {
+	now := time.Date(2026, 7, 12, 5, 0, 0, 0, time.UTC)
+	got, ok := nextWindowOpen(now, "06:00", "10:00")
+	if !ok {
+		t.Fatal("expected ok")
+	}
+	want := time.Date(2026, 7, 12, 6, 0, 0, 0, time.UTC)
+	if !got.Equal(want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestNextWindowOpen_DuringWindow(t *testing.T) {
+	now := time.Date(2026, 7, 12, 8, 30, 0, 0, time.UTC)
+	got, ok := nextWindowOpen(now, "06:00", "10:00")
+	if !ok {
+		t.Fatal("expected ok")
+	}
+	if !got.Equal(now) {
+		t.Errorf("got %v, want %v (now)", got, now)
+	}
+}
+
+func TestNextWindowOpen_AfterWindow(t *testing.T) {
+	now := time.Date(2026, 7, 12, 12, 0, 0, 0, time.UTC)
+	got, ok := nextWindowOpen(now, "06:00", "10:00")
+	if !ok {
+		t.Fatal("expected ok")
+	}
+	want := time.Date(2026, 7, 13, 6, 0, 0, 0, time.UTC)
+	if !got.Equal(want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestNextWateringForZone_ScheduleOnly(t *testing.T) {
+	loc := time.UTC
+	now := time.Date(2026, 7, 12, 10, 0, 0, 0, loc) // Sunday
+	snap := zones.ZoneSnapshot{
+		Config:   config.ZoneConfig{Name: "Z1", ThresholdHigh: 80, ThresholdLow: 30},
+		Moisture: 50,
+		State:    zones.StateIdle,
+	}
+	entries := []models.ScheduleConfig{
+		{ZoneName: "Z1", DayOfWeek: "Mon", Time: "06:00", Duration: 1800},
+	}
+
+	got, reason := NextWateringForZone(now, snap, entries)
+	want := time.Date(2026, 7, 13, 6, 0, 0, 0, loc)
+	if !got.Equal(want) {
+		t.Errorf("time: got %v, want %v", got, want)
+	}
+	if reason != "Schedule" {
+		t.Errorf("reason: got %q, want Schedule", reason)
+	}
+}
+
+func TestNextWateringForZone_SensorLowBeforeSchedule(t *testing.T) {
+	loc := time.UTC
+	now := time.Date(2026, 7, 12, 10, 1, 0, 0, loc) // Sunday, 10:01 — past window end
+	snap := zones.ZoneSnapshot{
+		Config:   config.ZoneConfig{Name: "Z1", ThresholdHigh: 80, ThresholdLow: 30, EarliestWateringTime: "06:00", LatestWateringTime: "10:00"},
+		Moisture: 20, // below ThresholdLow
+		State:    zones.StateIdle,
+	}
+	entries := []models.ScheduleConfig{
+		{ZoneName: "Z1", DayOfWeek: "Mon", Time: "06:00", Duration: 1800}, // next is Mon 06:00
+	}
+
+	got, reason := NextWateringForZone(now, snap, entries)
+	// Next window open is tomorrow 06:00 (past today's 10:00 latest), Mon 06:00 is also tomorrow
+	// Both are the same: July 13 06:00
+	want := time.Date(2026, 7, 13, 6, 0, 0, 0, loc)
+	if !got.Equal(want) {
+		t.Errorf("time: got %v, want %v", got, want)
+	}
+	if reason != "Soil moisture low" {
+		t.Errorf("reason: got %q, want 'Soil moisture low'", reason)
+	}
+}
+
+func TestNextWateringForZone_SensorLowSoonerThanSchedule(t *testing.T) {
+	loc := time.UTC
+	now := time.Date(2026, 7, 12, 5, 0, 0, 0, loc) // Sunday, 05:00
+	snap := zones.ZoneSnapshot{
+		Config:   config.ZoneConfig{Name: "Z1", ThresholdHigh: 80, ThresholdLow: 30, EarliestWateringTime: "06:00", LatestWateringTime: "10:00"},
+		Moisture: 20,
+		State:    zones.StateIdle,
+	}
+	entries := []models.ScheduleConfig{
+		{ZoneName: "Z1", DayOfWeek: "Mon", Time: "06:00", Duration: 1800},
+	}
+
+	got, reason := NextWateringForZone(now, snap, entries)
+	// Today's window opens at 06:00, schedule is Mon 06:00 = July 13
+	// Window is sooner
+	want := time.Date(2026, 7, 12, 6, 0, 0, 0, loc)
+	if !got.Equal(want) {
+		t.Errorf("time: got %v, want %v", got, want)
+	}
+	if reason != "Soil moisture low" {
+		t.Errorf("reason: got %q, want 'Soil moisture low'", reason)
+	}
+}
+
+func TestNextWateringForZone_FailsafeReturnsEmpty(t *testing.T) {
+	now := time.Date(2026, 7, 12, 10, 0, 0, 0, time.UTC)
+	snap := zones.ZoneSnapshot{
+		Config:   config.ZoneConfig{Name: "Z1", ThresholdHigh: 80, ThresholdLow: 30},
+		Moisture: 20,
+		State:    zones.StateFailsafe,
+	}
+	entries := []models.ScheduleConfig{
+		{ZoneName: "Z1", DayOfWeek: "Mon", Time: "06:00", Duration: 1800},
+	}
+
+	got, reason := NextWateringForZone(now, snap, entries)
+	// Failsafe blocks sensor-triggered, but schedule still shows
+	want := time.Date(2026, 7, 13, 6, 0, 0, 0, time.UTC)
+	if !got.Equal(want) {
+		t.Errorf("time: got %v, want %v", got, want)
+	}
+	if reason != "Schedule" {
+		t.Errorf("reason: got %q, want Schedule", reason)
+	}
+}
+
+func TestNextWateringForZone_NoScheduleReturnsEmpty(t *testing.T) {
+	now := time.Date(2026, 7, 12, 10, 0, 0, 0, time.UTC)
+	snap := zones.ZoneSnapshot{
+		Config:   config.ZoneConfig{Name: "Z1", ThresholdHigh: 80, ThresholdLow: 30, EarliestWateringTime: "06:00", LatestWateringTime: "10:00"},
+		Moisture: 50,
+		State:    zones.StateIdle,
+	}
+
+	got, _ := NextWateringForZone(now, snap, nil)
+	if !got.IsZero() {
+		t.Errorf("expected zero time, got %v", got)
+	}
+}
+
+func TestWeekdayFromString(t *testing.T) {
+	tests := []struct {
+		input string
+		want  time.Weekday
+		ok    bool
+	}{
+		{"Mon", time.Monday, true},
+		{"Tuesday", time.Tuesday, true},
+		{"wed", time.Wednesday, true},
+		{"THURSDAY", time.Thursday, true},
+		{"fri", time.Friday, true},
+		{"Saturday", time.Saturday, true},
+		{"SUN", time.Sunday, true},
+		{"", time.Sunday, false},
+		{"invalid", time.Sunday, false},
+	}
+	for _, tt := range tests {
+		got, ok := WeekdayFromString(tt.input)
+		if ok != tt.ok || got != tt.want {
+			t.Errorf("WeekdayFromString(%q): got %v, %v; want %v, %v", tt.input, got, ok, tt.want, tt.ok)
+		}
 	}
 }

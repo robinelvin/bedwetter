@@ -10,7 +10,6 @@ import (
 	"math"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -416,7 +415,7 @@ func (s *Server) zoneViews() []zoneView {
 	rainActive := s.zoneManager.RainDetected()
 	results := make([]zoneView, len(snapshots))
 	for i, snap := range snapshots {
-		nextTime, reason := nextWateringForZone(now, snap, scheduleMap[snap.Config.Name])
+		nextTime, reason := scheduler.NextWateringForZone(now, snap, scheduleMap[snap.Config.Name])
 		activations := int64(0)
 		if count, err := s.store.ActivationsToday(snap.Config.Name); err == nil {
 			activations = count
@@ -687,7 +686,7 @@ func (s *Server) zoneDetail(c *gin.Context) {
 	schedules, _ := s.store.GetSchedule(zc.Name)
 	now := time.Now()
 	rainActive := s.zoneManager.RainDetected()
-	nextTime, reason := nextWateringForZone(now, snap, schedules)
+	nextTime, reason := scheduler.NextWateringForZone(now, snap, schedules)
 
 	activations := int64(0)
 	if count, err := s.store.ActivationsToday(zc.Name); err == nil {
@@ -712,7 +711,7 @@ func (s *Server) zoneDetail(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	events, _ := s.store.GetEventLogsByZone(zc.Name, page, 50)
 
-	weekSchedule := buildWeekSchedule(time.Now(), schedules)
+	weekSchedule := scheduler.BuildWeekSchedule(time.Now(), schedules)
 
 	s.render(c, "zone_detail", http.StatusOK, gin.H{
 		"title":         zc.Name,
@@ -746,7 +745,7 @@ func (s *Server) zoneCard(c *gin.Context) {
 	schedules, _ := s.store.GetSchedule(zc.Name)
 	now := time.Now()
 	rainActive := s.zoneManager.RainDetected()
-	nextTime, reason := nextWateringForZone(now, snap, schedules)
+	nextTime, reason := scheduler.NextWateringForZone(now, snap, schedules)
 
 	activations := int64(0)
 	if count, err := s.store.ActivationsToday(zc.Name); err == nil {
@@ -1528,168 +1527,6 @@ func badgeClassForVariant(variant string) string {
 	default:
 		return "badge-neutral"
 	}
-}
-
-func nextWateringForZone(now time.Time, snap zones.ZoneSnapshot, scheduleEntries []models.ScheduleConfig) (time.Time, string) {
-	if t, ok := nextScheduledOccurrence(now, scheduleEntries); ok {
-		return t, "Schedule"
-	}
-	return time.Time{}, ""
-}
-
-func nextScheduledOccurrence(now time.Time, entries []models.ScheduleConfig) (time.Time, bool) {
-	if len(entries) == 0 {
-		return time.Time{}, false
-	}
-	loc := now.Location()
-	var best time.Time
-	for _, entry := range entries {
-		if t, ok := nextOccurrenceForEntry(now, entry, loc); ok {
-			if best.IsZero() || t.Before(best) {
-				best = t
-			}
-		}
-	}
-	if best.IsZero() {
-		return time.Time{}, false
-	}
-	return best, true
-}
-
-func nextOccurrenceForEntry(now time.Time, entry models.ScheduleConfig, loc *time.Location) (time.Time, bool) {
-	if entry.Time == "" {
-		return time.Time{}, false
-	}
-	schedTime, err := time.ParseInLocation("15:04", entry.Time, loc)
-	if err != nil {
-		return time.Time{}, false
-	}
-	for days := 0; days <= 366; days++ {
-		candidateDate := now.AddDate(0, 0, days)
-		if entry.Month > 0 && int(candidateDate.Month()) != entry.Month {
-			continue
-		}
-		if entry.DayOfWeek != "" {
-			if wd, ok := weekdayFromString(entry.DayOfWeek); ok {
-				if candidateDate.Weekday() != wd {
-					continue
-				}
-			} else {
-				continue
-			}
-		}
-		candidate := time.Date(candidateDate.Year(), candidateDate.Month(), candidateDate.Day(), schedTime.Hour(), schedTime.Minute(), 0, 0, loc)
-		if candidate.After(now) {
-			return candidate, true
-		}
-	}
-	return time.Time{}, false
-}
-
-func weekdayFromString(s string) (time.Weekday, bool) {
-	if s == "" {
-		return time.Sunday, false
-	}
-	key := strings.ToLower(strings.TrimSpace(s))
-	if len(key) >= 3 {
-		key = key[:3]
-	}
-	switch key {
-	case "mon":
-		return time.Monday, true
-	case "tue":
-		return time.Tuesday, true
-	case "wed":
-		return time.Wednesday, true
-	case "thu":
-		return time.Thursday, true
-	case "fri":
-		return time.Friday, true
-	case "sat":
-		return time.Saturday, true
-	case "sun":
-		return time.Sunday, true
-	default:
-		return time.Sunday, false
-	}
-}
-
-type scheduleBar struct {
-	StartPct float64
-	WidthPct float64
-	Start    string
-	End      string
-	Label    string
-}
-
-type weekDaySchedule struct {
-	Date string
-	Day  string
-	Bars []scheduleBar
-}
-
-func buildWeekSchedule(now time.Time, entries []models.ScheduleConfig) []weekDaySchedule {
-	month := int(now.Month())
-	var result []weekDaySchedule
-
-	for days := 0; days < 7; days++ {
-		d := now.AddDate(0, 0, days)
-		dateStr := d.Format("Mon 2 Jan")
-		weekdayStr := d.Weekday().String()[:3]
-
-		var monthEntries []models.ScheduleConfig
-		var weekdayEntries []models.ScheduleConfig
-		for _, e := range entries {
-			if e.Month > 0 {
-				if e.Month == month {
-					if wd, ok := weekdayFromString(e.DayOfWeek); ok && d.Weekday() == wd {
-						monthEntries = append(monthEntries, e)
-					}
-				}
-			} else if e.DayOfWeek != "" {
-				if wd, ok := weekdayFromString(e.DayOfWeek); ok && d.Weekday() == wd {
-					weekdayEntries = append(weekdayEntries, e)
-				}
-			}
-		}
-
-		active := weekdayEntries
-		if len(monthEntries) > 0 {
-			active = monthEntries
-		}
-
-		var bars []scheduleBar
-		for _, e := range active {
-			t, err := time.Parse("15:04", e.Time)
-			if err != nil {
-				continue
-			}
-			startMin := t.Hour()*60 + t.Minute()
-			endMin := startMin + e.Duration
-			if endMin > 24*60 {
-				endMin = 24 * 60
-			}
-
-			startPct := float64(startMin) / float64(24*60) * 100
-			widthPct := float64(e.Duration) / float64(24*60*60) * 100
-			endTime := t.Add(time.Duration(e.Duration) * time.Second)
-
-			bars = append(bars, scheduleBar{
-				StartPct: startPct,
-				WidthPct: widthPct,
-				Start:    t.Format("15:04"),
-				End:      endTime.Format("15:04"),
-				Label:    fmt.Sprintf("%dm", e.Duration/60),
-			})
-		}
-
-		result = append(result, weekDaySchedule{
-			Date: dateStr,
-			Day:  weekdayStr,
-			Bars: bars,
-		})
-	}
-	return result
 }
 
 func (s *Server) Start(addr string) error {
