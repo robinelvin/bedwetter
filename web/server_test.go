@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/approvals/go-approval-tests"
 	"github.com/gin-gonic/gin"
@@ -996,6 +997,123 @@ func TestSaveZoneWithNewFields(t *testing.T) {
 	if z2.SeasonalMultipliers == "" {
 		t.Error("expected SeasonalMultipliers to be set")
 	}
+}
+
+func TestBuildWeekSchedule(t *testing.T) {
+	now := time.Date(2026, 7, 12, 10, 0, 0, 0, time.UTC) // Sunday
+
+	entries := []models.ScheduleConfig{
+		{ZoneName: "Z1", DayOfWeek: "Mon", Time: "06:00", Duration: 1800},
+		{ZoneName: "Z1", DayOfWeek: "Wed", Time: "06:30", Duration: 3600},
+		{ZoneName: "Z1", DayOfWeek: "Mon", Time: "18:00", Duration: 900},
+		{ZoneName: "Z1", Month: 7, DayOfWeek: "Fri", Time: "07:00", Duration: 1200},
+	}
+
+	result := buildWeekSchedule(now, entries)
+
+	if len(result) != 7 {
+		t.Fatalf("expected 7 days, got %d", len(result))
+	}
+
+	// Day 0 (Sunday) - no entries
+	if len(result[0].Bars) != 0 {
+		t.Errorf("Sunday: expected 0 bars, got %d", len(result[0].Bars))
+	}
+
+	// Day 1 (Monday) - 2 entries
+	if len(result[1].Bars) != 2 {
+		t.Errorf("Monday: expected 2 bars, got %d", len(result[1].Bars))
+	}
+
+	// Day 2 (Tuesday) - no entries
+	if len(result[2].Bars) != 0 {
+		t.Errorf("Tuesday: expected 0 bars, got %d", len(result[2].Bars))
+	}
+
+	// Day 3 (Wednesday) - 1 entry
+	if len(result[3].Bars) != 1 {
+		t.Errorf("Wednesday: expected 1 bar, got %d", len(result[3].Bars))
+	}
+
+	// Day 4 (Thursday) - no entries
+	if len(result[4].Bars) != 0 {
+		t.Errorf("Thursday: expected 0 bars, got %d", len(result[4].Bars))
+	}
+
+	// Day 5 (Friday) - month-specific entry (July=7)
+	if len(result[5].Bars) != 1 {
+		t.Errorf("Friday: expected 1 bar (month override), got %d", len(result[5].Bars))
+	}
+
+	// Day 6 (Saturday) - no entries
+	if len(result[6].Bars) != 0 {
+		t.Errorf("Saturday: expected 0 bars, got %d", len(result[6].Bars))
+	}
+
+	// Check Monday bar positioning
+	monBar0 := result[1].Bars[0]
+	// 06:00 = 360 min = 360/1440 = 25%
+	if monBar0.StartPct != 25.0 {
+		t.Errorf("Monday bar 0 StartPct: got %.2f, want 25.00", monBar0.StartPct)
+	}
+	// 1800s = 30 min = 30/1440 ≈ 2.083%
+	if monBar0.WidthPct != float64(30)/float64(1440)*100 {
+		t.Errorf("Monday bar 0 WidthPct: got %.4f, want %.4f", monBar0.WidthPct, float64(30)/float64(1440)*100)
+	}
+	if monBar0.Start != "06:00" {
+		t.Errorf("Monday bar 0 Start: got %q, want 06:00", monBar0.Start)
+	}
+
+	// Check Wednesday bar
+	wedBar := result[3].Bars[0]
+	if wedBar.Start != "06:30" {
+		t.Errorf("Wednesday bar Start: got %q, want 06:30", wedBar.Start)
+	}
+	// 3600s = 60 min
+	if wedBar.Label != "60m" {
+		t.Errorf("Wednesday bar Label: got %q, want 60m", wedBar.Label)
+	}
+}
+
+func TestBuildWeekScheduleEmpty(t *testing.T) {
+	now := time.Date(2026, 7, 12, 10, 0, 0, 0, time.UTC)
+	result := buildWeekSchedule(now, nil)
+
+	if len(result) != 7 {
+		t.Fatalf("expected 7 days, got %d", len(result))
+	}
+	for i, d := range result {
+		if len(d.Bars) != 0 {
+			t.Errorf("day %d: expected 0 bars, got %d", i, len(d.Bars))
+		}
+	}
+}
+
+func TestBuildWeekScheduleMonthOverride(t *testing.T) {
+	now := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC) // January
+
+	entries := []models.ScheduleConfig{
+		{ZoneName: "Z1", DayOfWeek: "Mon", Time: "06:00", Duration: 1800},
+		{ZoneName: "Z1", Month: 1, DayOfWeek: "Mon", Time: "08:00", Duration: 7200},
+	}
+
+	result := buildWeekSchedule(now, entries)
+
+	// Find the Monday
+	for _, d := range result {
+		if d.Day == "Mon" {
+			// Month override should be active in January, weekday entries should NOT match
+			// because month-specific entries take priority in the scheduler
+			if len(d.Bars) != 1 {
+				t.Fatalf("Monday in January: expected 1 bar (month override only), got %d", len(d.Bars))
+			}
+			if d.Bars[0].Start != "08:00" {
+				t.Errorf("expected month override start 08:00, got %q", d.Bars[0].Start)
+			}
+			return
+		}
+	}
+	t.Fatal("Monday not found in week schedule")
 }
 
 

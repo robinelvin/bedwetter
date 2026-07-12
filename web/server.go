@@ -176,7 +176,7 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/events.html"),
 	)
 	sv.templates["zone_detail"] = template.Must(
-		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/zone_detail.html", "templates/_zone_card.html", "templates/_zone_card_fragment.html"),
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/zone_detail.html", "templates/_zone_card.html", "templates/_zone_card_fragment.html", "templates/_schedule_timeline.html"),
 	)
 
 	sv.templates["_zone_cards"] = template.Must(
@@ -227,6 +227,10 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 	)
 	sv.templates["_master_ha"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_master_ha.html"),
+	)
+
+	sv.templates["_schedule_timeline"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_schedule_timeline.html"),
 	)
 
 	sv.templates["login"] = template.Must(
@@ -708,10 +712,13 @@ func (s *Server) zoneDetail(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	events, _ := s.store.GetEventLogsByZone(zc.Name, page, 50)
 
+	weekSchedule := buildWeekSchedule(time.Now(), schedules)
+
 	s.render(c, "zone_detail", http.StatusOK, gin.H{
-		"title":  zc.Name,
-		"zone":   zv,
-		"events": events,
+		"title":         zc.Name,
+		"zone":          zv,
+		"events":        events,
+		"weekSchedule":  weekSchedule,
 	})
 }
 
@@ -1568,6 +1575,84 @@ func weekdayFromString(s string) (time.Weekday, bool) {
 	default:
 		return time.Sunday, false
 	}
+}
+
+type scheduleBar struct {
+	StartPct float64
+	WidthPct float64
+	Start    string
+	End      string
+	Label    string
+}
+
+type weekDaySchedule struct {
+	Date string
+	Day  string
+	Bars []scheduleBar
+}
+
+func buildWeekSchedule(now time.Time, entries []models.ScheduleConfig) []weekDaySchedule {
+	month := int(now.Month())
+	var result []weekDaySchedule
+
+	for days := 0; days < 7; days++ {
+		d := now.AddDate(0, 0, days)
+		dateStr := d.Format("Mon 2 Jan")
+		weekdayStr := d.Weekday().String()[:3]
+
+		var monthEntries []models.ScheduleConfig
+		var weekdayEntries []models.ScheduleConfig
+		for _, e := range entries {
+			if e.Month > 0 {
+				if e.Month == month {
+					if wd, ok := weekdayFromString(e.DayOfWeek); ok && d.Weekday() == wd {
+						monthEntries = append(monthEntries, e)
+					}
+				}
+			} else if e.DayOfWeek != "" {
+				if wd, ok := weekdayFromString(e.DayOfWeek); ok && d.Weekday() == wd {
+					weekdayEntries = append(weekdayEntries, e)
+				}
+			}
+		}
+
+		active := weekdayEntries
+		if len(monthEntries) > 0 {
+			active = monthEntries
+		}
+
+		var bars []scheduleBar
+		for _, e := range active {
+			t, err := time.Parse("15:04", e.Time)
+			if err != nil {
+				continue
+			}
+			startMin := t.Hour()*60 + t.Minute()
+			endMin := startMin + e.Duration
+			if endMin > 24*60 {
+				endMin = 24 * 60
+			}
+
+			startPct := float64(startMin) / float64(24*60) * 100
+			widthPct := float64(e.Duration) / float64(24*60*60) * 100
+			endTime := t.Add(time.Duration(e.Duration) * time.Second)
+
+			bars = append(bars, scheduleBar{
+				StartPct: startPct,
+				WidthPct: widthPct,
+				Start:    t.Format("15:04"),
+				End:      endTime.Format("15:04"),
+				Label:    fmt.Sprintf("%dm", e.Duration/60),
+			})
+		}
+
+		result = append(result, weekDaySchedule{
+			Date: dateStr,
+			Day:  weekdayStr,
+			Bars: bars,
+		})
+	}
+	return result
 }
 
 func (s *Server) Start(addr string) error {

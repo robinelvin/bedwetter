@@ -1,0 +1,59 @@
+{{define "_schedule_timeline"}}
+<div class="bg-card rounded-xl shadow-sm border border-border p-6">
+    <div class="flex items-center gap-3 mb-4">
+        <div class="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center">
+            <svg class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        </div>
+        <h2 class="text-lg font-semibold text-card-foreground">Schedule (Next 7 Days)</h2>
+    </div>
+    {{if not .weekSchedule}}
+    <p class="text-sm text-foreground-muted">No schedule configured.</p>
+    {{else}}
+    <div class="space-y-2">
+        {{range .weekSchedule}}
+        <div class="flex items-stretch gap-3 min-h-[2rem]">
+            <div class="w-28 shrink-0 flex items-center">
+                <div>
+                    <div class="text-sm font-medium text-foreground leading-tight">{{.Day}}</div>
+                    <div class="text-xs text-foreground-muted leading-tight">{{.Date}}</div>
+                </div>
+            </div>
+            <div class="flex-1 relative h-7 bg-background-secondary rounded-md border border-border/50 overflow-hidden">
+                <!-- Hour grid lines -->
+                <div class="absolute inset-0 flex">
+                    <div class="flex-1 border-r border-border/30"></div>
+                    <div class="flex-1 border-r border-border/30"></div>
+                    <div class="flex-1 border-r border-border/30"></div>
+                    <div class="flex-1"></div>
+                </div>
+                <!-- Watering bars -->
+                {{range .Bars}}
+                <div class="absolute top-0.5 bottom-0.5 rounded bg-emerald-500/80 hover:bg-emerald-500 transition-colors group flex items-center justify-center cursor-default"
+                     style="left: {{printf "%.2f" .StartPct}}%; width: {{printf "%.2f" .WidthPct}}%;"
+                     title="{{.Start}} – {{.End}} ({{.Label}})">
+                    <span class="text-[10px] font-medium text-white drop-shadow-sm whitespace-nowrap">{{.Label}}</span>
+                </div>
+                {{end}}
+                {{if not .Bars}}
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <span class="text-xs text-foreground-muted/60">No watering</span>
+                </div>
+                {{end}}
+            </div>
+        </div>
+        {{end}}
+        <!-- Time labels -->
+        <div class="flex items-center gap-3">
+            <div class="w-28 shrink-0"></div>
+            <div class="flex-1 flex text-[10px] text-foreground-muted/60 font-mono">
+                <div class="flex-1 text-left pl-0.5">00:00</div>
+                <div class="flex-1 text-left">06:00</div>
+                <div class="flex-1 text-left">12:00</div>
+                <div class="flex-1 text-left">18:00</div>
+                <div class="w-0 text-right">24:00</div>
+            </div>
+        </div>
+    </div>
+    {{end}}
+</div>
+{{end}}
