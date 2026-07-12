@@ -116,12 +116,15 @@ func (s *Scheduler) evaluate() {
 	weekday := now.Weekday().String()[:3]
 	currentMinute := now.Hour()*60 + now.Minute()
 
+	s.CheckWeather()
+
+	forecastRain := s.weatherCache.RainDetected() && time.Since(s.weatherCache.FetchedAt) < s.weatherCache.TTL
+	s.zoneManager.SetForecastRain(forecastRain)
+
 	if s.zoneManager.RainDetected() {
 		log.Println("Schedule: rain sensor active, skipping all watering")
 		return
 	}
-
-	s.CheckWeather()
 
 	schedules, err := s.store.GetAllSchedules()
 	if err != nil {
@@ -150,42 +153,25 @@ func (s *Scheduler) evaluate() {
 		if scheduleMinute < 0 {
 			continue
 		}
-		if currentMinute == scheduleMinute {
-			z := s.zoneManager.GetZone(sc.ZoneName)
-			if z == nil {
-				continue
-			}
-
-			if !zones.IsWithinWateringWindow(z.Config.EarliestWateringTime, z.Config.LatestWateringTime, now) {
-				log.Printf("Schedule: skipping %s, outside watering window (%s-%s)",
-					sc.ZoneName, z.Config.EarliestWateringTime, z.Config.LatestWateringTime)
-				continue
-			}
-
-			if z.Moisture >= float64(z.Config.ThresholdLow) {
-				log.Printf("Schedule: skipping %s, moisture %.1f%% above threshold %d%%",
-					sc.ZoneName, z.Moisture, z.Config.ThresholdLow)
-				continue
-			}
-
-			if s.weatherCache.RainDetected() && time.Since(s.weatherCache.FetchedAt) < s.weatherCache.TTL {
-				log.Printf("Schedule: skipping %s, rain forecast active", sc.ZoneName)
-				continue
-			}
-
-			multiplier := getSeasonalMultiplier(z.Config.SeasonalMultipliers, month)
-			adjustedDuration := int(float64(sc.Duration) * multiplier)
-			if adjustedDuration < 1 {
-				adjustedDuration = sc.Duration
-			}
-
-			log.Printf("Schedule: starting watering for %s (base: %ds, adjusted: %ds, multiplier: %.2f)",
-				sc.ZoneName, sc.Duration, adjustedDuration, multiplier)
-
-			z.Config.MaxWateringSeconds = adjustedDuration
-			s.zoneManager.LogEvent("info", "valve", fmt.Sprintf("Watering started: %s (schedule)", sc.ZoneName), sc.ZoneName)
-			s.zoneManager.OpenValve(sc.ZoneName)
+		if currentMinute != scheduleMinute {
+			continue
 		}
+
+		z := s.zoneManager.GetZone(sc.ZoneName)
+		if z == nil {
+			continue
+		}
+
+		multiplier := getSeasonalMultiplier(z.Config.SeasonalMultipliers, month)
+		adjustedDuration := int(float64(sc.Duration) * multiplier)
+		if adjustedDuration < 1 {
+			adjustedDuration = sc.Duration
+		}
+
+		log.Printf("Schedule: evaluating %s (base: %ds, adjusted: %ds, multiplier: %.2f)",
+			sc.ZoneName, sc.Duration, adjustedDuration, multiplier)
+
+		s.zoneManager.TriggerScheduledWatering(sc.ZoneName, adjustedDuration)
 	}
 }
 

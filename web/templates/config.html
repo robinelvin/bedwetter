@@ -227,6 +227,52 @@
         </form>
     </div>
 
+    <div class="bg-card rounded-xl shadow-sm border border-border p-6">
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19H18.93A2 2 0 0020.82 16L13.89 3.5a2 2 0 00-3.78 0L3.18 16a2 2 0 001.89 3z"/></svg>
+            </div>
+            <h2 class="text-lg font-semibold text-card-foreground">Master Shutoff Valve</h2>
+        </div>
+        <form action="/config/master-valve" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-2">Control Source</label>
+                <div class="flex gap-4 mb-3">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="master_source" value="mqtt"
+                            {{if not .masterValve.SwitchEntity}}checked{{end}}
+                            hx-get="/config/master-valve/fields?type=mqtt"
+                            hx-trigger="change"
+                            hx-target="#master-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-primary border-border focus:ring-ring">
+                        <span class="text-sm text-foreground">MQTT</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="master_source" value="ha"
+                            {{if .masterValve.SwitchEntity}}checked{{end}}
+                            hx-get="/config/master-valve/fields?type=ha"
+                            hx-trigger="change"
+                            hx-target="#master-fields"
+                            hx-swap="innerHTML"
+                            class="w-4 h-4 text-indigo-600 border-border focus:ring-indigo-500">
+                        <span class="text-sm text-foreground">Home Assistant</span>
+                    </label>
+                </div>
+                <p class="text-xs text-foreground-muted">Optional. An additional shutoff valve opened during automated watering and closed on safety shutoff.</p>
+            </div>
+            <div id="master-fields"
+                hx-get="/config/master-valve/fields?type={{if .masterValve.SwitchEntity}}ha{{else}}mqtt{{end}}"
+                hx-trigger="load"
+                hx-swap="innerHTML">
+            </div>
+            <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                Save
+            </button>
+        </form>
+    </div>
+
     <div id="zone-form" class="bg-card rounded-xl shadow-sm border border-border p-6 lg:col-span-2">
         <div class="flex items-center justify-between mb-5">
             <div class="flex items-center gap-3">

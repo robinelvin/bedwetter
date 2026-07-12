@@ -1,0 +1,5 @@
+{{define "_master_ha"}}
+<label class="block text-sm font-medium text-foreground-secondary mb-1.5">Master Valve HA Switch Entity</label>
+<input type="text" name="switch_entity" value="{{.masterValve.SwitchEntity}}" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow" placeholder="switch.valve_master">
+<p class="text-xs text-foreground-muted mt-1.5">Home Assistant switch entity ID for the master shutoff valve.</p>
+{{end}}

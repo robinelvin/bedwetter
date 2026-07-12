@@ -203,6 +203,20 @@ func (s *Store) SaveWeatherConfig(cfg *models.WeatherConfig) error {
 	return s.db.Save(cfg).Error
 }
 
+func (s *Store) GetMasterValveConfig() (*models.MasterValveConfig, error) {
+	var cfg models.MasterValveConfig
+	err := s.db.First(&cfg, 1).Error
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func (s *Store) SaveMasterValveConfig(cfg *models.MasterValveConfig) error {
+	cfg.ID = 1
+	return s.db.Save(cfg).Error
+}
+
 func (s *Store) CreateEventLog(event *models.EventLog) error {
 	return s.db.Create(event).Error
 }

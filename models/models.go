@@ -64,6 +64,12 @@ type WeatherConfig struct {
 	RainSensorEntity string `gorm:"size:256" json:"rain_sensor_entity"`
 }
 
+type MasterValveConfig struct {
+	ID           uint   `gorm:"primaryKey" json:"id"`
+	CommandTopic string `gorm:"size:256" json:"command_topic"`
+	SwitchEntity string `gorm:"size:256" json:"switch_entity"`
+}
+
 type AlertSettings struct {
 	ID                 uint   `gorm:"primaryKey" json:"id"`
 	Email              string `gorm:"size:256" json:"email"`
@@ -194,6 +200,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&AlertSettings{},
 		&NtfyConfig{},
 		&WeatherConfig{},
+		&MasterValveConfig{},
 		&User{},
 		&EventLog{},
 		&Session{},

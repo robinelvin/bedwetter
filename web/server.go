@@ -39,11 +39,11 @@ type Server struct {
 
 type zoneView struct {
 	zones.ZoneSnapshot
-	NextWatering            time.Time
-	NextWateringReason      string
-	NextWateringNote        string
-	NextWateringNoteVariant string
-	NextWateringBadgeClass  string
+	NextWatering       time.Time
+	NextWateringReason string
+	StatusNote         string
+	StatusNoteVariant  string
+	StatusBadgeClass   string
 }
 
 func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.AlertManager, mqttClient mqtt.ClientInterface, haAPI *ha.APIClient, sched *scheduler.Scheduler) *Server {
@@ -222,6 +222,13 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_rain_ha.html"),
 	)
 
+	sv.templates["_master_mqtt"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_master_mqtt.html"),
+	)
+	sv.templates["_master_ha"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/_master_ha.html"),
+	)
+
 	sv.templates["login"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/login.html"),
 	)
@@ -351,6 +358,9 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/dashboard/weather", s.dashboardWeather)
 	s.router.POST("/zones/:name/open", s.openValve)
 	s.router.POST("/zones/:name/close", s.closeValve)
+	s.router.POST("/zones/:name/force-close", s.forceCloseZone)
+	s.router.POST("/zones/:name/clear-force-close", s.clearForceCloseZone)
+	s.router.POST("/zones/:name/acknowledge", s.acknowledgeFault)
 	s.router.POST("/zones/all/open", s.openAllValves)
 	s.router.POST("/zones/all/close", s.closeAllValves)
 	s.router.GET("/zones/:id", s.zoneDetail)
@@ -365,10 +375,15 @@ func (s *Server) setupRoutes() {
 	s.router.POST("/config/mqtt", s.saveMQTT)
 	s.router.POST("/config/ha", s.saveHA)
 	s.router.POST("/config/weather", s.saveWeather)
+	s.router.POST("/config/master-valve", s.saveMasterValve)
+	s.router.GET("/config/master-valve/fields", s.masterValveFields)
 	s.router.POST("/config/zones", s.saveZone)
 	s.router.POST("/config/zones/:id/delete", s.deleteZone)
 	s.router.GET("/events", s.eventsPage)
 	s.router.GET("/api/zones", s.apiZones)
+	s.router.POST("/api/zones/:name/water", s.apiWaterZone)
+	s.router.POST("/api/zones/:name/stop", s.apiStopZone)
+	s.router.POST("/api/zones/:name/acknowledge", s.apiAcknowledgeFault)
 	s.router.GET("/login", s.loginPage)
 	s.router.POST("/login", s.login)
 	s.router.POST("/logout", s.logout)
@@ -404,22 +419,18 @@ func (s *Server) zoneViews() []zoneView {
 		} else {
 			log.Printf("Failed to fetch activations for %s: %v", snap.Config.Name, err)
 		}
-		note := ""
-		noteVariant := ""
+		status, statusVariant := s.statusNote(now, snap, rainActive, activations)
 		badgeClass := ""
-		if nextTime.IsZero() {
-			note, noteVariant = s.noWateringNote(now, snap, scheduleMap[snap.Config.Name], rainActive, activations)
-			if note != "" {
-				badgeClass = badgeClassForVariant(noteVariant)
-			}
+		if status != "" {
+			badgeClass = badgeClassForVariant(statusVariant)
 		}
 		results[i] = zoneView{
-			ZoneSnapshot:            snap,
-			NextWatering:            nextTime,
-			NextWateringReason:      reason,
-			NextWateringNote:        note,
-			NextWateringNoteVariant: noteVariant,
-			NextWateringBadgeClass:  badgeClass,
+			ZoneSnapshot:       snap,
+			NextWatering:       nextTime,
+			NextWateringReason: reason,
+			StatusNote:         status,
+			StatusNoteVariant:  statusVariant,
+			StatusBadgeClass:   badgeClass,
 		}
 	}
 	return results
@@ -588,6 +599,57 @@ func (s *Server) closeAllValves(c *gin.Context) {
 	c.Redirect(http.StatusFound, "/dashboard")
 }
 
+func (s *Server) forceCloseZone(c *gin.Context) {
+	name := c.Param("name")
+	s.zoneManager.ForceClose(name)
+	c.Redirect(http.StatusFound, "/dashboard")
+}
+
+func (s *Server) clearForceCloseZone(c *gin.Context) {
+	name := c.Param("name")
+	s.zoneManager.ClearForceClose(name)
+	c.Redirect(http.StatusFound, "/dashboard")
+}
+
+func (s *Server) acknowledgeFault(c *gin.Context) {
+	name := c.Param("name")
+	s.zoneManager.AcknowledgeFault(name)
+	c.Redirect(http.StatusFound, "/dashboard")
+}
+
+func (s *Server) apiWaterZone(c *gin.Context) {
+	name := c.Param("name")
+	z := s.zoneManager.GetZone(name)
+	if z == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "zone not found"})
+		return
+	}
+	s.zoneManager.OpenValve(name)
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "zone": name, "state": "manual_open"})
+}
+
+func (s *Server) apiStopZone(c *gin.Context) {
+	name := c.Param("name")
+	z := s.zoneManager.GetZone(name)
+	if z == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "zone not found"})
+		return
+	}
+	s.zoneManager.CloseValve(name)
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "zone": name, "state": "idle"})
+}
+
+func (s *Server) apiAcknowledgeFault(c *gin.Context) {
+	name := c.Param("name")
+	z := s.zoneManager.GetZone(name)
+	if z == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "zone not found"})
+		return
+	}
+	s.zoneManager.AcknowledgeFault(name)
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "zone": name})
+}
+
 func (s *Server) zoneDetail(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -628,23 +690,19 @@ func (s *Server) zoneDetail(c *gin.Context) {
 		activations = count
 	}
 
-	note := ""
-	noteVariant := ""
+	status, statusVariant := s.statusNote(now, snap, rainActive, activations)
 	badgeClass := ""
-	if nextTime.IsZero() {
-		note, noteVariant = s.noWateringNote(now, snap, schedules, rainActive, activations)
-		if note != "" {
-			badgeClass = badgeClassForVariant(noteVariant)
-		}
+	if status != "" {
+		badgeClass = badgeClassForVariant(statusVariant)
 	}
 
 	zv := zoneView{
-		ZoneSnapshot:            snap,
-		NextWatering:            nextTime,
-		NextWateringReason:      reason,
-		NextWateringNote:        note,
-		NextWateringNoteVariant: noteVariant,
-		NextWateringBadgeClass:  badgeClass,
+		ZoneSnapshot:       snap,
+		NextWatering:       nextTime,
+		NextWateringReason: reason,
+		StatusNote:         status,
+		StatusNoteVariant:  statusVariant,
+		StatusBadgeClass:   badgeClass,
 	}
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -688,23 +746,19 @@ func (s *Server) zoneCard(c *gin.Context) {
 		activations = count
 	}
 
-	note := ""
-	noteVariant := ""
+	status, statusVariant := s.statusNote(now, snap, rainActive, activations)
 	badgeClass := ""
-	if nextTime.IsZero() {
-		note, noteVariant = s.noWateringNote(now, snap, schedules, rainActive, activations)
-		if note != "" {
-			badgeClass = badgeClassForVariant(noteVariant)
-		}
+	if status != "" {
+		badgeClass = badgeClassForVariant(statusVariant)
 	}
 
 	zv := zoneView{
-		ZoneSnapshot:            snap,
-		NextWatering:            nextTime,
-		NextWateringReason:      reason,
-		NextWateringNote:        note,
-		NextWateringNoteVariant: noteVariant,
-		NextWateringBadgeClass:  badgeClass,
+		ZoneSnapshot:       snap,
+		NextWatering:       nextTime,
+		NextWateringReason: reason,
+		StatusNote:         status,
+		StatusNoteVariant:  statusVariant,
+		StatusBadgeClass:   badgeClass,
 	}
 
 	s.renderPartial(c, "_zone_card_fragment", http.StatusOK, gin.H{
@@ -906,6 +960,7 @@ func (s *Server) configPage(c *gin.Context) {
 		"temperatureType": temperatureType,
 		"weather":         s.cfg.Weather,
 		"months":          months,
+		"masterValve":     s.cfg.MasterValve,
 	})
 }
 
@@ -991,6 +1046,34 @@ func (s *Server) saveWeather(c *gin.Context) {
 
 	s.logEvent("info", "config", "Weather config updated", "")
 	c.Redirect(http.StatusFound, "/config")
+}
+
+func (s *Server) saveMasterValve(c *gin.Context) {
+	source := c.PostForm("master_source")
+	var cfg config.MasterValveConfig
+	if source == "ha" {
+		cfg.SwitchEntity = c.PostForm("switch_entity")
+	} else {
+		cfg.CommandTopic = c.PostForm("command_topic")
+	}
+	if err := s.store.SaveMasterValveConfig(&models.MasterValveConfig{
+		CommandTopic: cfg.CommandTopic,
+		SwitchEntity: cfg.SwitchEntity,
+	}); err != nil {
+		log.Printf("Failed to persist master valve config: %v", err)
+	}
+	s.cfg.MasterValve = cfg
+	s.logEvent("info", "config", "Master valve config updated", "")
+	c.Redirect(http.StatusFound, "/config")
+}
+
+func (s *Server) masterValveFields(c *gin.Context) {
+	sourceType := c.DefaultQuery("type", "mqtt")
+	name := "_master_mqtt"
+	if sourceType == "ha" {
+		name = "_master_ha"
+	}
+	s.renderPartial(c, name, http.StatusOK, gin.H{"masterValve": s.cfg.MasterValve})
 }
 
 func (s *Server) saveAlerts(c *gin.Context) {
@@ -1331,25 +1414,35 @@ func (s *Server) apiZones(c *gin.Context) {
 		if !z.NextWatering.IsZero() {
 			results[i]["next_watering"] = z.NextWatering.Format(time.RFC3339)
 			results[i]["next_watering_reason"] = z.NextWateringReason
-		} else if z.NextWateringNote != "" {
-			results[i]["next_watering_reason"] = z.NextWateringNote
-			if z.NextWateringNoteVariant != "" {
-				results[i]["next_watering_reason_variant"] = z.NextWateringNoteVariant
-			}
+		}
+		if z.StatusNote != "" {
+			results[i]["status_note"] = z.StatusNote
+			results[i]["status_variant"] = z.StatusNoteVariant
 		}
 	}
 	c.JSON(http.StatusOK, results)
 }
 
-func (s *Server) noWateringNote(now time.Time, snap zones.ZoneSnapshot, scheduleEntries []models.ScheduleConfig, rainActive bool, activations int64) (string, string) {
+func (s *Server) statusNote(now time.Time, snap zones.ZoneSnapshot, rainActive bool, activations int64) (string, string) {
 	if snap.State == zones.StateFailsafe {
 		return "Failsafe active", "error"
 	}
-	if snap.State == zones.StateManualOpen || snap.State == zones.StateWatering {
-		return "Valve currently open", "info"
+	if snap.State == zones.StateForceClosed {
+		return "Force-closed", "warn"
+	}
+	if snap.State == zones.StateManualOpen {
+		return "Manual open", "info"
+	}
+	if snap.State == zones.StateWatering {
+		elapsed := time.Since(snap.WateringStarted)
+		remaining := time.Duration(snap.Config.MaxWateringSeconds)*time.Second - elapsed
+		if remaining > 0 {
+			return fmt.Sprintf("Watering (%s remaining)", remaining.Truncate(time.Second)), "info"
+		}
+		return "Watering", "info"
 	}
 	if rainActive {
-		return "Rain sensor active", "info"
+		return "Rain detected", "info"
 	}
 	if snap.State == zones.StateCooldown && snap.Config.CooldownMinutes > 0 && !snap.LastWaterEnd.IsZero() {
 		cooldownEnd := snap.LastWaterEnd.Add(time.Duration(snap.Config.CooldownMinutes) * time.Minute)
@@ -1363,15 +1456,12 @@ func (s *Server) noWateringNote(now time.Time, snap zones.ZoneSnapshot, schedule
 		}
 	}
 	if math.IsNaN(snap.Moisture) {
-		return "Awaiting sensor reading", "muted"
+		return "Awaiting sensor", "muted"
 	}
 	if snap.Config.ThresholdLow > 0 && snap.Moisture >= float64(snap.Config.ThresholdLow) {
-		return fmt.Sprintf("Moisture %.1f%% above threshold %d%%", snap.Moisture, snap.Config.ThresholdLow), "success"
+		return fmt.Sprintf("Soil moisture OK (%.1f%%)", snap.Moisture), "success"
 	}
-	if len(scheduleEntries) == 0 {
-		return "No schedule configured", "muted"
-	}
-	return "No upcoming watering", "muted"
+	return "", ""
 }
 
 func nullableFloat(f float64) interface{} {
@@ -1397,28 +1487,10 @@ func badgeClassForVariant(variant string) string {
 }
 
 func nextWateringForZone(now time.Time, snap zones.ZoneSnapshot, scheduleEntries []models.ScheduleConfig) (time.Time, string) {
-	var next time.Time
-	var reason string
-
 	if t, ok := nextScheduledOccurrence(now, scheduleEntries); ok {
-		next = t
-		reason = "Schedule"
+		return t, "Schedule"
 	}
-
-	if snap.State == zones.StateCooldown && snap.Config.CooldownMinutes > 0 && !snap.LastWaterEnd.IsZero() {
-		target := snap.LastWaterEnd.Add(time.Duration(snap.Config.CooldownMinutes) * time.Minute)
-		if snap.Moisture > 0 && snap.Moisture < float64(snap.Config.ThresholdLow) {
-			if target.Before(now) {
-				target = now
-			}
-			if next.IsZero() || target.Before(next) {
-				next = target
-				reason = "Cooldown"
-			}
-		}
-	}
-
-	return next, reason
+	return time.Time{}, ""
 }
 
 func nextScheduledOccurrence(now time.Time, entries []models.ScheduleConfig) (time.Time, bool) {

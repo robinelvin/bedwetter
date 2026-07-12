@@ -668,3 +668,502 @@ func TestEvaluateZoneRespectsTimeWindow(t *testing.T) {
 		t.Errorf("expected StateIdle (outside window), got %v", z3.State)
 	}
 }
+
+func TestCloseValveWateringToCooldown(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ValveCommandTopic: "v/z1", ThresholdLow: 50, MaxWateringSeconds: 300, CooldownMinutes: 10},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateWatering
+	z.mu.Unlock()
+
+	m.CloseValve("Z1")
+
+	z = m.GetZone("Z1")
+	if z.State != StateCooldown {
+		t.Errorf("expected StateCooldown after closing watering zone, got %v", z.State)
+	}
+}
+
+func TestCloseValveManualOpenToIdle(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ValveCommandTopic: "v/z1"},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateManualOpen
+	z.mu.Unlock()
+
+	m.CloseValve("Z1")
+
+	z = m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Errorf("expected StateIdle after closing manual-open zone, got %v", z.State)
+	}
+}
+
+func TestForceCloseSetsStateForceClosed(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ValveCommandTopic: "v/z1", ThresholdLow: 50, MaxWateringSeconds: 300},
+	})
+
+	m.ForceClose("Z1")
+	z := m.GetZone("Z1")
+	if z.State != StateForceClosed {
+		t.Errorf("expected StateForceClosed, got %v", z.State)
+	}
+}
+
+func TestForceCloseBlocksTriggerScheduledWatering(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateForceClosed
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.TriggerScheduledWatering("Z1", 120)
+
+	z = m.GetZone("Z1")
+	if z.State != StateForceClosed {
+		t.Errorf("expected StateForceClosed (force-close blocks trigger), got %v", z.State)
+	}
+}
+
+func TestClearForceCloseSetsIdle(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ValveCommandTopic: "v/z1"},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateForceClosed
+	z.mu.Unlock()
+
+	m.ClearForceClose("Z1")
+
+	z = m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Errorf("expected StateIdle after ClearForceClose, got %v", z.State)
+	}
+}
+
+func TestClearForceCloseOnlyAffectsForceClosed(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ValveCommandTopic: "v/z1"},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateIdle
+	z.mu.Unlock()
+
+	m.ClearForceClose("Z1")
+
+	z = m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Errorf("expected StateIdle unchanged, got %v", z.State)
+	}
+}
+
+func TestAcknowledgeFaultClearsFailsafe(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ValveCommandTopic: "v/z1"},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateFailsafe
+	z.mu.Unlock()
+
+	m.AcknowledgeFault("Z1")
+
+	z = m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Errorf("expected StateIdle after AcknowledgeFault, got %v", z.State)
+	}
+}
+
+func TestAcknowledgeFaultOnlyAffectsFailsafe(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ValveCommandTopic: "v/z1"},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateIdle
+	z.mu.Unlock()
+
+	m.AcknowledgeFault("Z1")
+
+	z = m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Errorf("expected StateIdle unchanged, got %v", z.State)
+	}
+}
+
+func TestEvaluateZoneForceClosedBlocksAutoWatering(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateForceClosed
+	z.mu.Unlock()
+
+	m.handleSensorReading("Z1", []byte("30"))
+
+	z = m.GetZone("Z1")
+	if z.State != StateForceClosed {
+		t.Errorf("expected StateForceClosed (evaluateZone should not override), got %v", z.State)
+	}
+}
+
+func TestTriggerScheduledWateringBlockedByFailsafe(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateFailsafe
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.TriggerScheduledWatering("Z1", 120)
+
+	z = m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Errorf("expected StateFailsafe (failsafe blocks trigger), got %v", z.State)
+	}
+}
+
+func TestTriggerScheduledWateringBlockedByManualOpen(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateManualOpen
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.TriggerScheduledWatering("Z1", 120)
+
+	z = m.GetZone("Z1")
+	if z.State != StateManualOpen {
+		t.Errorf("expected StateManualOpen (manual blocks trigger), got %v", z.State)
+	}
+}
+
+func TestTriggerScheduledWateringBlockedByActiveWatering(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateWatering
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.TriggerScheduledWatering("Z1", 120)
+
+	z = m.GetZone("Z1")
+	if z.State != StateWatering {
+		t.Errorf("expected StateWatering (already watering blocks trigger), got %v", z.State)
+	}
+}
+
+func TestTriggerScheduledWateringBlockedByActiveCooldown(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, CooldownMinutes: 60, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateCooldown
+	z.LastWaterEnd = time.Now()
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.TriggerScheduledWatering("Z1", 120)
+
+	z = m.GetZone("Z1")
+	if z.State != StateCooldown {
+		t.Errorf("expected StateCooldown (active cooldown blocks trigger), got %v", z.State)
+	}
+}
+
+func TestTriggerScheduledWateringAllowsAfterCooldown(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, CooldownMinutes: 60, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateCooldown
+	z.LastWaterEnd = time.Now().Add(-2 * time.Hour)
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.TriggerScheduledWatering("Z1", 120)
+
+	z = m.GetZone("Z1")
+	if z.State != StateWatering {
+		t.Errorf("expected StateWatering (cooldown expired), got %v", z.State)
+	}
+}
+
+func TestTriggerScheduledWateringBlockedByRainSensor(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.rainMu.Lock()
+	m.rainDetected = true
+	m.rainMu.Unlock()
+
+	m.TriggerScheduledWatering("Z1", 120)
+
+	z = m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Errorf("expected StateIdle (rain blocks trigger), got %v", z.State)
+	}
+}
+
+func TestTriggerScheduledWateringBlockedByForecastRain(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.SetForecastRain(true)
+
+	m.TriggerScheduledWatering("Z1", 120)
+
+	z = m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Errorf("expected StateIdle (forecast rain blocks trigger), got %v", z.State)
+	}
+}
+
+func TestTriggerScheduledWateringBlockedByThresholdHigh(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, ThresholdHigh: 60, MaxWateringSeconds: 300, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.Moisture = 65
+	z.mu.Unlock()
+
+	m.TriggerScheduledWatering("Z1", 120)
+
+	z = m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Errorf("expected StateIdle (threshold_high blocks trigger), got %v", z.State)
+	}
+}
+
+func TestTriggerScheduledWateringBlockedByMaxActivations(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, MaxActivationsPerDay: 3, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	for i := 0; i < 3; i++ {
+		m.store.SaveValveEvent("Z1", "open", 120)
+	}
+
+	m.TriggerScheduledWatering("Z1", 120)
+
+	z = m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Errorf("expected StateIdle (max activations blocks trigger), got %v", z.State)
+	}
+}
+
+func TestTriggerScheduledWateringSuccess(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, ThresholdHigh: 60, MaxWateringSeconds: 300, MaxActivationsPerDay: 5, CooldownMinutes: 60, ValveCommandTopic: "v/z1", EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+	fake := m.client.(*fakeMQTTClient)
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.TriggerScheduledWatering("Z1", 120)
+	time.Sleep(time.Millisecond)
+
+	z = m.GetZone("Z1")
+	if z.State != StateWatering {
+		t.Errorf("expected StateWatering, got %v", z.State)
+	}
+
+	if !containsPublish(fake.published, "v/z1:ON") {
+		t.Errorf("expected valve/z1:ON publish, got %v", fake.published)
+	}
+}
+
+func TestEvaluateZoneMaxDurationExceededTriggersFailsafe(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, ValveCommandTopic: "v/z1", EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+	fake := m.client.(*fakeMQTTClient)
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateWatering
+	z.WateringStarted = time.Now().Add(-600 * time.Second)
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.handleSensorReading("Z1", []byte("30"))
+	time.Sleep(10 * time.Millisecond)
+
+	z = m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Errorf("expected StateFailsafe (max duration exceeded), got %v", z.State)
+	}
+
+	if !containsPublish(fake.published, "v/z1:OFF") {
+		t.Errorf("expected safety shutoff OFF, got %v", fake.published)
+	}
+}
+
+func TestMasterValveOpenedOnEvaluateZone(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, ValveCommandTopic: "v/z1", EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+	m.cfg.MasterValve.CommandTopic = "v/master"
+	fake := m.client.(*fakeMQTTClient)
+
+	m.handleSensorReading("Z1", []byte("30"))
+	time.Sleep(time.Millisecond)
+
+	if !containsPublish(fake.published, "v/master:ON") {
+		t.Errorf("expected master valve ON publish, got %v", fake.published)
+	}
+}
+
+func TestMasterValveOpenedOnTriggerScheduledWatering(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, ValveCommandTopic: "v/z1", EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+	m.cfg.MasterValve.CommandTopic = "v/master"
+	fake := m.client.(*fakeMQTTClient)
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.TriggerScheduledWatering("Z1", 120)
+	time.Sleep(time.Millisecond)
+
+	if !containsPublish(fake.published, "v/master:ON") {
+		t.Errorf("expected master valve ON publish, got %v", fake.published)
+	}
+}
+
+func TestForecastRainSetAndClear(t *testing.T) {
+	m := newTestManager(t, nil)
+
+	if m.forecastRainActive {
+		t.Error("expected forecastRainActive false by default")
+	}
+
+	m.SetForecastRain(true)
+	if !m.forecastRainActive {
+		t.Error("expected forecastRainActive true after SetForecastRain(true)")
+	}
+
+	m.SetForecastRain(false)
+	if m.forecastRainActive {
+		t.Error("expected forecastRainActive false after SetForecastRain(false)")
+	}
+}

@@ -80,6 +80,11 @@ type WeatherConfig struct {
 	RainSensorEntity string  `yaml:"rain_sensor_entity"`
 }
 
+type MasterValveConfig struct {
+	CommandTopic string `yaml:"command_topic"`
+	SwitchEntity string `yaml:"switch_entity"`
+}
+
 type WebConfig struct {
 	ListenAddr string `yaml:"listen_addr"`
 }
@@ -97,6 +102,7 @@ type Config struct {
 	Ntfy          NtfyConfig           `yaml:"ntfy"`
 	Schedules     []ZoneSchedule       `yaml:"schedules"`
 	Weather       WeatherConfig        `yaml:"weather"`
+	MasterValve   MasterValveConfig    `yaml:"master_valve"`
 	Web           WebConfig            `yaml:"web"`
 	DBPath        string               `yaml:"db_path"`
 }

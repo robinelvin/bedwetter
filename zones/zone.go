@@ -26,6 +26,7 @@ const (
 	StateCooldown
 	StateManualOpen
 	StateFailsafe
+	StateForceClosed
 )
 
 type Zone struct {
@@ -54,17 +55,18 @@ type ZoneSnapshot struct {
 }
 
 type Manager struct {
-	zones        map[string]*Zone
-	client       mqtt.ClientInterface
-	store        *store.Store
-	cfg          *config.Config
-	resolver     *ha.EntityResolver
-	haAPI        *ha.APIClient
-	mu           sync.RWMutex
-	done         chan struct{}
-	rainMu       sync.RWMutex
-	rainDetected bool
-	sendNtfy     func(level, title, message string)
+	zones             map[string]*Zone
+	client            mqtt.ClientInterface
+	store             *store.Store
+	cfg               *config.Config
+	resolver          *ha.EntityResolver
+	haAPI             *ha.APIClient
+	mu                sync.RWMutex
+	done              chan struct{}
+	rainMu            sync.RWMutex
+	rainDetected      bool
+	forecastRainActive bool
+	sendNtfy          func(level, title, message string)
 }
 
 func NewManager(cfg *config.Config, client mqtt.ClientInterface, store *store.Store, resolver *ha.EntityResolver, haAPI *ha.APIClient) *Manager {
@@ -386,11 +388,24 @@ func (m *Manager) RainDetected() bool {
 	return m.rainDetected
 }
 
+func (m *Manager) SetForecastRain(active bool) {
+	m.rainMu.Lock()
+	defer m.rainMu.Unlock()
+	m.forecastRainActive = active
+}
+
 func (m *Manager) Stop() {
 	close(m.done)
 	for _, z := range m.zones {
+		z.mu.Lock()
+		if z.State == StateWatering || z.State == StateManualOpen {
+			z.State = StateFailsafe
+			z.LastStateChange = time.Now()
+		}
+		z.mu.Unlock()
 		m.CloseValve(z.Config.Name)
 	}
+	m.closeMasterValve()
 }
 
 func (m *Manager) handleSensorReading(zoneName string, payload []byte) {
@@ -524,17 +539,20 @@ func (m *Manager) evaluateZone(zoneName string) {
 	z.mu.Lock()
 	defer z.mu.Unlock()
 
-	if z.State == StateManualOpen || z.State == StateFailsafe || z.State == StateWatering {
+	if z.State == StateManualOpen || z.State == StateFailsafe || z.State == StateWatering || z.State == StateForceClosed {
 		if z.State == StateWatering {
 			elapsed := time.Since(z.WateringStarted)
 			maxDur := time.Duration(z.Config.MaxWateringSeconds) * time.Second
 			if elapsed >= maxDur {
-				log.Printf("Zone %s: max watering duration reached (%ds)", zoneName, z.Config.MaxWateringSeconds)
-				m.LogEvent("warn", "valve", "Max watering duration reached for "+zoneName, zoneName)
-				go m.CloseValve(zoneName)
-				z.State = StateCooldown
-				z.LastWaterEnd = time.Now()
+				log.Printf("Zone %s: max watering duration reached (%ds) — safety shutoff", zoneName, z.Config.MaxWateringSeconds)
+				m.LogEvent("error", "valve", "Safety shutoff: max duration exceeded for "+zoneName, zoneName)
+				if m.sendNtfy != nil {
+					go m.sendNtfy("alarm", "Safety Shutoff", fmt.Sprintf("Zone '%s': valve open too long", zoneName))
+				}
+				z.State = StateFailsafe
 				z.LastStateChange = time.Now()
+				go m.closeMasterValve()
+				go m.CloseAllValves()
 			}
 			return
 		}
@@ -571,6 +589,22 @@ func (m *Manager) evaluateZone(zoneName string) {
 		return
 	}
 
+	staleThreshold := time.Duration(m.cfg.Alerts.StaleSensorMinutes) * time.Minute
+	if m.cfg.Alerts.StaleSensorMinutes > 0 && (z.LastMoistureTime.IsZero() || time.Since(z.LastMoistureTime) > staleThreshold) {
+		log.Printf("Zone %q: skipping evaluation, sensor reading stale", zoneName)
+		return
+	}
+
+	if m.RainDetected() {
+		return
+	}
+	m.rainMu.RLock()
+	forecastRain := m.forecastRainActive
+	m.rainMu.RUnlock()
+	if forecastRain {
+		return
+	}
+
 	if z.Moisture >= float64(z.Config.ThresholdLow) {
 		return
 	}
@@ -587,7 +621,8 @@ func (m *Manager) evaluateZone(zoneName string) {
 
 	log.Printf("Zone %s: moisture %.1f%% below threshold %d%%, opening valve", zoneName, z.Moisture, z.Config.ThresholdLow)
 	m.LogEvent("info", "valve", fmt.Sprintf("Watering started: %s (moisture %.1f%% below threshold %d%%)", zoneName, z.Moisture, z.Config.ThresholdLow), zoneName)
-	go m.OpenValve(zoneName)
+	go m.openValveIO(zoneName)
+	go m.openMasterValve()
 	z.State = StateWatering
 	z.WateringStarted = time.Now()
 	z.LastStateChange = time.Now()
@@ -596,7 +631,131 @@ func (m *Manager) evaluateZone(zoneName string) {
 	}()
 }
 
-func (m *Manager) OpenValve(zoneName string) {
+func (m *Manager) TriggerScheduledWatering(zoneName string, adjustedDuration int) {
+	m.mu.RLock()
+	z, ok := m.zones[zoneName]
+	m.mu.RUnlock()
+	if !ok {
+		return
+	}
+
+	z.mu.Lock()
+	defer z.mu.Unlock()
+
+	if z.State == StateForceClosed || z.State == StateFailsafe || z.State == StateManualOpen || z.State == StateWatering {
+		return
+	}
+
+	if z.State == StateCooldown {
+		cooldown := time.Duration(z.Config.CooldownMinutes) * time.Minute
+		if time.Since(z.LastWaterEnd) >= cooldown {
+			z.State = StateIdle
+			z.LastStateChange = time.Now()
+		} else {
+			return
+		}
+	}
+
+	if !IsWithinWateringWindow(z.Config.EarliestWateringTime, z.Config.LatestWateringTime, time.Now()) {
+		log.Printf("Schedule: skipping %s, outside watering window (%s-%s)", zoneName, z.Config.EarliestWateringTime, z.Config.LatestWateringTime)
+		return
+	}
+
+	if math.IsNaN(z.Moisture) {
+		return
+	}
+
+	staleThreshold := time.Duration(m.cfg.Alerts.StaleSensorMinutes) * time.Minute
+	if m.cfg.Alerts.StaleSensorMinutes > 0 && (z.LastMoistureTime.IsZero() || time.Since(z.LastMoistureTime) > staleThreshold) {
+		log.Printf("Schedule: skipping %s, sensor reading stale", zoneName)
+		return
+	}
+
+	if m.RainDetected() {
+		log.Printf("Schedule: skipping %s, rain sensor active", zoneName)
+		return
+	}
+	m.rainMu.RLock()
+	forecastRain := m.forecastRainActive
+	m.rainMu.RUnlock()
+	if forecastRain {
+		log.Printf("Schedule: skipping %s, rain forecast active", zoneName)
+		return
+	}
+
+	if z.Config.ThresholdHigh > 0 && z.Moisture >= float64(z.Config.ThresholdHigh) {
+		log.Printf("Schedule: skipping %s, moisture %.1f%% above threshold_high %d%%", zoneName, z.Moisture, z.Config.ThresholdHigh)
+		return
+	}
+
+	count, err := m.store.ActivationsToday(zoneName)
+	if err != nil {
+		log.Printf("Schedule: error checking activations for %s: %v", zoneName, err)
+		return
+	}
+	if z.Config.MaxActivationsPerDay > 0 && count >= int64(z.Config.MaxActivationsPerDay) {
+		log.Printf("Schedule: skipping %s, max daily activations reached (%d)", zoneName, z.Config.MaxActivationsPerDay)
+		return
+	}
+
+	log.Printf("Schedule: starting watering for %s (duration: %ds)", zoneName, adjustedDuration)
+	m.LogEvent("info", "valve", fmt.Sprintf("Watering started: %s (schedule, %ds)", zoneName, adjustedDuration), zoneName)
+	go m.openValveIO(zoneName)
+	go m.openMasterValve()
+	z.Config.MaxWateringSeconds = adjustedDuration
+	z.State = StateWatering
+	z.WateringStarted = time.Now()
+	z.LastStateChange = time.Now()
+	go func() {
+		m.store.SaveValveEvent(zoneName, "open", adjustedDuration)
+	}()
+}
+
+func (m *Manager) ForceClose(zoneName string) {
+	m.CloseValve(zoneName)
+	z, ok := m.zones[zoneName]
+	if !ok {
+		return
+	}
+	z.mu.Lock()
+	z.State = StateForceClosed
+	z.LastStateChange = time.Now()
+	z.mu.Unlock()
+	m.LogEvent("warn", "valve", "Force-close activated: "+zoneName, zoneName)
+	if m.sendNtfy != nil {
+		go m.sendNtfy("warn", "Force Close", fmt.Sprintf("Zone '%s' force-closed by user", zoneName))
+	}
+}
+
+func (m *Manager) ClearForceClose(zoneName string) {
+	z, ok := m.zones[zoneName]
+	if !ok {
+		return
+	}
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	if z.State == StateForceClosed {
+		z.State = StateIdle
+		z.LastStateChange = time.Now()
+		m.LogEvent("info", "valve", "Force-close cleared: "+zoneName, zoneName)
+	}
+}
+
+func (m *Manager) AcknowledgeFault(zoneName string) {
+	z, ok := m.zones[zoneName]
+	if !ok {
+		return
+	}
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	if z.State == StateFailsafe {
+		z.State = StateIdle
+		z.LastStateChange = time.Now()
+		m.LogEvent("info", "system", "Failsafe acknowledged: "+zoneName, zoneName)
+	}
+}
+
+func (m *Manager) openValveIO(zoneName string) {
 	m.mu.RLock()
 	z, ok := m.zones[zoneName]
 	m.mu.RUnlock()
@@ -619,15 +778,61 @@ func (m *Manager) OpenValve(zoneName string) {
 			}()
 		}
 	}
+}
+
+func (m *Manager) openMasterValve() {
+	topic := m.cfg.MasterValve.CommandTopic
+	if topic != "" {
+		m.client.Publish(topic, 1, false, "ON")
+	} else if m.haAPI != nil && m.cfg.MasterValve.SwitchEntity != "" {
+		entityID := m.cfg.MasterValve.SwitchEntity
+		parts := splitEntityID(entityID)
+		if parts != nil {
+			go func() {
+				if err := m.haAPI.CallService(parts[0], "turn_on", entityID); err != nil {
+					log.Printf("Master valve: HA API turn_on failed for %s: %v", entityID, err)
+				} else {
+					log.Printf("Master valve: HA API turn_on %s", entityID)
+				}
+			}()
+		}
+	}
+}
+
+func (m *Manager) closeMasterValve() {
+	topic := m.cfg.MasterValve.CommandTopic
+	if topic != "" {
+		m.client.Publish(topic, 1, false, "OFF")
+	} else if m.haAPI != nil && m.cfg.MasterValve.SwitchEntity != "" {
+		entityID := m.cfg.MasterValve.SwitchEntity
+		parts := splitEntityID(entityID)
+		if parts != nil {
+			go func() {
+				if err := m.haAPI.CallService(parts[0], "turn_off", entityID); err != nil {
+					log.Printf("Master valve: HA API turn_off failed for %s: %v", entityID, err)
+				} else {
+					log.Printf("Master valve: HA API turn_off %s", entityID)
+				}
+			}()
+		}
+	}
+}
+
+func (m *Manager) OpenValve(zoneName string) {
+	m.openValveIO(zoneName)
+	z, ok := m.zones[zoneName]
+	if !ok {
+		return
+	}
 	z.mu.Lock()
 	if z.State == StateIdle || z.State == StateCooldown {
 		z.State = StateManualOpen
 		z.LastStateChange = time.Now()
 	}
 	z.mu.Unlock()
-	m.LogEvent("info", "valve", "Valve opened: "+zoneName, zoneName)
+	m.LogEvent("info", "valve", "Valve manually opened: "+zoneName, zoneName)
 	if m.sendNtfy != nil {
-		go m.sendNtfy("info", "Valve Opened", fmt.Sprintf("Zone '%s' valve has been opened", zoneName))
+		go m.sendNtfy("info", "Valve Opened", fmt.Sprintf("Zone '%s' valve has been manually opened", zoneName))
 	}
 }
 
@@ -655,7 +860,11 @@ func (m *Manager) CloseValve(zoneName string) {
 		}
 	}
 	z.mu.Lock()
-	if z.State == StateManualOpen || z.State == StateWatering {
+	if z.State == StateWatering {
+		z.State = StateCooldown
+		z.LastWaterEnd = time.Now()
+		z.LastStateChange = time.Now()
+	} else if z.State == StateManualOpen {
 		z.State = StateIdle
 		z.LastWaterEnd = time.Now()
 		z.LastStateChange = time.Now()
@@ -858,6 +1067,9 @@ func (m *Manager) Watchdog() {
 		if z.LastMoistureTime.IsZero() || since > stale*2 {
 			z.State = StateFailsafe
 			m.LogEvent("warn", "system", "Failsafe activated: stale sensor for "+z.Config.Name, z.Config.Name)
+			if m.sendNtfy != nil {
+				go m.sendNtfy("alarm", "Failsafe Activated", fmt.Sprintf("Stale sensor detected for zone '%s'", z.Config.Name))
+			}
 			go m.CloseValve(z.Config.Name)
 		}
 		z.mu.Unlock()

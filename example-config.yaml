@@ -92,6 +92,11 @@ weather:
   rain_sensor_topic: ""        # optional MQTT topic for digital rain sensor
   rain_sensor_entity: ""       # or HA entity ID (binary_sensor.rain, sensor.rain, etc.)
 
+master_valve:
+  command_topic: ""            # MQTT topic for master shutoff valve (e.g. home/irrigation/master/set)
+  switch_entity: ""            # or Home Assistant entity ID (e.g. switch.valve_master)
+                               # Opened during automated watering, closed on safety shutoff.
+
 web:
   listen_addr: ":8080"
 

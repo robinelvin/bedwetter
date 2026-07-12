@@ -6,9 +6,10 @@
     {{$watering := eq .State 1}}
     {{$manual := eq .State 3}}
     {{$failsafe := eq .State 4}}
+    {{$forceClosed := eq .State 5}}
     {{$cooldown := eq .State 2}}
     {{$active := or $watering $manual}}
-    <div class="group bg-card rounded-xl shadow-sm border border-border p-5 transition-all duration-200 hover:shadow-md hover:border-foreground-muted/30 {{if $failsafe}}ring-2 ring-error/20{{else if $active}}ring-2 ring-primary/20{{end}}">
+    <div class="group bg-card rounded-xl shadow-sm border border-border p-5 transition-all duration-200 hover:shadow-md hover:border-foreground-muted/30 {{if $failsafe}}ring-2 ring-error/20{{else if $forceClosed}}ring-2 ring-warning/20{{else if $active}}ring-2 ring-primary/20{{end}}">
         {{template "_zone_card" .}}
     </div>
     {{end}}

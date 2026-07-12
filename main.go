@@ -128,6 +128,20 @@ func main() {
 		cfg.Weather.RainSensorEntity = weatherCfg.RainSensorEntity
 	}
 
+	// Load master valve config from DB, seed from YAML on first run
+	if _, err := db.GetMasterValveConfig(); err != nil {
+		if err := db.SaveMasterValveConfig(&models.MasterValveConfig{
+			CommandTopic: cfg.MasterValve.CommandTopic,
+			SwitchEntity: cfg.MasterValve.SwitchEntity,
+		}); err != nil {
+			log.Printf("Failed to seed master valve config: %v", err)
+		}
+	}
+	if mvCfg, err := db.GetMasterValveConfig(); err == nil {
+		cfg.MasterValve.CommandTopic = mvCfg.CommandTopic
+		cfg.MasterValve.SwitchEntity = mvCfg.SwitchEntity
+	}
+
 	// Load alert settings from DB, seed from YAML on first run
 	if _, err := db.GetAlertSettings(); err != nil {
 		if err := db.SaveAlertSettings(&models.AlertSettings{
