@@ -29,6 +29,25 @@ const (
 	StateForceClosed
 )
 
+func (s ZoneState) String() string {
+	switch s {
+	case StateIdle:
+		return "idle"
+	case StateWatering:
+		return "watering"
+	case StateCooldown:
+		return "cooldown"
+	case StateManualOpen:
+		return "manual_open"
+	case StateFailsafe:
+		return "failsafe"
+	case StateForceClosed:
+		return "force_closed"
+	default:
+		return "unknown"
+	}
+}
+
 type Zone struct {
 	Config           config.ZoneConfig
 	Moisture         float64
@@ -129,6 +148,7 @@ func (m *Manager) Start() {
 		m.watchHAEntity(z)
 		m.watchHAHumidity(z)
 		m.watchHATemperature(z)
+		m.publishZoneState(z)
 	}
 
 	m.subscribeRainSensor()
@@ -171,12 +191,14 @@ func (m *Manager) pollHAValveStates() {
 				z.State = StateManualOpen
 				z.LastStateChange = time.Now()
 				log.Printf("Zone %q: synced valve state from HA = %s", z.Config.Name, state)
+				m.publishZoneState(z)
 			}
 		} else if z.State == StateManualOpen || z.State == StateWatering {
 			z.State = StateIdle
 			z.LastWaterEnd = time.Now()
 			z.LastStateChange = time.Now()
 			log.Printf("Zone %q: synced valve state from HA = %s", z.Config.Name, state)
+			m.publishZoneState(z)
 		}
 		z.mu.Unlock()
 	}
@@ -401,6 +423,7 @@ func (m *Manager) Stop() {
 		if z.State == StateWatering || z.State == StateManualOpen {
 			z.State = StateFailsafe
 			z.LastStateChange = time.Now()
+			m.publishZoneState(z)
 		}
 		z.mu.Unlock()
 		m.CloseValve(z.Config.Name)
@@ -507,6 +530,7 @@ func (m *Manager) handleValveState(zoneName string, payload []byte) {
 		if z.State == StateIdle || z.State == StateCooldown {
 			z.State = StateManualOpen
 			z.LastStateChange = time.Now()
+			m.publishZoneState(z)
 			m.LogEvent("info", "valve", "Valve manually opened: "+zoneName, zoneName)
 			if m.sendNtfy != nil {
 				go m.sendNtfy("info", "Valve Opened", fmt.Sprintf("Zone '%s' valve has been manually opened", zoneName))
@@ -517,6 +541,7 @@ func (m *Manager) handleValveState(zoneName string, payload []byte) {
 			z.State = StateIdle
 			z.LastWaterEnd = time.Now()
 			z.LastStateChange = time.Now()
+			m.publishZoneState(z)
 			m.LogEvent("info", "valve", "Valve manually closed: "+zoneName, zoneName)
 			if m.sendNtfy != nil {
 				go m.sendNtfy("info", "Valve Closed", fmt.Sprintf("Zone '%s' valve has been manually closed", zoneName))
@@ -557,6 +582,7 @@ func (m *Manager) evaluateZone(zoneName string) {
 				}
 				z.State = StateFailsafe
 				z.LastStateChange = time.Now()
+				m.publishZoneState(z)
 				go m.closeMasterValve()
 				go m.CloseAllValves()
 			}
@@ -570,6 +596,7 @@ func (m *Manager) evaluateZone(zoneName string) {
 				z.State = StateIdle
 				z.LastWaterEnd = time.Now()
 				z.LastStateChange = time.Now()
+				m.publishZoneState(z)
 			}
 			return
 		}
@@ -581,6 +608,7 @@ func (m *Manager) evaluateZone(zoneName string) {
 		if time.Since(z.LastWaterEnd) >= cooldown {
 			z.State = StateIdle
 			z.LastStateChange = time.Now()
+			m.publishZoneState(z)
 		} else {
 			return
 		}
@@ -632,6 +660,7 @@ func (m *Manager) evaluateZone(zoneName string) {
 	z.State = StateWatering
 	z.WateringStarted = time.Now()
 	z.LastStateChange = time.Now()
+	m.publishZoneState(z)
 	go func() {
 		m.store.SaveValveEvent(zoneName, "open", z.Config.MaxWateringSeconds)
 	}()
@@ -657,6 +686,7 @@ func (m *Manager) TriggerScheduledWatering(zoneName string, adjustedDuration int
 		if time.Since(z.LastWaterEnd) >= cooldown {
 			z.State = StateIdle
 			z.LastStateChange = time.Now()
+			m.publishZoneState(z)
 		} else {
 			return
 		}
@@ -712,6 +742,7 @@ func (m *Manager) TriggerScheduledWatering(zoneName string, adjustedDuration int
 	z.State = StateWatering
 	z.WateringStarted = time.Now()
 	z.LastStateChange = time.Now()
+	m.publishZoneState(z)
 	go func() {
 		m.store.SaveValveEvent(zoneName, "open", adjustedDuration)
 	}()
@@ -726,6 +757,7 @@ func (m *Manager) ForceClose(zoneName string) {
 	z.mu.Lock()
 	z.State = StateForceClosed
 	z.LastStateChange = time.Now()
+	m.publishZoneState(z)
 	z.mu.Unlock()
 	m.LogEvent("warn", "valve", "Force-close activated: "+zoneName, zoneName)
 	if m.sendNtfy != nil {
@@ -743,6 +775,7 @@ func (m *Manager) ClearForceClose(zoneName string) {
 	if z.State == StateForceClosed {
 		z.State = StateIdle
 		z.LastStateChange = time.Now()
+		m.publishZoneState(z)
 		m.LogEvent("info", "valve", "Force-close cleared: "+zoneName, zoneName)
 	}
 }
@@ -757,6 +790,7 @@ func (m *Manager) AcknowledgeFault(zoneName string) {
 	if z.State == StateFailsafe {
 		z.State = StateIdle
 		z.LastStateChange = time.Now()
+		m.publishZoneState(z)
 		m.LogEvent("info", "system", "Failsafe acknowledged: "+zoneName, zoneName)
 	}
 }
@@ -834,6 +868,7 @@ func (m *Manager) OpenValve(zoneName string) {
 	if z.State == StateIdle || z.State == StateCooldown {
 		z.State = StateManualOpen
 		z.LastStateChange = time.Now()
+		m.publishZoneState(z)
 	}
 	z.mu.Unlock()
 	m.LogEvent("info", "valve", "Valve manually opened: "+zoneName, zoneName)
@@ -870,10 +905,12 @@ func (m *Manager) CloseValve(zoneName string) {
 		z.State = StateCooldown
 		z.LastWaterEnd = time.Now()
 		z.LastStateChange = time.Now()
+		m.publishZoneState(z)
 	} else if z.State == StateManualOpen {
 		z.State = StateIdle
 		z.LastWaterEnd = time.Now()
 		z.LastStateChange = time.Now()
+		m.publishZoneState(z)
 	}
 	z.mu.Unlock()
 	m.LogEvent("info", "valve", "Valve closed: "+zoneName, zoneName)
@@ -931,6 +968,11 @@ func (m *Manager) LogEvent(level, category, message, zoneName string) {
 	m.client.Publish("bedwetter/event", 0, false, string(payload))
 }
 
+func (m *Manager) publishZoneState(z *Zone) {
+	topic := fmt.Sprintf("%s/%s/state", ha.ZoneStateTopicPrefix, ha.Slug(z.Config.Name))
+	m.client.Publish(topic, 1, true, z.State.String())
+}
+
 func splitEntityID(entityID string) []string {
 	parts := strings.SplitN(entityID, ".", 2)
 	if len(parts) != 2 {
@@ -963,6 +1005,7 @@ func (m *Manager) AddZone(zc config.ZoneConfig) {
 	m.watchHAEntity(z)
 	m.watchHAHumidity(z)
 	m.watchHATemperature(z)
+	m.publishZoneState(z)
 
 	if m.resolver != nil {
 		ha.ResolveZoneAsync(m.resolver, &z.Config)
@@ -1072,6 +1115,7 @@ func (m *Manager) Watchdog() {
 		stale := time.Duration(m.cfg.Alerts.StaleSensorMinutes) * time.Minute
 		if z.LastMoistureTime.IsZero() || since > stale*2 {
 			z.State = StateFailsafe
+			m.publishZoneState(z)
 			m.LogEvent("warn", "system", "Failsafe activated: stale sensor for "+z.Config.Name, z.Config.Name)
 			if m.sendNtfy != nil {
 				go m.sendNtfy("alarm", "Failsafe Activated", fmt.Sprintf("Stale sensor detected for zone '%s'", z.Config.Name))

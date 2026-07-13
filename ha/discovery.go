@@ -20,6 +20,8 @@ const discoveryPrefix = "homeassistant"
 
 const AvailabilityTopic = "bedwetter/availability"
 
+const ZoneStateTopicPrefix = "bedwetter/zone"
+
 type DiscoveryPayload struct {
 	Name              string      `json:"name"`
 	UniqueID          string      `json:"unique_id"`
@@ -71,6 +73,7 @@ func PublishAll(client mqtt.ClientInterface, cfg *config.Config) {
 	for _, z := range cfg.Zones {
 		publishMoistureSensor(client, z, device, origin)
 		publishSwitch(client, z, device, origin)
+		publishZoneStateSensor(client, z, device, origin)
 	}
 
 	log.Printf("Published HA discovery configs for %d zones", len(cfg.Zones))
@@ -138,11 +141,35 @@ func publishSwitch(client mqtt.ClientInterface, z config.ZoneConfig, device *Dev
 	}
 }
 
+func publishZoneStateSensor(client mqtt.ClientInterface, z config.ZoneConfig, device *DeviceInfo, origin *OriginInfo) {
+	uid := fmt.Sprintf("bedwetter_zone_state_%s", slug(z.Name))
+	topic := fmt.Sprintf("%s/sensor/%s/config", discoveryPrefix, uid)
+	stateTopic := fmt.Sprintf("%s/%s/state", ZoneStateTopicPrefix, slug(z.Name))
+	payload := DiscoveryPayload{
+		Name:                fmt.Sprintf("%s State", z.Name),
+		UniqueID:            uid,
+		StateTopic:          stateTopic,
+		QoS:                 1,
+		Retain:              true,
+		Device:              device,
+		Origin:              origin,
+		AvailabilityTopic:   AvailabilityTopic,
+		PayloadAvailable:    "online",
+		PayloadNotAvailable: "offline",
+	}
+	data, _ := json.Marshal(payload)
+	log.Printf("Publishing HA zone state discovery: %s → %s", topic, string(data))
+	if err := client.Publish(topic, 1, true, string(data)); err != nil {
+		log.Printf("Failed to publish HA zone state discovery for %s: %v", z.Name, err)
+	}
+}
+
 func ClearZoneDiscovery(client mqtt.ClientInterface, zoneName string) {
 	slugged := Slug(zoneName)
 	topics := []string{
 		fmt.Sprintf("%s/sensor/bedwetter_moisture_%s/config", discoveryPrefix, slugged),
 		fmt.Sprintf("%s/switch/bedwetter_valve_%s/config", discoveryPrefix, slugged),
+		fmt.Sprintf("%s/sensor/bedwetter_zone_state_%s/config", discoveryPrefix, slugged),
 	}
 	for _, topic := range topics {
 		log.Printf("Clearing HA discovery: %s", topic)

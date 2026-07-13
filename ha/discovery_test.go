@@ -2,6 +2,7 @@ package ha
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -85,8 +86,9 @@ func TestPublishAllSkippedHAEntityZones(t *testing.T) {
 
 	PublishAll(fake, cfg)
 
-	if len(fake.published) != 0 {
-		t.Errorf("expected no publishes for HA-only zone, got %d: %v", len(fake.published), fake.published)
+	// HA-only zones still get a zone state sensor (BedWetter tracks state internally)
+	if len(fake.published) != 1 {
+		t.Errorf("expected 1 publish for HA-only zone (state sensor), got %d: %v", len(fake.published), fake.published)
 	}
 }
 
@@ -105,8 +107,8 @@ func TestPublishAllMQTTZone(t *testing.T) {
 
 	PublishAll(fake, cfg)
 
-	if len(fake.published) != 2 {
-		t.Fatalf("expected 2 publishes (sensor+switch), got %d", len(fake.published))
+	if len(fake.published) != 3 {
+		t.Fatalf("expected 3 publishes (sensor+switch+state), got %d", len(fake.published))
 	}
 
 	sensorPub := fake.published[0]
@@ -151,8 +153,8 @@ func TestPublishAllMixedZones(t *testing.T) {
 
 	PublishAll(fake, cfg)
 
-	if len(fake.published) != 2 {
-		t.Errorf("expected 2 publishes (only MQTT zone), got %d", len(fake.published))
+	if len(fake.published) != 4 {
+		t.Errorf("expected 4 publishes (MQTT zone: sensor+switch+state + HA zone: state), got %d", len(fake.published))
 	}
 }
 
@@ -193,6 +195,50 @@ func TestPublishAllDeviceInfo(t *testing.T) {
 	}
 }
 
+func TestPublishAllZoneStateSensor(t *testing.T) {
+	fake := &fakeMQTT{}
+	cfg := &config.Config{
+		Zones: []config.ZoneConfig{
+			{
+				Name:                "My Zone",
+				MoistureSensorTopic: "sensor/topic",
+				ValveCommandTopic:   "valve/cmd",
+			},
+		},
+	}
+
+	PublishAll(fake, cfg)
+
+	if len(fake.published) != 3 {
+		t.Fatalf("expected 3 publishes, got %d", len(fake.published))
+	}
+
+	statePub := fake.published[2]
+	if !strings.Contains(statePub.topic, "bedwetter_zone_state_My_Zone") {
+		t.Errorf("zone state topic unexpected: %q", statePub.topic)
+	}
+	if !strings.Contains(statePub.topic, "/sensor/") {
+		t.Errorf("zone state topic should be under /sensor/, got %q", statePub.topic)
+	}
+	var payload DiscoveryPayload
+	if err := json.Unmarshal([]byte(statePub.payload), &payload); err != nil {
+		t.Fatalf("zone state payload parse error: %v", err)
+	}
+	if payload.Name != "My Zone State" {
+		t.Errorf("zone state Name: got %q, want %q", payload.Name, "My Zone State")
+	}
+	if payload.UniqueID != "bedwetter_zone_state_My_Zone" {
+		t.Errorf("zone state UniqueID: got %q", payload.UniqueID)
+	}
+	expectedStateTopic := fmt.Sprintf("%s/%s/state", ZoneStateTopicPrefix, "My_Zone")
+	if payload.StateTopic != expectedStateTopic {
+		t.Errorf("zone state StateTopic: got %q, want %q", payload.StateTopic, expectedStateTopic)
+	}
+	if payload.AvailabilityTopic != AvailabilityTopic {
+		t.Errorf("zone state AvailabilityTopic: got %q, want %q", payload.AvailabilityTopic, AvailabilityTopic)
+	}
+}
+
 func TestPublishAllRetained(t *testing.T) {
 	fake := &fakeMQTT{}
 	cfg := &config.Config{
@@ -225,8 +271,8 @@ func TestPublishAllAvailability(t *testing.T) {
 
 	PublishAll(fake, cfg)
 
-	if len(fake.published) != 2 {
-		t.Fatalf("expected 2 publishes, got %d", len(fake.published))
+	if len(fake.published) != 3 {
+		t.Fatalf("expected 3 publishes, got %d", len(fake.published))
 	}
 
 	for _, p := range fake.published {
@@ -359,8 +405,8 @@ func TestClearZoneDiscovery(t *testing.T) {
 	fake := &fakeMQTT{}
 	ClearZoneDiscovery(fake, "Test Zone")
 
-	if len(fake.published) != 2 {
-		t.Fatalf("expected 2 clear publishes, got %d", len(fake.published))
+	if len(fake.published) != 3 {
+		t.Fatalf("expected 3 clear publishes, got %d", len(fake.published))
 	}
 	if fake.published[0].payload != "" {
 		t.Errorf("expected empty payload for clear, got %q", fake.published[0].payload)
@@ -383,9 +429,9 @@ func TestClearAllDiscovery(t *testing.T) {
 	}
 	ClearAllDiscovery(fake, cfg)
 
-	// 2 zones × 2 topics each = 4 clears
-	if len(fake.published) != 4 {
-		t.Errorf("expected 4 clear publishes, got %d", len(fake.published))
+	// 2 zones × 3 topics each = 6 clears
+	if len(fake.published) != 6 {
+		t.Errorf("expected 6 clear publishes, got %d", len(fake.published))
 	}
 }
 
@@ -398,16 +444,16 @@ func TestRefreshAllDiscovery(t *testing.T) {
 	}
 	RefreshAllDiscovery(fake, cfg)
 
-	// 2 clears (sensor+switch) + 2 publishes (sensor+switch) = 4 total
-	if len(fake.published) != 4 {
-		t.Errorf("expected 4 total MQTT calls, got %d", len(fake.published))
+	// 3 clears (sensor+switch+state) + 3 publishes (sensor+switch+state) = 6 total
+	if len(fake.published) != 6 {
+		t.Errorf("expected 6 total MQTT calls, got %d", len(fake.published))
 	}
-	// First two should be clears (empty payload)
+	// First three should be clears (empty payload)
 	if fake.published[0].payload != "" {
 		t.Errorf("expected empty payload for clear, got %q", fake.published[0].payload)
 	}
-	// Last two should be publishes (non-empty payload)
-	if fake.published[2].payload == "" {
+	// Last three should be publishes (non-empty payload)
+	if fake.published[3].payload == "" {
 		t.Errorf("expected non-empty payload for publish")
 	}
 }
