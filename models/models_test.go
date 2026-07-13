@@ -20,6 +20,7 @@ func TestToConfigZoneConfig(t *testing.T) {
 		MaxWateringSeconds:   600,
 		MaxActivationsPerDay: 10,
 		CooldownMinutes:      30,
+		Indoors:              true,
 		EarliestWateringTime: "06:00",
 		LatestWateringTime:   "10:00",
 		SeasonalMultipliers:  `{"1":0.5,"7":1.5}`,
@@ -72,6 +73,9 @@ func TestToConfigZoneConfig(t *testing.T) {
 	if c.SeasonalMultipliers[7] != 1.5 {
 		t.Errorf("SeasonalMultipliers[7]: got %f", c.SeasonalMultipliers[7])
 	}
+	if !c.Indoors {
+		t.Errorf("Indoors: got false, want true")
+	}
 }
 
 func TestFromConfigZoneConfig(t *testing.T) {
@@ -79,6 +83,7 @@ func TestFromConfigZoneConfig(t *testing.T) {
 		Name:                 "From Config",
 		MoistureSensorTopic:  "x/y",
 		ThresholdLow:         20,
+		Indoors:              true,
 		EarliestWateringTime: "07:00",
 		LatestWateringTime:   "09:00",
 		SeasonalMultipliers:  map[int]float64{1: 0.3, 12: 0.1},
@@ -101,6 +106,9 @@ func TestFromConfigZoneConfig(t *testing.T) {
 	}
 	if m.SeasonalMultipliers != `{"1":0.3,"12":0.1}` && m.SeasonalMultipliers != `{"12":0.1,"1":0.3}` {
 		t.Errorf("SeasonalMultipliers: got %q", m.SeasonalMultipliers)
+	}
+	if !m.Indoors {
+		t.Errorf("Indoors: got false, want true")
 	}
 }
 

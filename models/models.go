@@ -113,6 +113,7 @@ type ZoneConfig struct {
 	EarliestWateringTime   string           `gorm:"size:5;default:06:00" json:"earliest_watering_time"`
 	LatestWateringTime     string           `gorm:"size:5;default:10:00" json:"latest_watering_time"`
 	SeasonalMultipliers    string           `gorm:"size:512" json:"seasonal_multipliers"`
+	Indoors                bool             `gorm:"default:false" json:"indoor"`
 }
 
 func (m *ZoneConfig) ToConfigZoneConfig() config.ZoneConfig {
@@ -140,6 +141,7 @@ func (m *ZoneConfig) ToConfigZoneConfig() config.ZoneConfig {
 		EarliestWateringTime:     m.EarliestWateringTime,
 		LatestWateringTime:       m.LatestWateringTime,
 		SeasonalMultipliers:      multipliers,
+		Indoors:                  m.Indoors,
 	}
 }
 
@@ -163,6 +165,7 @@ func (m *ZoneConfig) FromConfigZoneConfig(c config.ZoneConfig) {
 	m.EarliestWateringTime = c.EarliestWateringTime
 	m.LatestWateringTime = c.LatestWateringTime
 	m.SeasonalMultipliers = string(multipliersJSON)
+	m.Indoors = c.Indoors
 }
 
 type User struct {

@@ -442,6 +442,10 @@
                 <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Latest Watering Time</label>
                 <input type="time" name="latest_watering_time" value="{{if .editZone}}{{.editZone.LatestWateringTime}}{{else}}10:00{{end}}" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
             </div>
+            <div class="flex items-center gap-2 pt-6">
+                <input type="checkbox" name="indoor" id="indoor" class="checkbox checkbox-sm" {{if and .editZone .editZone.Indoors}}checked{{end}}>
+                <label for="indoor" class="text-sm font-medium text-foreground-secondary">Indoors (ignore rainfall)</label>
+            </div>
             <div class="md:col-span-3 border-t border-border pt-4">
                 <h3 class="text-sm font-semibold text-foreground mb-3">Seasonal Multipliers (× duration per month)</h3>
                 <div class="grid grid-cols-3 md:grid-cols-4 gap-3">
@@ -480,6 +484,7 @@
                         <th class="text-left px-4 py-3 font-medium text-foreground-muted">Threshold</th>
                         <th class="text-left px-4 py-3 font-medium text-foreground-muted">Max Water</th>
                         <th class="text-left px-4 py-3 font-medium text-foreground-muted">Cooldown</th>
+                        <th class="text-left px-4 py-3 font-medium text-foreground-muted">Indoors</th>
                         <th class="text-left px-4 py-3 font-medium text-foreground-muted">Actions</th>
                     </tr>
                 </thead>
@@ -497,6 +502,9 @@
                         <td class="px-4 py-3 text-foreground-secondary">{{.ThresholdLow}}% – {{.ThresholdHigh}}%</td>
                         <td class="px-4 py-3 text-foreground-secondary">{{.MaxWateringSeconds}}s</td>
                         <td class="px-4 py-3 text-foreground-secondary">{{.CooldownMinutes}}m</td>
+                        <td class="px-4 py-3">
+                            {{if .Indoors}}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">Yes</span>{{end}}
+                        </td>
                         <td class="px-4 py-3">
                             <div class="flex gap-2">
                                 <a href="/config?edit={{.ID}}#zone-form" class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-emerald-800 transition-colors">

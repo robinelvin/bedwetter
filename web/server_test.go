@@ -223,6 +223,69 @@ func TestCreateZone(t *testing.T) {
 	}
 }
 
+func TestCreateZoneIndoor(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	form := url.Values{
+		"name":                   {"Greenhouse"},
+		"threshold_low":          {"30"},
+		"threshold_high":         {"70"},
+		"max_watering_seconds":   {"200"},
+		"max_activations_per_day": {"3"},
+		"cooldown_minutes":       {"15"},
+		"indoor":                 {"on"},
+	}
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/config/zones", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+
+	z := sv.zoneManager.GetZone("Greenhouse")
+	if z == nil {
+		t.Fatal("expected zone in manager")
+	}
+	if !z.Config.Indoors {
+		t.Error("expected Indoors true for indoor zone")
+	}
+}
+
+func TestCreateZoneOutdoor(t *testing.T) {
+	setupGin()
+	sv := newTestServer(t)
+
+	form := url.Values{
+		"name":                   {"Lawn"},
+		"threshold_low":          {"30"},
+		"threshold_high":         {"70"},
+		"max_watering_seconds":   {"200"},
+		"max_activations_per_day": {"3"},
+		"cooldown_minutes":       {"15"},
+	}
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/config/zones", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	sv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", w.Code)
+	}
+
+	z := sv.zoneManager.GetZone("Lawn")
+	if z == nil {
+		t.Fatal("expected zone in manager")
+	}
+	if z.Config.Indoors {
+		t.Error("expected Indoors false when checkbox not present")
+	}
+}
+
 func TestUpdateZone(t *testing.T) {
 	setupGin()
 	sv := newTestServer(t)

@@ -1167,3 +1167,171 @@ func TestForecastRainSetAndClear(t *testing.T) {
 		t.Error("expected forecastRainActive false after SetForecastRain(false)")
 	}
 }
+
+func TestIndoorZoneDefaultFalse(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1"},
+	})
+	z := m.GetZone("Z1")
+	if z.Config.Indoors {
+		t.Error("expected Indoors false by default")
+	}
+}
+
+func TestEvaluateZoneIndoorSkipsRainSensor(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd, Indoors: true},
+	})
+
+	m.rainMu.Lock()
+	m.rainDetected = true
+	m.rainMu.Unlock()
+
+	m.handleSensorReading("Z1", []byte("30"))
+	time.Sleep(time.Millisecond)
+
+	z := m.GetZone("Z1")
+	if z.State != StateWatering {
+		t.Errorf("expected StateWatering (indoor skips rain), got %v", z.State)
+	}
+}
+
+func TestEvaluateZoneIndoorSkipsForecastRain(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd, Indoors: true},
+	})
+
+	m.SetForecastRain(true)
+
+	m.handleSensorReading("Z1", []byte("30"))
+	time.Sleep(time.Millisecond)
+
+	z := m.GetZone("Z1")
+	if z.State != StateWatering {
+		t.Errorf("expected StateWatering (indoor skips forecast rain), got %v", z.State)
+	}
+}
+
+func TestEvaluateZoneOutdoorBlockedByRainSensor(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd, Indoors: false},
+	})
+
+	m.rainMu.Lock()
+	m.rainDetected = true
+	m.rainMu.Unlock()
+
+	m.handleSensorReading("Z1", []byte("30"))
+
+	z := m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Errorf("expected StateIdle (outdoor blocked by rain), got %v", z.State)
+	}
+}
+
+func TestTriggerScheduledWateringIndoorSkipsRainSensor(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd, Indoors: true},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.rainMu.Lock()
+	m.rainDetected = true
+	m.rainMu.Unlock()
+
+	m.TriggerScheduledWatering("Z1", 120)
+
+	z = m.GetZone("Z1")
+	if z.State != StateWatering {
+		t.Errorf("expected StateWatering (indoor skips rain), got %v", z.State)
+	}
+}
+
+func TestTriggerScheduledWateringIndoorSkipsForecastRain(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, EarliestWateringTime: windowStart, LatestWateringTime: windowEnd, Indoors: true},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.SetForecastRain(true)
+
+	m.TriggerScheduledWatering("Z1", 120)
+
+	z = m.GetZone("Z1")
+	if z.State != StateWatering {
+		t.Errorf("expected StateWatering (indoor skips forecast rain), got %v", z.State)
+	}
+}
+
+func TestSetRainDetectedSkipsIndoorZones(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Outdoor", ValveCommandTopic: "valve/outdoor", ThresholdLow: 50, MaxWateringSeconds: 300},
+		{Name: "Indoor", ValveCommandTopic: "valve/indoor", ThresholdLow: 50, MaxWateringSeconds: 300, Indoors: true},
+	})
+
+	fake := m.client.(*fakeMQTTClient)
+
+	// Open both valves
+	m.OpenValve("Outdoor")
+	m.OpenValve("Indoor")
+	time.Sleep(time.Millisecond)
+
+	zOut := m.GetZone("Outdoor")
+	zIn := m.GetZone("Indoor")
+	if zOut.State != StateManualOpen {
+		t.Fatalf("expected Outdoor StateManualOpen, got %v", zOut.State)
+	}
+	if zIn.State != StateManualOpen {
+		t.Fatalf("expected Indoor StateManualOpen, got %v", zIn.State)
+	}
+
+	// Simulate rain detection
+	m.setRainDetected(true, "test")
+	time.Sleep(time.Millisecond)
+
+	// Outdoor valve should be closed
+	zOut = m.GetZone("Outdoor")
+	if zOut.State != StateCooldown && zOut.State != StateIdle {
+		t.Errorf("expected Outdoor closed after rain, got %v", zOut.State)
+	}
+	if !containsPublish(fake.published, "valve/outdoor:OFF") {
+		t.Errorf("expected outdoor valve OFF publish, got %v", fake.published)
+	}
+
+	// Indoor valve should still be open
+	zIn = m.GetZone("Indoor")
+	if zIn.State != StateManualOpen {
+		t.Errorf("expected Indoor still StateManualOpen after rain, got %v", zIn.State)
+	}
+	if containsPublish(fake.published, "valve/indoor:OFF") {
+		t.Error("indoor valve should NOT be closed on rain")
+	}
+}

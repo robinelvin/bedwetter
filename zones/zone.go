@@ -346,8 +346,12 @@ func (m *Manager) setRainDetected(detected bool, source string) {
 	m.rainMu.Unlock()
 
 	if detected && !was {
-		log.Printf("Rain detected via %s, closing all valves", source)
-		m.CloseAllValves()
+		log.Printf("Rain detected via %s, closing outdoor valves", source)
+		for _, z := range m.GetAllZones() {
+			if !z.Config.Indoors {
+				m.CloseValve(z.Config.Name)
+			}
+		}
 	} else if !detected && was {
 		log.Printf("Rain cleared via %s", source)
 	}
@@ -629,14 +633,16 @@ func (m *Manager) evaluateZone(zoneName string) {
 		return
 	}
 
-	if m.RainDetected() {
-		return
-	}
-	m.rainMu.RLock()
-	forecastRain := m.forecastRainActive
-	m.rainMu.RUnlock()
-	if forecastRain {
-		return
+	if !z.Config.Indoors {
+		if m.RainDetected() {
+			return
+		}
+		m.rainMu.RLock()
+		forecastRain := m.forecastRainActive
+		m.rainMu.RUnlock()
+		if forecastRain {
+			return
+		}
 	}
 
 	if z.Moisture >= float64(z.Config.ThresholdLow) {
@@ -707,16 +713,18 @@ func (m *Manager) TriggerScheduledWatering(zoneName string, adjustedDuration int
 		return
 	}
 
-	if m.RainDetected() {
-		log.Printf("Schedule: skipping %s, rain sensor active", zoneName)
-		return
-	}
-	m.rainMu.RLock()
-	forecastRain := m.forecastRainActive
-	m.rainMu.RUnlock()
-	if forecastRain {
-		log.Printf("Schedule: skipping %s, rain forecast active", zoneName)
-		return
+	if !z.Config.Indoors {
+		if m.RainDetected() {
+			log.Printf("Schedule: skipping %s, rain sensor active", zoneName)
+			return
+		}
+		m.rainMu.RLock()
+		forecastRain := m.forecastRainActive
+		m.rainMu.RUnlock()
+		if forecastRain {
+			log.Printf("Schedule: skipping %s, rain forecast active", zoneName)
+			return
+		}
 	}
 
 	if z.Config.ThresholdHigh > 0 && z.Moisture >= float64(z.Config.ThresholdHigh) {

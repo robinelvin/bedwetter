@@ -324,6 +324,7 @@ func (s *Store) LoadConfigZones(yamlZones []config.ZoneConfig) error {
 			MaxWateringSeconds:   z.MaxWateringSeconds,
 			MaxActivationsPerDay: z.MaxActivationsPerDay,
 			CooldownMinutes:      z.CooldownMinutes,
+			Indoors:              z.Indoors,
 		}
 		mz.FromConfigZoneConfig(z)
 		if err := s.db.Create(mz).Error; err != nil {

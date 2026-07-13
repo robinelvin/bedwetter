@@ -1228,6 +1228,7 @@ func (s *Server) saveZone(c *gin.Context) {
 	if zc.LatestWateringTime == "" {
 		zc.LatestWateringTime = "10:00"
 	}
+	zc.Indoors = c.PostForm("indoor") == "on"
 
 	multipliers := make(map[int]float64)
 	for month := 1; month <= 12; month++ {

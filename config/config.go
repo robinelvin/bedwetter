@@ -33,6 +33,7 @@ type ZoneConfig struct {
 	EarliestWateringTime  string `yaml:"earliest_watering_time"`
 	LatestWateringTime    string `yaml:"latest_watering_time"`
 	SeasonalMultipliers   map[int]float64 `yaml:"seasonal_multipliers"`
+	Indoors               bool            `yaml:"indoor" json:"indoor"`
 }
 
 type AlertsConfig struct {
