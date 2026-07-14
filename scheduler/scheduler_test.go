@@ -452,13 +452,13 @@ func TestNextWateringForZone_CooldownNoSchedulePastWindow(t *testing.T) {
 	}
 
 	got, reason := NextWateringForZone(now, snap, nil)
-	// Cooldown ends at 14:30, next window after that is tomorrow 06:00 (past today's 10:00)
-	want := time.Date(2026, 7, 13, 6, 0, 0, 0, loc)
+	// Cooldown ends at 14:30 — should show cooldown end time
+	want := time.Date(2026, 7, 12, 14, 30, 0, 0, loc)
 	if !got.Equal(want) {
 		t.Errorf("time: got %v, want %v", got, want)
 	}
-	if reason != "Soil moisture low" {
-		t.Errorf("reason: got %q, want 'Soil moisture low'", reason)
+	if reason != "Cooldown until 14:30" {
+		t.Errorf("reason: got %q, want 'Cooldown until 14:30'", reason)
 	}
 }
 
@@ -477,13 +477,13 @@ func TestNextWateringForZone_CooldownNoScheduleWithinWindow(t *testing.T) {
 	}
 
 	got, reason := NextWateringForZone(now, snap, nil)
-	// Cooldown ends at 09:00, still within today's window (06:00-10:00)
+	// Cooldown ends at 09:00 — should show cooldown end time
 	want := time.Date(2026, 7, 12, 9, 0, 0, 0, loc)
 	if !got.Equal(want) {
 		t.Errorf("time: got %v, want %v", got, want)
 	}
-	if reason != "Soil moisture low" {
-		t.Errorf("reason: got %q, want 'Soil moisture low'", reason)
+	if reason != "Cooldown until 09:00" {
+		t.Errorf("reason: got %q, want 'Cooldown until 09:00'", reason)
 	}
 }
 

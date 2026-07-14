@@ -140,10 +140,7 @@ func NextWateringForZone(now time.Time, snap zones.ZoneSnapshot, scheduleEntries
 					if hasSched {
 						return schedTime, "Schedule"
 					}
-					if windowTime, ok := nextWindowOpen(cooldownEnd, earliest, latest); ok {
-						return windowTime, "Soil moisture low"
-					}
-					return time.Time{}, ""
+					return cooldownEnd, fmt.Sprintf("Cooldown until %s", cooldownEnd.Format("15:04"))
 				}
 			}
 
