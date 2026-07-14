@@ -76,7 +76,7 @@ func TestConfigPageEdit(t *testing.T) {
 
 	sv.store.CreateZoneConfig(&models.ZoneConfig{Name: "Edit Zone", ThresholdLow: 20, ThresholdHigh: 80})
 
-	verifyPage(t, sv, "/config?edit=1")
+	verifyPage(t, sv, "/config/zones/1/edit")
 }
 
 func TestSaveAlerts(t *testing.T) {

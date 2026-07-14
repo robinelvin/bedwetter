@@ -273,206 +273,19 @@
         </form>
     </div>
 
-    <div id="zone-form" class="bg-card rounded-xl shadow-sm border border-border p-6 lg:col-span-2">
+    <div class="bg-card rounded-xl shadow-sm border border-border p-6 lg:col-span-2">
         <div class="flex items-center justify-between mb-5">
             <div class="flex items-center gap-3">
                 <div class="w-9 h-9 rounded-lg bg-sky-100 flex items-center justify-center">
                     <svg class="w-5 h-5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                 </div>
-                <h2 class="text-lg font-semibold text-card-foreground">{{if .editZone}}Edit Zone{{else}}Add Zone{{end}}</h2>
+                <h2 class="text-lg font-semibold text-card-foreground">Configured Zones</h2>
             </div>
-            {{if .editZone}}<a href="/config#zone-form" class="text-sm text-foreground-muted hover:text-foreground font-medium transition-colors">Cancel</a>{{end}}
+            <a href="/config/zones/new?from=config" class="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                Add Zone
+            </a>
         </div>
-        <form action="/config/zones" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {{if .editZone}}<input type="hidden" name="id" value="{{.editZone.ID}}">{{end}}
-            <div class="md:col-span-3">
-                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Zone Name</label>
-                <input type="text" name="name" value="{{if .editZone}}{{.editZone.Name}}{{end}}" required class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-foreground-secondary mb-2">Moisture Source</label>
-                <div class="flex gap-4">
-                    <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="moisture_source" value="mqtt"
-                            {{if eq .moistureType "mqtt"}}checked{{end}}
-                            hx-get="/config/zones/fields/moisture?type=mqtt{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
-                            hx-trigger="change"
-                            hx-target="#moisture-fields"
-                            hx-swap="innerHTML"
-                            class="w-4 h-4 text-primary border-border focus:ring-ring">
-                        <span class="text-sm text-foreground">MQTT</span>
-                    </label>
-                    <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="moisture_source" value="ha"
-                            {{if eq .moistureType "ha"}}checked{{end}}
-                            hx-get="/config/zones/fields/moisture?type=ha{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
-                            hx-trigger="change"
-                            hx-target="#moisture-fields"
-                            hx-swap="innerHTML"
-                            class="w-4 h-4 text-indigo-600 border-border focus:ring-indigo-500">
-                        <span class="text-sm text-foreground">HA</span>
-                    </label>
-                </div>
-            </div>
-            <div id="moisture-fields" class="md:col-span-2"
-                hx-get="/config/zones/fields/moisture?type={{.moistureType}}{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
-                hx-trigger="load"
-                hx-swap="innerHTML">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-foreground-secondary mb-2">Valve Source</label>
-                <div class="flex gap-4">
-                    <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="valve_source" value="mqtt"
-                            {{if eq .valveType "mqtt"}}checked{{end}}
-                            hx-get="/config/zones/fields/valve?type=mqtt{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
-                            hx-trigger="change"
-                            hx-target="#valve-fields"
-                            hx-swap="innerHTML"
-                            class="w-4 h-4 text-primary border-border focus:ring-ring">
-                        <span class="text-sm text-foreground">MQTT</span>
-                    </label>
-                    <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="valve_source" value="ha"
-                            {{if eq .valveType "ha"}}checked{{end}}
-                            hx-get="/config/zones/fields/valve?type=ha{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
-                            hx-trigger="change"
-                            hx-target="#valve-fields"
-                            hx-swap="innerHTML"
-                            class="w-4 h-4 text-indigo-600 border-border focus:ring-indigo-500">
-                        <span class="text-sm text-foreground">HA</span>
-                    </label>
-                </div>
-            </div>
-            <div id="valve-fields" class="md:col-span-2"
-                hx-get="/config/zones/fields/valve?type={{.valveType}}{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
-                hx-trigger="load"
-                hx-swap="innerHTML">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-foreground-secondary mb-2">Humidity Source</label>
-                <div class="flex gap-4">
-                    <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="humidity_source" value="mqtt"
-                            {{if eq .humidityType "mqtt"}}checked{{end}}
-                            hx-get="/config/zones/fields/humidity?type=mqtt{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
-                            hx-trigger="change"
-                            hx-target="#humidity-fields"
-                            hx-swap="innerHTML"
-                            class="w-4 h-4 text-primary border-border focus:ring-ring">
-                        <span class="text-sm text-foreground">MQTT</span>
-                    </label>
-                    <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="humidity_source" value="ha"
-                            {{if eq .humidityType "ha"}}checked{{end}}
-                            hx-get="/config/zones/fields/humidity?type=ha{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
-                            hx-trigger="change"
-                            hx-target="#humidity-fields"
-                            hx-swap="innerHTML"
-                            class="w-4 h-4 text-indigo-600 border-border focus:ring-indigo-500">
-                        <span class="text-sm text-foreground">HA</span>
-                    </label>
-                </div>
-            </div>
-            <div id="humidity-fields" class="md:col-span-2"
-                hx-get="/config/zones/fields/humidity?type={{.humidityType}}{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
-                hx-trigger="load"
-                hx-swap="innerHTML">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-foreground-secondary mb-2">Temperature Source</label>
-                <div class="flex gap-4">
-                    <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="temperature_source" value="mqtt"
-                            {{if eq .temperatureType "mqtt"}}checked{{end}}
-                            hx-get="/config/zones/fields/temperature?type=mqtt{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
-                            hx-trigger="change"
-                            hx-target="#temperature-fields"
-                            hx-swap="innerHTML"
-                            class="w-4 h-4 text-primary border-border focus:ring-ring">
-                        <span class="text-sm text-foreground">MQTT</span>
-                    </label>
-                    <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="temperature_source" value="ha"
-                            {{if eq .temperatureType "ha"}}checked{{end}}
-                            hx-get="/config/zones/fields/temperature?type=ha{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
-                            hx-trigger="change"
-                            hx-target="#temperature-fields"
-                            hx-swap="innerHTML"
-                            class="w-4 h-4 text-indigo-600 border-border focus:ring-indigo-500">
-                        <span class="text-sm text-foreground">HA</span>
-                    </label>
-                </div>
-            </div>
-            <div id="temperature-fields" class="md:col-span-2"
-                hx-get="/config/zones/fields/temperature?type={{.temperatureType}}{{if .editZone}}&amp;edit_id={{.editZone.ID}}{{end}}"
-                hx-trigger="load"
-                hx-swap="innerHTML">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Threshold Low (%)</label>
-                <input type="number" name="threshold_low" value="{{if .editZone}}{{.editZone.ThresholdLow}}{{else}}40{{end}}" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Threshold High (%)</label>
-                <input type="number" name="threshold_high" value="{{if .editZone}}{{.editZone.ThresholdHigh}}{{else}}60{{end}}" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Max Watering (s)</label>
-                <input type="number" name="max_watering_seconds" value="{{if .editZone}}{{.editZone.MaxWateringSeconds}}{{else}}300{{end}}" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Max Activations / Day</label>
-                <input type="number" name="max_activations_per_day" value="{{if .editZone}}{{.editZone.MaxActivationsPerDay}}{{else}}5{{end}}" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Cooldown (min)</label>
-                <input type="number" name="cooldown_minutes" value="{{if .editZone}}{{.editZone.CooldownMinutes}}{{else}}90{{end}}" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Earliest Watering Time</label>
-                <input type="time" name="earliest_watering_time" value="{{if .editZone}}{{.editZone.EarliestWateringTime}}{{else}}06:00{{end}}" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Latest Watering Time</label>
-                <input type="time" name="latest_watering_time" value="{{if .editZone}}{{.editZone.LatestWateringTime}}{{else}}10:00{{end}}" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
-            </div>
-            <div class="flex items-center gap-2 pt-6">
-                <input type="checkbox" name="indoor" id="indoor" class="checkbox checkbox-sm" {{if and .editZone .editZone.Indoors}}checked{{end}}>
-                <label for="indoor" class="text-sm font-medium text-foreground-secondary">Indoors (ignore rainfall)</label>
-            </div>
-            <div class="md:col-span-3 border-t border-border pt-4">
-                <h3 class="text-sm font-semibold text-foreground mb-3">Seasonal Multipliers (× duration per month)</h3>
-                <div class="grid grid-cols-3 md:grid-cols-4 gap-3">
-                    {{range $m := .months}}
-                    <div>
-                        <label class="block text-xs font-medium text-foreground-muted mb-1">{{$m.Name}}</label>
-                        <input type="number" step="0.1" name="seasonal_multiplier_{{$m.Num}}" value="{{$m.Value}}" class="w-full rounded-lg border border-input px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow" placeholder="1.0">
-                    </div>
-                    {{end}}
-                </div>
-            </div>
-            <div class="md:col-span-3 flex gap-3 pt-2">
-                <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-emerald-700 active:bg-emerald-800 text-sm font-medium transition-colors shadow-sm">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                    {{if .editZone}}Update{{else}}Add{{end}} Zone
-                </button>
-                {{if .editZone}}
-                <a href="/config" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-secondary text-secondary-foreground rounded-lg hover:bg-emerald-200 active:bg-emerald-300 text-sm font-medium transition-colors">
-                    Cancel
-                </a>
-                {{end}}
-            </div>
-        </form>
-    </div>
-
-    <div class="bg-card rounded-xl shadow-sm border border-border p-6 lg:col-span-2">
-        <h2 class="text-lg font-semibold text-card-foreground mb-5">Configured Zones</h2>
         <div class="overflow-x-auto rounded-lg border border-border">
             <table class="w-full text-sm">
                 <thead>
@@ -507,7 +320,7 @@
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex gap-2">
-                                <a href="/config?edit={{.ID}}#zone-form" class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-emerald-800 transition-colors">
+                                <a href="/config/zones/{{.ID}}/edit?from=config" class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-emerald-800 transition-colors">
                                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                     Edit
                                 </a>

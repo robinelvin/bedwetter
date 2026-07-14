@@ -172,6 +172,9 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 	sv.templates["config"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/config.html"),
 	)
+	sv.templates["zone_form"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/zone_form.html"),
+	)
 	sv.templates["events"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/events.html"),
 	)
@@ -381,6 +384,8 @@ func (s *Server) setupRoutes() {
 	s.router.POST("/config/weather", s.saveWeather)
 	s.router.POST("/config/master-valve", s.saveMasterValve)
 	s.router.GET("/config/master-valve/fields", s.masterValveFields)
+	s.router.GET("/config/zones/new", s.zoneFormPage)
+	s.router.GET("/config/zones/:id/edit", s.zoneFormPage)
 	s.router.POST("/config/zones", s.saveZone)
 	s.router.POST("/config/zones/:id/delete", s.deleteZone)
 	s.router.GET("/events", s.eventsPage)
@@ -935,14 +940,26 @@ func (s *Server) configPage(c *gin.Context) {
 		}
 	}
 
-	editIDStr := c.Query("edit")
+	s.render(c, "config", http.StatusOK, gin.H{
+		"title":       "Configuration",
+		"cfg":         s.cfg,
+		"mqtt":        mqttCfg,
+		"ha":          haCfg,
+		"alerts":      alertCfg,
+		"ntfy":        ntfyCfg,
+		"dbZones":     dbZones,
+		"weather":     s.cfg.Weather,
+		"masterValve": s.cfg.MasterValve,
+	})
+}
+
+func (s *Server) zoneFormPage(c *gin.Context) {
 	var editZone *models.ZoneConfig
-	if editIDStr != "" {
-		var id uint
-		if parsed, err := strconv.ParseUint(editIDStr, 10, 64); err == nil {
-			id = uint(parsed)
+	if idStr := c.Param("id"); idStr != "" {
+		if id, err := strconv.ParseUint(idStr, 10, 64); err == nil {
+			dbZones, _ := s.store.GetAllZoneConfigs()
 			for _, z := range dbZones {
-				if z.ID == id {
+				if z.ID == uint(id) {
 					editZone = &z
 					break
 				}
@@ -989,22 +1006,17 @@ func (s *Server) configPage(c *gin.Context) {
 		months = append(months, monthEntry{Num: i, Name: monthNames[i-1], Value: val})
 	}
 
-	s.render(c, "config", http.StatusOK, gin.H{
-		"title":           "Configuration",
-		"cfg":             s.cfg,
-		"mqtt":            mqttCfg,
-		"ha":              haCfg,
-		"alerts":          alertCfg,
-		"ntfy":            ntfyCfg,
-		"dbZones":         dbZones,
+	from := c.DefaultQuery("from", "config")
+
+	s.render(c, "zone_form", http.StatusOK, gin.H{
+		"title":           "Zone",
 		"editZone":        editZone,
 		"moistureType":    moistureType,
 		"valveType":       valveType,
 		"humidityType":    humidityType,
 		"temperatureType": temperatureType,
-		"weather":         s.cfg.Weather,
 		"months":          months,
-		"masterValve":     s.cfg.MasterValve,
+		"from":            from,
 	})
 }
 
@@ -1201,6 +1213,7 @@ func (s *Server) saveNtfy(c *gin.Context) {
 
 func (s *Server) saveZone(c *gin.Context) {
 	idStr := c.PostForm("id")
+	from := c.PostForm("from")
 
 	zc := models.ZoneConfig{
 		Name:                    c.PostForm("name"),
@@ -1242,10 +1255,12 @@ func (s *Server) saveZone(c *gin.Context) {
 	multipliersJSON, _ := json.Marshal(multipliers)
 	zc.SeasonalMultipliers = string(multipliersJSON)
 
+	redirectTo := "/config"
+
 	if idStr != "" {
 		id, err := strconv.ParseUint(idStr, 10, 64)
 		if err != nil {
-			c.Redirect(http.StatusFound, "/config")
+			c.Redirect(http.StatusFound, redirectTo)
 			return
 		}
 
@@ -1271,10 +1286,14 @@ func (s *Server) saveZone(c *gin.Context) {
 			s.zoneManager.UpdateZoneConfig(zc.Name, cfgZc)
 			s.logEvent("info", "config", "Zone updated: "+zc.Name, zc.Name)
 		}
+
+		if from == "zone" {
+			redirectTo = fmt.Sprintf("/zones/%d", id)
+		}
 	} else {
 		if err := s.store.CreateZoneConfig(&zc); err != nil {
 			log.Printf("Failed to create zone: %v", err)
-			c.Redirect(http.StatusFound, "/config")
+			c.Redirect(http.StatusFound, redirectTo)
 			return
 		}
 
@@ -1283,7 +1302,7 @@ func (s *Server) saveZone(c *gin.Context) {
 	}
 
 	s.refreshHADiscovery()
-	c.Redirect(http.StatusFound, "/config")
+	c.Redirect(http.StatusFound, redirectTo)
 }
 
 func (s *Server) deleteZone(c *gin.Context) {
