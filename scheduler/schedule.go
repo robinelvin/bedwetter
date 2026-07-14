@@ -101,10 +101,10 @@ func nextWindowOpen(now time.Time, earliestStr, latestStr string) (time.Time, bo
 	}
 
 	latestStr = strings.TrimSpace(latestStr)
-	latestMin := -1
-	if latestStr != "" {
-		latestMin = zones.ParseTimeToMinutes(latestStr)
+	if latestStr == "" {
+		latestStr = "10:00"
 	}
+	latestMin := zones.ParseTimeToMinutes(latestStr)
 
 	currentMin := now.Hour()*60 + now.Minute()
 	loc := now.Location()
@@ -131,18 +131,22 @@ func NextWateringForZone(now time.Time, snap zones.ZoneSnapshot, scheduleEntries
 
 	if !math.IsNaN(snap.Moisture) && snap.Config.ThresholdLow > 0 && snap.Moisture < float64(snap.Config.ThresholdLow) {
 		if snap.State != zones.StateFailsafe && snap.State != zones.StateForceClosed {
+			earliest := snap.Config.EarliestWateringTime
+			latest := snap.Config.LatestWateringTime
+
 			if snap.Config.CooldownMinutes > 0 && !snap.LastWaterEnd.IsZero() {
 				cooldownEnd := snap.LastWaterEnd.Add(time.Duration(snap.Config.CooldownMinutes) * time.Minute)
 				if now.Before(cooldownEnd) {
 					if hasSched {
 						return schedTime, "Schedule"
 					}
+					if windowTime, ok := nextWindowOpen(cooldownEnd, earliest, latest); ok {
+						return windowTime, "Soil moisture low"
+					}
 					return time.Time{}, ""
 				}
 			}
 
-			earliest := snap.Config.EarliestWateringTime
-			latest := snap.Config.LatestWateringTime
 			if windowTime, ok := nextWindowOpen(now, earliest, latest); ok {
 				if !hasSched || !windowTime.After(schedTime) {
 					return windowTime, "Soil moisture low"
