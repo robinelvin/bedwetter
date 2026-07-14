@@ -1,4 +1,4 @@
-.PHONY: build dev css clean test
+.PHONY: build dev css clean test approve
 
 css:
 	npx postcss web/static/input.css -o web/static/tailwind.css
@@ -19,3 +19,6 @@ clean:
 
 test:
 	go test -count=1 -timeout 120s -cover ./...
+
+approve:
+	cd web && for f in *.received.txt; do cp "$$f" "$${f/.received./.approved.}"; done
