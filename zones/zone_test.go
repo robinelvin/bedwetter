@@ -422,9 +422,9 @@ func TestEvaluateZoneFailsafe(t *testing.T) {
 	z.mu.Unlock()
 
 	m.handleSensorReading("Z1", []byte("30"))
-	// Should stay in failsafe
-	if z.State != StateFailsafe {
-		t.Errorf("expected StateFailsafe, got %v", z.State)
+	// Valid reading should clear failsafe
+	if z.State == StateFailsafe {
+		t.Errorf("expected failsafe to be cleared on valid reading, got %v", z.State)
 	}
 }
 
@@ -1333,5 +1333,268 @@ func TestSetRainDetectedSkipsIndoorZones(t *testing.T) {
 	}
 	if containsPublish(fake.published, "valve/indoor:OFF") {
 		t.Error("indoor valve should NOT be closed on rain")
+	}
+}
+
+func TestHandleSensorReadingUnavailableTriggersFailsafe(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", MoistureSensorTopic: "sensor/z1", ThresholdLow: 50, MaxWateringSeconds: 300},
+	})
+
+	m.handleSensorReading("Z1", []byte("unavailable"))
+	z := m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Errorf("expected StateFailsafe on 'unavailable', got %v", z.State)
+	}
+}
+
+func TestHandleSensorReadingOfflineTriggersFailsafe(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", MoistureSensorTopic: "sensor/z1", ThresholdLow: 50, MaxWateringSeconds: 300},
+	})
+
+	m.handleSensorReading("Z1", []byte("offline"))
+	z := m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Errorf("expected StateFailsafe on 'offline', got %v", z.State)
+	}
+}
+
+func TestHandleSensorReadingUnknownTriggersFailsafe(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", MoistureSensorTopic: "sensor/z1", ThresholdLow: 50, MaxWateringSeconds: 300},
+	})
+
+	m.handleSensorReading("Z1", []byte("unknown"))
+	z := m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Errorf("expected StateFailsafe on 'unknown', got %v", z.State)
+	}
+}
+
+func TestHandleValveStateUnavailableTriggersFailsafe(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ValveStateTopic: "valve/z1/state", ThresholdLow: 50},
+	})
+
+	m.handleValveState("Z1", []byte("unavailable"))
+	z := m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Errorf("expected StateFailsafe on valve unavailable, got %v", z.State)
+	}
+}
+
+func TestHandleValveStateOfflineTriggersFailsafe(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ValveStateTopic: "valve/z1/state", ThresholdLow: 50},
+	})
+
+	m.handleValveState("Z1", []byte("offline"))
+	z := m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Errorf("expected StateFailsafe on valve offline, got %v", z.State)
+	}
+}
+
+func TestUnavailableDoesNotReAlertIfAlreadyFailsafe(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", MoistureSensorTopic: "sensor/z1", ThresholdLow: 50, MaxWateringSeconds: 300},
+	})
+
+	m.handleSensorReading("Z1", []byte("unavailable"))
+	z := m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Fatalf("expected first read to trigger failsafe, got %v", z.State)
+	}
+	firstChange := z.LastStateChange
+
+	// Second unavailable reading should not change state
+	m.handleSensorReading("Z1", []byte("offline"))
+	z = m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Errorf("expected StateFailsafe to persist, got %v", z.State)
+	}
+	if !z.LastStateChange.Equal(firstChange) {
+		t.Errorf("expected LastStateChange unchanged on re-trigger, got %v vs %v", z.LastStateChange, firstChange)
+	}
+}
+
+func TestValveUnavailableClosesValve(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ValveStateTopic: "valve/z1/state", ValveCommandTopic: "valve/z1/cmd", ThresholdLow: 50},
+	})
+	fake := m.client.(*fakeMQTTClient)
+
+	m.handleValveState("Z1", []byte("unavailable"))
+	time.Sleep(10 * time.Millisecond)
+
+	z := m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Errorf("expected StateFailsafe, got %v", z.State)
+	}
+	if !containsPublish(fake.published, "valve/z1/cmd:OFF") {
+		t.Errorf("expected valve OFF publish, got %v", fake.published)
+	}
+}
+
+func TestSensorUnavailableWhileWateringClosesValve(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", MoistureSensorTopic: "sensor/z1", ValveCommandTopic: "valve/z1", ThresholdLow: 50, MaxWateringSeconds: 300},
+	})
+	fake := m.client.(*fakeMQTTClient)
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateWatering
+	z.WateringStarted = time.Now()
+	z.mu.Unlock()
+
+	m.handleSensorReading("Z1", []byte("unavailable"))
+	time.Sleep(10 * time.Millisecond)
+
+	z = m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Errorf("expected StateFailsafe, got %v", z.State)
+	}
+	if !containsPublish(fake.published, "valve/z1:OFF") {
+		t.Errorf("expected valve OFF publish for safety shutoff, got %v", fake.published)
+	}
+}
+
+func TestIsUnavailablePayload(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"unavailable", true},
+		{"offline", true},
+		{"unknown", true},
+		{"on", false},
+		{"off", false},
+		{"42.5", false},
+		{"", false},
+	}
+	for _, tt := range tests {
+		got := isUnavailablePayload(tt.input)
+		if got != tt.want {
+			t.Errorf("isUnavailablePayload(%q) = %v, want %v", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestSensorAvailableClearsFailsafe(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", MoistureSensorTopic: "sensor/z1", ThresholdLow: 50, MaxWateringSeconds: 300},
+	})
+
+	// Trigger failsafe
+	m.handleSensorReading("Z1", []byte("unavailable"))
+	z := m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Fatalf("expected StateFailsafe, got %v", z.State)
+	}
+
+	// Valid reading should clear failsafe
+	m.handleSensorReading("Z1", []byte("42"))
+	z = m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Errorf("expected StateIdle after valid reading, got %v", z.State)
+	}
+	if z.Moisture != 42 {
+		t.Errorf("expected moisture 42, got %v", z.Moisture)
+	}
+}
+
+func TestValveAvailableClearsFailsafe(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ValveStateTopic: "valve/z1/state", ValveCommandTopic: "valve/z1/cmd", ThresholdLow: 50},
+	})
+
+	// Trigger failsafe
+	m.handleValveState("Z1", []byte("unavailable"))
+	z := m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Fatalf("expected StateFailsafe, got %v", z.State)
+	}
+
+	// Valid off should clear failsafe
+	m.handleValveState("Z1", []byte("OFF"))
+	z = m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Errorf("expected StateIdle after valve off, got %v", z.State)
+	}
+}
+
+func TestValveOnWhileFailsafeSetsManualOpen(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ValveStateTopic: "valve/z1/state", ValveCommandTopic: "valve/z1/cmd", ThresholdLow: 50},
+	})
+
+	// Trigger failsafe
+	m.handleValveState("Z1", []byte("unavailable"))
+	z := m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Fatalf("expected StateFailsafe, got %v", z.State)
+	}
+
+	// Valid on should clear failsafe and set manual open
+	m.handleValveState("Z1", []byte("ON"))
+	z = m.GetZone("Z1")
+	if z.State != StateManualOpen {
+		t.Errorf("expected StateManualOpen after valve on, got %v", z.State)
+	}
+}
+
+func TestFailsafeClearDoesNotAffectNonFailsafeZones(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", MoistureSensorTopic: "sensor/z1", ThresholdLow: 50, MaxWateringSeconds: 300},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateWatering
+	z.WateringStarted = time.Now()
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	// Valid reading on a watering zone should not change state
+	m.handleSensorReading("Z1", []byte("42"))
+	z = m.GetZone("Z1")
+	if z.State != StateWatering {
+		t.Errorf("expected StateWatering unchanged, got %v", z.State)
+	}
+}
+
+func TestSensorRecoveryCycle(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", MoistureSensorTopic: "sensor/z1", ThresholdLow: 50, MaxWateringSeconds: 300},
+	})
+
+	// Normal reading
+	m.handleSensorReading("Z1", []byte("60"))
+	z := m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Fatalf("expected initial StateIdle, got %v", z.State)
+	}
+
+	// Sensor goes offline → failsafe
+	m.handleSensorReading("Z1", []byte("unavailable"))
+	z = m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Fatalf("expected StateFailsafe, got %v", z.State)
+	}
+
+	// Sensor comes back → clears failsafe
+	m.handleSensorReading("Z1", []byte("45"))
+	z = m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Fatalf("expected StateIdle after recovery, got %v", z.State)
+	}
+
+	// Sensor goes offline again → failsafe again
+	m.handleSensorReading("Z1", []byte("offline"))
+	z = m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Fatalf("expected StateFailsafe on second offline, got %v", z.State)
 	}
 }

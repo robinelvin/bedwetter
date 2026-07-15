@@ -13,12 +13,13 @@ import (
 )
 
 type APIClient struct {
-	baseURL    string
-	token      string
-	httpClient *http.Client
-	polled     map[string]func(entityID string, value float64)
-	mu         sync.Mutex
-	done       chan struct{}
+	baseURL           string
+	token             string
+	httpClient        *http.Client
+	polled            map[string]func(entityID string, value float64)
+	unavailableHandler func(entityID string)
+	mu                sync.Mutex
+	done              chan struct{}
 }
 
 type HAStateResponse struct {
@@ -74,6 +75,12 @@ func (a *APIClient) Watch(entityID string, handler func(entityID string, value f
 	a.mu.Unlock()
 }
 
+func (a *APIClient) OnEntityUnavailable(handler func(entityID string)) {
+	a.mu.Lock()
+	a.unavailableHandler = handler
+	a.mu.Unlock()
+}
+
 func (a *APIClient) loop() {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
@@ -100,55 +107,62 @@ func (a *APIClient) pollAll() {
 	for k, v := range a.polled {
 		handlers[k] = v
 	}
+	unavailHandler := a.unavailableHandler
 	a.mu.Unlock()
 
 	for _, entityID := range entities {
 		handler := handlers[entityID]
-		value, err := a.fetchEntityState(entityID)
+		value, rawState, err := a.fetchEntityState(entityID)
 		if err != nil {
 			log.Printf("HA API: failed to fetch %s: %v", entityID, err)
 			continue
 		}
 		if value != nil {
 			handler(entityID, *value)
+		} else if rawState == "unavailable" || rawState == "offline" {
+			log.Printf("HA API: entity %s is unavailable", entityID)
+			if unavailHandler != nil {
+				unavailHandler(entityID)
+			}
 		}
 	}
 }
 
-func (a *APIClient) fetchEntityState(entityID string) (*float64, error) {
+func (a *APIClient) fetchEntityState(entityID string) (*float64, string, error) {
 	u := fmt.Sprintf("%s/api/states/%s", a.baseURL, entityID)
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	req.Header.Set("Authorization", "Bearer "+a.token)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := a.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+		return nil, "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}
 
 	var stateResp HAStateResponse
 	if err := json.NewDecoder(resp.Body).Decode(&stateResp); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	val, err := strconv.ParseFloat(stateResp.State, 64)
 	if err != nil {
-		return nil, nil
+		return nil, stateResp.State, nil
 	}
-	return &val, nil
+	return &val, stateResp.State, nil
 }
 
 func (a *APIClient) FetchEntityState(entityID string) (*float64, error) {
-	return a.fetchEntityState(entityID)
+	val, _, err := a.fetchEntityState(entityID)
+	return val, err
 }
 
 func (a *APIClient) GetEntityState(entityID string) (string, error) {

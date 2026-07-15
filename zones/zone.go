@@ -154,6 +154,21 @@ func (m *Manager) Start() {
 	m.subscribeRainSensor()
 	m.watchHARainSensor()
 
+	if m.haAPI != nil {
+		m.haAPI.OnEntityUnavailable(func(entityID string) {
+			m.mu.RLock()
+			for _, z := range m.zones {
+				if z.Config.MoistureSensorEntity == entityID {
+					m.mu.RUnlock()
+					log.Printf("Zone %q: HA moisture entity %s unavailable, triggering failsafe", z.Config.Name, entityID)
+					m.triggerFailsafe(z, "Moisture sensor unavailable")
+					return
+				}
+			}
+			m.mu.RUnlock()
+		})
+	}
+
 	go m.syncHAValveStates()
 	go m.watchdogLoop()
 }
@@ -186,13 +201,24 @@ func (m *Manager) pollHAValveStates() {
 			continue
 		}
 		z.mu.Lock()
+		if state == "unavailable" || state == "offline" {
+			log.Printf("Zone %q: HA valve entity unavailable (%s), triggering failsafe", z.Config.Name, state)
+			m.doFailsafe(z, "Valve entity unavailable")
+			z.mu.Unlock()
+			continue
+		}
 		if state == "on" || state == "open" {
+			if z.State == StateFailsafe {
+				m.doExitFailsafe(z, "Valve entity back online")
+			}
 			if z.State == StateIdle || z.State == StateCooldown {
 				z.State = StateManualOpen
 				z.LastStateChange = time.Now()
 				log.Printf("Zone %q: synced valve state from HA = %s", z.Config.Name, state)
 				m.publishZoneState(z)
 			}
+		} else if z.State == StateFailsafe {
+			m.doExitFailsafe(z, "Valve entity back online")
 		} else if z.State == StateManualOpen || z.State == StateWatering {
 			z.State = StateIdle
 			z.LastWaterEnd = time.Now()
@@ -217,6 +243,9 @@ func (m *Manager) watchHAEntity(z *Zone) {
 		z.mu.Lock()
 		z.Moisture = value
 		z.LastMoistureTime = time.Now()
+		if z.State == StateFailsafe {
+			m.doExitFailsafe(z, "Sensor back online")
+		}
 		z.mu.Unlock()
 		log.Printf("Zone %q: HA API update %s = %.1f%%", z.Config.Name, eid, value)
 		if err := m.store.SaveSensorReading(z.Config.Name, value, z.Humidity, z.Temperature); err != nil {
@@ -435,6 +464,51 @@ func (m *Manager) Stop() {
 	m.closeMasterValve()
 }
 
+func isUnavailablePayload(val string) bool {
+	return val == "unavailable" || val == "offline" || val == "unknown"
+}
+
+func (m *Manager) triggerFailsafe(z *Zone, reason string) {
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	m.doFailsafe(z, reason)
+}
+
+// doFailsafe transitions a zone to failsafe. Caller must hold z.mu.
+func (m *Manager) doFailsafe(z *Zone, reason string) {
+	if z.State == StateFailsafe {
+		return
+	}
+	z.State = StateFailsafe
+	z.LastStateChange = time.Now()
+	m.publishZoneState(z)
+	m.LogEvent("warn", "system", "Failsafe activated: "+reason+" for "+z.Config.Name, z.Config.Name)
+	if m.sendNtfy != nil {
+		go m.sendNtfy("alarm", "Failsafe Activated", fmt.Sprintf("%s for zone '%s'", reason, z.Config.Name))
+	}
+	go m.CloseValve(z.Config.Name)
+}
+
+func (m *Manager) exitFailsafe(z *Zone, reason string) {
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	m.doExitFailsafe(z, reason)
+}
+
+// doExitFailsafe clears failsafe and returns to idle. Caller must hold z.mu.
+func (m *Manager) doExitFailsafe(z *Zone, reason string) {
+	if z.State != StateFailsafe {
+		return
+	}
+	z.State = StateIdle
+	z.LastStateChange = time.Now()
+	m.publishZoneState(z)
+	m.LogEvent("info", "system", "Failsafe cleared: "+reason+" for "+z.Config.Name, z.Config.Name)
+	if m.sendNtfy != nil {
+		go m.sendNtfy("info", "Failsafe Cleared", fmt.Sprintf("%s for zone '%s'", reason, z.Config.Name))
+	}
+}
+
 func (m *Manager) handleSensorReading(zoneName string, payload []byte) {
 	m.mu.RLock()
 	z, ok := m.zones[zoneName]
@@ -443,6 +517,11 @@ func (m *Manager) handleSensorReading(zoneName string, payload []byte) {
 		return
 	}
 	val := strings.TrimSpace(string(payload))
+	if isUnavailablePayload(val) {
+		log.Printf("Zone %s: sensor reported %q, triggering failsafe", zoneName, val)
+		m.triggerFailsafe(z, "Sensor unavailable")
+		return
+	}
 	moisture, err := strconv.ParseFloat(val, 64)
 	if err != nil {
 		log.Printf("Invalid moisture reading %q for zone %s: %v", val, zoneName, err)
@@ -458,6 +537,9 @@ func (m *Manager) handleSensorReading(zoneName string, payload []byte) {
 	z.mu.Lock()
 	z.Moisture = moisture
 	z.LastMoistureTime = time.Now()
+	if z.State == StateFailsafe {
+		m.doExitFailsafe(z, "Sensor back online")
+	}
 	z.mu.Unlock()
 
 	if err := m.store.SaveSensorReading(zoneName, moisture, z.Humidity, z.Temperature); err != nil {
@@ -530,7 +612,16 @@ func (m *Manager) handleValveState(zoneName string, payload []byte) {
 	z.mu.Lock()
 	defer z.mu.Unlock()
 
+	if isUnavailablePayload(state) {
+		log.Printf("Zone %s: valve state reported %q, triggering failsafe", zoneName, val)
+		m.doFailsafe(z, "Valve unavailable")
+		return
+	}
+
 	if state == "on" || state == "open" || state == "true" || state == "1" {
+		if z.State == StateFailsafe {
+			m.doExitFailsafe(z, "Valve entity back online")
+		}
 		if z.State == StateIdle || z.State == StateCooldown {
 			z.State = StateManualOpen
 			z.LastStateChange = time.Now()
@@ -541,6 +632,9 @@ func (m *Manager) handleValveState(zoneName string, payload []byte) {
 			}
 		}
 	} else {
+		if z.State == StateFailsafe {
+			m.doExitFailsafe(z, "Valve entity back online")
+		}
 		if z.State == StateManualOpen || z.State == StateWatering {
 			z.State = StateIdle
 			z.LastWaterEnd = time.Now()
