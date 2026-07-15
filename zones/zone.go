@@ -1121,8 +1121,9 @@ func (m *Manager) Watchdog() {
 		z.mu.Lock()
 		since := time.Since(z.LastMoistureTime)
 		stale := time.Duration(m.cfg.Alerts.StaleSensorMinutes) * time.Minute
-		if z.LastMoistureTime.IsZero() || since > stale*2 {
+		if (z.LastMoistureTime.IsZero() || since > stale*2) && z.State != StateFailsafe {
 			z.State = StateFailsafe
+			z.LastStateChange = time.Now()
 			m.publishZoneState(z)
 			m.LogEvent("warn", "system", "Failsafe activated: stale sensor for "+z.Config.Name, z.Config.Name)
 			if m.sendNtfy != nil {
