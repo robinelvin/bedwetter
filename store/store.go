@@ -350,6 +350,20 @@ func (s *Store) GetUserByUsername(username string) (*models.User, error) {
 	return &user, nil
 }
 
+func (s *Store) UpdateUserProfile(username, firstName, lastName, email string) error {
+	return s.db.Model(&models.User{}).Where("username = ?", username).
+		Updates(map[string]interface{}{
+			"first_name": firstName,
+			"last_name":  lastName,
+			"email":      email,
+		}).Error
+}
+
+func (s *Store) UpdatePassword(username, passwordHash string) error {
+	return s.db.Model(&models.User{}).Where("username = ?", username).
+		Update("password_hash", passwordHash).Error
+}
+
 func (s *Store) CountUsers() (int64, error) {
 	var count int64
 	err := s.db.Model(&models.User{}).Count(&count).Error

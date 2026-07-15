@@ -9,6 +9,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -171,6 +172,9 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 	)
 	sv.templates["config"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/config.html"),
+	)
+	sv.templates["profile"] = template.Must(
+		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/profile.html", "templates/_change_password.html"),
 	)
 	sv.templates["zone_form"] = template.Must(
 		template.New("").Funcs(funcMap).ParseFS(templatesFS, "templates/base.html", "templates/zone_form.html"),
@@ -396,6 +400,9 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/login", s.loginPage)
 	s.router.POST("/login", s.login)
 	s.router.POST("/logout", s.logout)
+	s.router.GET("/profile", s.profilePage)
+	s.router.POST("/profile", s.saveProfile)
+	s.router.POST("/profile/password", s.changePassword)
 	s.router.GET("/setup", s.setupPage)
 	s.router.POST("/setup", s.setupCreate)
 	s.router.GET("/config/zones/fields/moisture", s.zoneMoistureFields)
@@ -507,6 +514,124 @@ func (s *Server) logout(c *gin.Context) {
 	}
 	c.SetCookie("session", "", -1, "/", "", false, true)
 	c.Redirect(http.StatusFound, "/login")
+}
+
+func (s *Server) profilePage(c *gin.Context) {
+	username := c.GetString("username")
+	user, err := s.store.GetUserByUsername(username)
+	if err != nil {
+		c.Redirect(http.StatusFound, "/login")
+		return
+	}
+	s.render(c, "profile", http.StatusOK, gin.H{
+		"title":     "Profile",
+		"username":  user.Username,
+		"firstName": user.FirstName,
+		"lastName":  user.LastName,
+		"email":     user.Email,
+	})
+}
+
+func (s *Server) saveProfile(c *gin.Context) {
+	username := c.GetString("username")
+	firstName := c.PostForm("first_name")
+	lastName := c.PostForm("last_name")
+	email := c.PostForm("email")
+
+	if email != "" {
+		emailRegex := regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
+		if !emailRegex.MatchString(email) {
+			s.render(c, "profile", http.StatusOK, gin.H{
+				"title":     "Profile",
+				"error":     "Please enter a valid email address",
+				"username":  username,
+				"firstName": firstName,
+				"lastName":  lastName,
+				"email":     email,
+			})
+			return
+		}
+	}
+
+	if err := s.store.UpdateUserProfile(username, firstName, lastName, email); err != nil {
+		log.Printf("Failed to update profile for %s: %v", username, err)
+		s.render(c, "profile", http.StatusOK, gin.H{
+			"title":     "Profile",
+			"error":     "Failed to update profile",
+			"username":  username,
+			"firstName": firstName,
+			"lastName":  lastName,
+			"email":     email,
+		})
+		return
+	}
+
+	s.logEvent("info", "auth", "Profile updated: "+username, "")
+	s.render(c, "profile", http.StatusOK, gin.H{
+		"title":     "Profile",
+		"info":      "Profile updated successfully",
+		"username":  username,
+		"firstName": firstName,
+		"lastName":  lastName,
+		"email":     email,
+	})
+}
+
+func (s *Server) changePassword(c *gin.Context) {
+	username := c.GetString("username")
+	currentPassword := c.PostForm("current_password")
+	newPassword := c.PostForm("new_password")
+	confirmPassword := c.PostForm("confirm_password")
+
+	user, err := s.store.GetUserByUsername(username)
+	if err != nil {
+		c.Redirect(http.StatusFound, "/login")
+		return
+	}
+
+	renderPasswordPage := func(errorMsg, successMsg string) {
+		s.render(c, "profile", http.StatusOK, gin.H{
+			"title":          "Profile",
+			"username":       user.Username,
+			"firstName":      user.FirstName,
+			"lastName":       user.LastName,
+			"email":          user.Email,
+			"passwordError":  errorMsg,
+			"passwordSuccess": successMsg,
+		})
+	}
+
+	if currentPassword == "" || newPassword == "" || confirmPassword == "" {
+		renderPasswordPage("All password fields are required", "")
+		return
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)); err != nil {
+		renderPasswordPage("Current password is incorrect", "")
+		return
+	}
+	if newPassword != confirmPassword {
+		renderPasswordPage("New passwords do not match", "")
+		return
+	}
+	if len(newPassword) < 6 {
+		renderPasswordPage("Password must be at least 6 characters", "")
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		renderPasswordPage("Failed to update password", "")
+		return
+	}
+
+	if err := s.store.UpdatePassword(username, string(hash)); err != nil {
+		log.Printf("Failed to update password for %s: %v", username, err)
+		renderPasswordPage("Failed to update password", "")
+		return
+	}
+
+	s.logEvent("info", "auth", "Password changed: "+username, "")
+	renderPasswordPage("", "Password changed successfully")
 }
 
 func (s *Server) setupPage(c *gin.Context) {

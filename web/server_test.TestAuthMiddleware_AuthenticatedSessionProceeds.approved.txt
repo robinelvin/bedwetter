@@ -22,6 +22,7 @@
                     <a href="/schedules" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/10 ">Schedules</a>
                     <a href="/events" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/10 ">Events</a>
                     <a href="/config" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/10 ">Config</a>
+                    <a href="/profile" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/10 ">Profile</a>
                     <form action="/logout" method="POST" class="inline ml-2">
                         <button type="submit" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/10 text-white/80 hover:text-white">Sign Out</button>
                     </form>
