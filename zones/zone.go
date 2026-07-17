@@ -49,28 +49,32 @@ func (s ZoneState) String() string {
 }
 
 type Zone struct {
-	Config           config.ZoneConfig
-	Moisture         float64
-	Humidity         float64
-	Temperature      float64
-	State            ZoneState
-	LastMoistureTime time.Time
-	LastWaterEnd     time.Time
-	LastStateChange  time.Time
-	WateringStarted  time.Time
-	mu               sync.RWMutex
+	Config                    config.ZoneConfig
+	Moisture                  float64
+	Humidity                  float64
+	Temperature               float64
+	State                     ZoneState
+	LastMoistureTime          time.Time
+	LastWaterEnd              time.Time
+	LastStateChange           time.Time
+	WateringStarted           time.Time
+	PendingActivationDuration int
+	PendingActivationTime     time.Time
+	mu                        sync.RWMutex
 }
 
 type ZoneSnapshot struct {
-	Config           config.ZoneConfig
-	Moisture         float64
-	Humidity         float64
-	Temperature      float64
-	State            ZoneState
-	LastMoistureTime time.Time
-	LastWaterEnd     time.Time
-	LastStateChange  time.Time
-	WateringStarted  time.Time
+	Config                    config.ZoneConfig
+	Moisture                  float64
+	Humidity                  float64
+	Temperature               float64
+	State                     ZoneState
+	LastMoistureTime          time.Time
+	LastWaterEnd              time.Time
+	LastStateChange           time.Time
+	WateringStarted           time.Time
+	PendingActivationDuration int
+	PendingActivationTime     time.Time
 }
 
 type Manager struct {
@@ -212,6 +216,9 @@ func (m *Manager) pollHAValveStates() {
 		if state == "on" || state == "open" {
 			if z.State == StateFailsafe {
 				m.doExitFailsafe(z, "Valve entity back online")
+			}
+			if z.State == StateWatering {
+				m.confirmPendingActivation(z)
 			}
 			if z.State == StateIdle || z.State == StateCooldown {
 				z.State = StateManualOpen
@@ -473,6 +480,19 @@ func isUnavailablePayload(val string) bool {
 	return val == "unavailable" || val == "offline" || val == "unknown"
 }
 
+// confirmPendingActivation records the valve open event if there is a pending
+// activation for this zone. Caller must hold z.mu.
+func (m *Manager) confirmPendingActivation(z *Zone) {
+	if z.PendingActivationDuration > 0 {
+		dur := z.PendingActivationDuration
+		z.PendingActivationDuration = 0
+		z.PendingActivationTime = time.Time{}
+		go func() {
+			m.store.SaveValveEvent(z.Config.Name, "open", dur)
+		}()
+	}
+}
+
 func (m *Manager) triggerFailsafe(z *Zone, reason string) {
 	z.mu.Lock()
 	defer z.mu.Unlock()
@@ -627,6 +647,9 @@ func (m *Manager) handleValveState(zoneName string, payload []byte) {
 		if z.State == StateFailsafe {
 			m.doExitFailsafe(z, "Valve entity back online")
 		}
+		if z.State == StateWatering {
+			m.confirmPendingActivation(z)
+		}
 		if z.State == StateIdle || z.State == StateCooldown {
 			z.State = StateManualOpen
 			z.LastStateChange = time.Now()
@@ -765,10 +788,9 @@ func (m *Manager) evaluateZone(zoneName string) {
 	z.State = StateWatering
 	z.WateringStarted = time.Now()
 	z.LastStateChange = time.Now()
+	z.PendingActivationDuration = z.Config.MaxWateringSeconds
+	z.PendingActivationTime = time.Now()
 	m.publishZoneState(z)
-	go func() {
-		m.store.SaveValveEvent(zoneName, "open", z.Config.MaxWateringSeconds)
-	}()
 }
 
 func (m *Manager) TriggerScheduledWatering(zoneName string, adjustedDuration int) {
@@ -849,10 +871,9 @@ func (m *Manager) TriggerScheduledWatering(zoneName string, adjustedDuration int
 	z.State = StateWatering
 	z.WateringStarted = time.Now()
 	z.LastStateChange = time.Now()
+	z.PendingActivationDuration = adjustedDuration
+	z.PendingActivationTime = time.Now()
 	m.publishZoneState(z)
-	go func() {
-		m.store.SaveValveEvent(zoneName, "open", adjustedDuration)
-	}()
 }
 
 func (m *Manager) ForceClose(zoneName string) {
@@ -1292,6 +1313,14 @@ func (m *Manager) GetAllZoneSnapshots() []ZoneSnapshot {
 func (m *Manager) Watchdog() {
 	for _, z := range m.zones {
 		z.mu.Lock()
+		// Expire pending activations if valve never confirmed (device offline)
+		if z.PendingActivationDuration > 0 && !z.PendingActivationTime.IsZero() {
+			if time.Since(z.PendingActivationTime) > 60*time.Second {
+				log.Printf("Zone %s: pending activation expired (valve did not confirm open), not counting", z.Config.Name)
+				z.PendingActivationDuration = 0
+				z.PendingActivationTime = time.Time{}
+			}
+		}
 		since := time.Since(z.LastMoistureTime)
 		stale := time.Duration(m.cfg.Alerts.StaleSensorMinutes) * time.Minute
 		if (z.LastMoistureTime.IsZero() || since > stale*2) && z.State != StateFailsafe {

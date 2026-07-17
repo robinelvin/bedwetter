@@ -1785,3 +1785,113 @@ func TestOpenValveWithZeroDurationNoHeartbeat(t *testing.T) {
 		}
 	}
 }
+
+func TestPendingActivationConfirmedByValveState(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, ValveCommandTopic: "v/z1", ValveStateTopic: "v/z1/state", EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.handleSensorReading("Z1", []byte("30"))
+	time.Sleep(time.Millisecond)
+
+	// Should have pending activation
+	z = m.GetZone("Z1")
+	z.mu.RLock()
+	if z.PendingActivationDuration != 300 {
+		t.Errorf("expected pending duration 300, got %d", z.PendingActivationDuration)
+	}
+	z.mu.RUnlock()
+
+	// Simulate valve confirming ON
+	m.handleValveState("Z1", []byte("ON"))
+	time.Sleep(50 * time.Millisecond)
+
+	// Pending should be cleared
+	z = m.GetZone("Z1")
+	z.mu.RLock()
+	if z.PendingActivationDuration != 0 {
+		t.Errorf("expected pending duration cleared after confirmation, got %d", z.PendingActivationDuration)
+	}
+	z.mu.RUnlock()
+}
+
+func TestPendingActivationExpiredByWatchdog(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ValveCommandTopic: "v/z1"},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateWatering
+	z.PendingActivationDuration = 300
+	z.PendingActivationTime = time.Now().Add(-120 * time.Second) // 2 minutes ago
+	z.mu.Unlock()
+
+	m.Watchdog()
+
+	z = m.GetZone("Z1")
+	z.mu.RLock()
+	if z.PendingActivationDuration != 0 {
+		t.Errorf("expected pending activation expired, got %d", z.PendingActivationDuration)
+	}
+	z.mu.RUnlock()
+}
+
+func TestPendingActivationNotExpiredWhenRecent(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ValveCommandTopic: "v/z1"},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateWatering
+	z.PendingActivationDuration = 300
+	z.PendingActivationTime = time.Now() // just now
+	z.mu.Unlock()
+
+	m.Watchdog()
+
+	z = m.GetZone("Z1")
+	z.mu.RLock()
+	if z.PendingActivationDuration != 300 {
+		t.Errorf("expected pending activation preserved, got %d", z.PendingActivationDuration)
+	}
+	z.mu.RUnlock()
+}
+
+func TestScheduledWateringSetsPendingActivation(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, ValveCommandTopic: "v/z1", EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.TriggerScheduledWatering("Z1", 180)
+	time.Sleep(time.Millisecond)
+
+	z = m.GetZone("Z1")
+	z.mu.RLock()
+	if z.PendingActivationDuration != 180 {
+		t.Errorf("expected pending duration 180, got %d", z.PendingActivationDuration)
+	}
+	if z.PendingActivationTime.IsZero() {
+		t.Error("expected pending activation time to be set")
+	}
+	z.mu.RUnlock()
+}
