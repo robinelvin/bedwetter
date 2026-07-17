@@ -1367,6 +1367,7 @@ func (s *Server) saveZone(c *gin.Context) {
 		zc.LatestWateringTime = "10:00"
 	}
 	zc.Indoors = c.PostForm("indoor") == "on"
+	zc.HeartbeatTimeout, _ = strconv.Atoi(c.PostForm("heartbeat_timeout"))
 
 	multipliers := make(map[int]float64)
 	for month := 1; month <= 12; month++ {

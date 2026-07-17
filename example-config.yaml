@@ -22,6 +22,9 @@ zones:
     cooldown_minutes: 90
     earliest_watering_time: "06:00"    # default
     latest_watering_time: "10:00"     # default
+    # How long (seconds) the device waits for a heartbeat before turning
+    # off the valve. Default 0 = 3× heartbeat_interval (e.g. 90s).
+    heartbeat_timeout: 0
     seasonal_multipliers:
       1: 0.5    # January
       7: 1.5    # July
@@ -37,6 +40,7 @@ zones:
     cooldown_minutes: 120
     earliest_watering_time: "07:00"
     latest_watering_time: "09:00"
+    heartbeat_timeout: 0
 
 alerts:
   email: you@example.com
@@ -101,3 +105,9 @@ web:
   listen_addr: ":8080"
 
 db_path: bedwetter.db
+
+# Heartbeat interval in seconds. BedWetter publishes a heartbeat to each
+# active zone's MQTT topic while a valve is open. Remote devices should
+# turn off locally if they stop receiving heartbeats.
+# Set to 0 to disable heartbeats.
+heartbeat_interval: 30

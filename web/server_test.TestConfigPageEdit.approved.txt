@@ -199,6 +199,10 @@
                 <input type="checkbox" name="indoor" id="indoor" class="checkbox checkbox-sm" >
                 <label for="indoor" class="text-sm font-medium text-foreground-secondary">Indoors (ignore rainfall)</label>
             </div>
+            <div>
+                <label class="block text-sm font-medium text-foreground-secondary mb-1.5">Heartbeat Timeout (s)</label>
+                <input type="number" name="heartbeat_timeout" value="0" placeholder="0 = auto (3× interval)" class="w-full rounded-lg border border-input px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-shadow">
+            </div>
             <div class="md:col-span-3 border-t border-border pt-4">
                 <h3 class="text-sm font-semibold text-foreground mb-3">Seasonal Multipliers (× duration per month)</h3>
                 <div class="grid grid-cols-3 md:grid-cols-4 gap-3">

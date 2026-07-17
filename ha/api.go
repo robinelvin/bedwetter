@@ -193,9 +193,16 @@ func (a *APIClient) GetEntityState(entityID string) (string, error) {
 }
 
 func (a *APIClient) CallService(domain, service string, entityID string) error {
+	return a.CallServiceWithData(domain, service, entityID, nil)
+}
+
+func (a *APIClient) CallServiceWithData(domain, service string, entityID string, data map[string]interface{}) error {
 	u := fmt.Sprintf("%s/api/services/%s/%s", a.baseURL, domain, service)
 	payload := map[string]interface{}{
 		"entity_id": entityID,
+	}
+	for k, v := range data {
+		payload[k] = v
 	}
 	body, _ := json.Marshal(payload)
 	req, err := http.NewRequest(http.MethodPost, u, strings.NewReader(string(body)))

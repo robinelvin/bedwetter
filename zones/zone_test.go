@@ -1,8 +1,11 @@
 package zones
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,10 +16,13 @@ import (
 
 type fakeMQTTClient struct {
 	published []string
+	mu        sync.Mutex
 }
 
 func (f *fakeMQTTClient) Publish(topic string, qos byte, retained bool, payload string) error {
+	f.mu.Lock()
 	f.published = append(f.published, topic+":"+payload)
+	f.mu.Unlock()
 	return nil
 }
 
@@ -1596,5 +1602,186 @@ func TestSensorRecoveryCycle(t *testing.T) {
 	z = m.GetZone("Z1")
 	if z.State != StateFailsafe {
 		t.Fatalf("expected StateFailsafe on second offline, got %v", z.State)
+	}
+}
+
+func TestOpenValvePublishesHeartbeat(t *testing.T) {
+	cfg := &config.Config{
+		HeartbeatInterval: 1,
+		Zones: []config.ZoneConfig{
+			{Name: "Z1", ValveCommandTopic: "v/z1", MaxWateringSeconds: 300},
+		},
+	}
+	mq := &fakeMQTTClient{}
+	st := newTestStore(t)
+	m := NewManager(cfg, mq, st, nil, nil)
+
+	m.openValveIO("Z1", 300)
+	time.Sleep(150 * time.Millisecond)
+
+	mq.mu.Lock()
+	defer mq.mu.Unlock()
+	found := false
+	for _, p := range mq.published {
+		if strings.HasPrefix(p, "bedwetter/heartbeat/Z1:") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected heartbeat publish to bedwetter/heartbeat/Z1, got %v", mq.published)
+	}
+}
+
+func TestHeartbeatPayload(t *testing.T) {
+	cfg := &config.Config{
+		HeartbeatInterval: 1,
+		Zones: []config.ZoneConfig{
+			{Name: "Zone A", ValveCommandTopic: "v/za", MaxWateringSeconds: 600, HeartbeatTimeout: 120},
+		},
+	}
+	mq := &fakeMQTTClient{}
+	st := newTestStore(t)
+	m := NewManager(cfg, mq, st, nil, nil)
+
+	m.openValveIO("Zone A", 600)
+	time.Sleep(150 * time.Millisecond)
+
+	mq.mu.Lock()
+	defer mq.mu.Unlock()
+	for _, p := range mq.published {
+		if strings.HasPrefix(p, "bedwetter/heartbeat/Zone_A:") {
+			payload := strings.TrimPrefix(p, "bedwetter/heartbeat/Zone_A:")
+			var msg map[string]interface{}
+			if err := json.Unmarshal([]byte(payload), &msg); err != nil {
+				t.Fatalf("failed to unmarshal heartbeat payload: %v", err)
+			}
+			if msg["zone"] != "Zone A" {
+				t.Errorf("expected zone 'Zone A', got %v", msg["zone"])
+			}
+			if msg["duration"] != float64(600) {
+				t.Errorf("expected duration 600, got %v", msg["duration"])
+			}
+			if msg["timeout"] != float64(120) {
+				t.Errorf("expected timeout 120, got %v", msg["timeout"])
+			}
+			return
+		}
+	}
+	t.Errorf("no heartbeat publish found, got %v", mq.published)
+}
+
+func TestHeartbeatDefaultTimeout(t *testing.T) {
+	cfg := &config.Config{
+		HeartbeatInterval: 1,
+		Zones: []config.ZoneConfig{
+			{Name: "Z1", ValveCommandTopic: "v/z1", MaxWateringSeconds: 300},
+		},
+	}
+	mq := &fakeMQTTClient{}
+	st := newTestStore(t)
+	m := NewManager(cfg, mq, st, nil, nil)
+
+	m.openValveIO("Z1", 300)
+	time.Sleep(150 * time.Millisecond)
+
+	mq.mu.Lock()
+	defer mq.mu.Unlock()
+	for _, p := range mq.published {
+		if strings.HasPrefix(p, "bedwetter/heartbeat/Z1:") {
+			payload := strings.TrimPrefix(p, "bedwetter/heartbeat/Z1:")
+			var msg map[string]interface{}
+			json.Unmarshal([]byte(payload), &msg)
+			// Default timeout = 3 × interval = 3 × 1 = 3
+			if msg["timeout"] != float64(3) {
+				t.Errorf("expected default timeout 3 (3×interval), got %v", msg["timeout"])
+			}
+			return
+		}
+	}
+	t.Errorf("no heartbeat publish found")
+}
+
+func TestCloseValveStopsHeartbeat(t *testing.T) {
+	cfg := &config.Config{
+		HeartbeatInterval: 1,
+		Zones: []config.ZoneConfig{
+			{Name: "Z1", ValveCommandTopic: "v/z1", MaxWateringSeconds: 300},
+		},
+	}
+	mq := &fakeMQTTClient{}
+	st := newTestStore(t)
+	m := NewManager(cfg, mq, st, nil, nil)
+
+	m.openValveIO("Z1", 300)
+	time.Sleep(150 * time.Millisecond)
+
+	// Count heartbeats before close
+	mq.mu.Lock()
+	countBefore := len(mq.published)
+	mq.mu.Unlock()
+
+	m.CloseValve("Z1")
+	time.Sleep(150 * time.Millisecond)
+
+	// No new heartbeats should appear after close
+	mq.mu.Lock()
+	defer mq.mu.Unlock()
+	for _, p := range mq.published[countBefore:] {
+		if strings.HasPrefix(p, "bedwetter/heartbeat/Z1:") {
+			t.Errorf("heartbeat should have stopped after CloseValve, but got: %s", p)
+		}
+	}
+}
+
+func TestStopClosesValvesAndStopsHeartbeats(t *testing.T) {
+	cfg := &config.Config{
+		HeartbeatInterval: 1,
+		Zones: []config.ZoneConfig{
+			{Name: "Z1", ValveCommandTopic: "v/z1", MaxWateringSeconds: 300},
+			{Name: "Z2", ValveCommandTopic: "v/z2", MaxWateringSeconds: 300},
+		},
+	}
+	mq := &fakeMQTTClient{}
+	st := newTestStore(t)
+	m := NewManager(cfg, mq, st, nil, nil)
+
+	m.openValveIO("Z1", 300)
+	m.openValveIO("Z2", 300)
+	time.Sleep(150 * time.Millisecond)
+
+	m.Stop()
+	time.Sleep(100 * time.Millisecond)
+
+	// Heartbeats should be stopped - no more heartbeat publishes after Stop
+	// The heartbeatStop map should be empty
+	m.mu.Lock()
+	remaining := len(m.heartbeatStop)
+	m.mu.Unlock()
+	if remaining != 0 {
+		t.Errorf("expected 0 active heartbeats after Stop, got %d", remaining)
+	}
+}
+
+func TestOpenValveWithZeroDurationNoHeartbeat(t *testing.T) {
+	cfg := &config.Config{
+		HeartbeatInterval: 1,
+		Zones: []config.ZoneConfig{
+			{Name: "Z1", ValveCommandTopic: "v/z1"},
+		},
+	}
+	mq := &fakeMQTTClient{}
+	st := newTestStore(t)
+	m := NewManager(cfg, mq, st, nil, nil)
+
+	m.openValveIO("Z1", 0)
+	time.Sleep(150 * time.Millisecond)
+
+	mq.mu.Lock()
+	defer mq.mu.Unlock()
+	for _, p := range mq.published {
+		if strings.HasPrefix(p, "bedwetter/heartbeat/") {
+			t.Errorf("no heartbeat expected with 0 duration, got %s", p)
+		}
 	}
 }

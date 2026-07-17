@@ -86,17 +86,19 @@ type Manager struct {
 	rainDetected      bool
 	forecastRainActive bool
 	sendNtfy          func(level, title, message string)
+	heartbeatStop     map[string]chan struct{}
 }
 
 func NewManager(cfg *config.Config, client mqtt.ClientInterface, store *store.Store, resolver *ha.EntityResolver, haAPI *ha.APIClient) *Manager {
 	m := &Manager{
-		zones:    make(map[string]*Zone),
-		client:   client,
-		store:    store,
-		cfg:      cfg,
-		resolver: resolver,
-		haAPI:    haAPI,
-		done:     make(chan struct{}),
+		zones:         make(map[string]*Zone),
+		client:        client,
+		store:         store,
+		cfg:           cfg,
+		resolver:      resolver,
+		haAPI:         haAPI,
+		done:          make(chan struct{}),
+		heartbeatStop: make(map[string]chan struct{}),
 	}
 	for _, zc := range cfg.Zones {
 		m.zones[zc.Name] = &Zone{
@@ -451,6 +453,9 @@ func (m *Manager) SetForecastRain(active bool) {
 
 func (m *Manager) Stop() {
 	close(m.done)
+	for name := range m.heartbeatStop {
+		m.stopHeartbeat(name)
+	}
 	for _, z := range m.zones {
 		z.mu.Lock()
 		if z.State == StateWatering || z.State == StateManualOpen {
@@ -755,7 +760,7 @@ func (m *Manager) evaluateZone(zoneName string) {
 
 	log.Printf("Zone %s: moisture %.1f%% below threshold %d%%, opening valve", zoneName, z.Moisture, z.Config.ThresholdLow)
 	m.LogEvent("info", "valve", fmt.Sprintf("Watering started: %s (moisture %.1f%% below threshold %d%%)", zoneName, z.Moisture, z.Config.ThresholdLow), zoneName)
-	go m.openValveIO(zoneName)
+	go m.openValveIO(zoneName, z.Config.MaxWateringSeconds)
 	go m.openMasterValve()
 	z.State = StateWatering
 	z.WateringStarted = time.Now()
@@ -838,7 +843,7 @@ func (m *Manager) TriggerScheduledWatering(zoneName string, adjustedDuration int
 
 	log.Printf("Schedule: starting watering for %s (duration: %ds)", zoneName, adjustedDuration)
 	m.LogEvent("info", "valve", fmt.Sprintf("Watering started: %s (schedule, %ds)", zoneName, adjustedDuration), zoneName)
-	go m.openValveIO(zoneName)
+	go m.openValveIO(zoneName, adjustedDuration)
 	go m.openMasterValve()
 	z.Config.MaxWateringSeconds = adjustedDuration
 	z.State = StateWatering
@@ -897,7 +902,7 @@ func (m *Manager) AcknowledgeFault(zoneName string) {
 	}
 }
 
-func (m *Manager) openValveIO(zoneName string) {
+func (m *Manager) openValveIO(zoneName string, durationSeconds int) {
 	m.mu.RLock()
 	z, ok := m.zones[zoneName]
 	m.mu.RUnlock()
@@ -912,13 +917,25 @@ func (m *Manager) openValveIO(zoneName string) {
 		parts := splitEntityID(entityID)
 		if parts != nil {
 			go func() {
-				if err := m.haAPI.CallService(parts[0], "turn_on", entityID); err != nil {
+				var data map[string]interface{}
+				if durationSeconds > 0 {
+					h := durationSeconds / 3600
+					m := (durationSeconds % 3600) / 60
+					s := durationSeconds % 60
+					data = map[string]interface{}{
+						"duration": fmt.Sprintf("%02d:%02d:%02d", h, m, s),
+					}
+				}
+				if err := m.haAPI.CallServiceWithData(parts[0], "turn_on", entityID, data); err != nil {
 					log.Printf("Zone %q: HA API turn_on failed for %s: %v", zoneName, entityID, err)
 				} else {
 					log.Printf("Zone %q: HA API turn_on %s", zoneName, entityID)
 				}
 			}()
 		}
+	}
+	if durationSeconds > 0 {
+		m.startHeartbeat(zoneName, durationSeconds)
 	}
 }
 
@@ -960,12 +977,73 @@ func (m *Manager) closeMasterValve() {
 	}
 }
 
+func (m *Manager) startHeartbeat(zoneName string, durationSeconds int) {
+	m.stopHeartbeat(zoneName)
+	interval := m.cfg.HeartbeatInterval
+	if interval <= 0 {
+		interval = 30
+	}
+	timeout := 0
+	m.mu.RLock()
+	z, ok := m.zones[zoneName]
+	if ok {
+		timeout = z.Config.HeartbeatTimeout
+	}
+	m.mu.RUnlock()
+	if timeout <= 0 {
+		timeout = interval * 3
+	}
+	slug := ha.Slug(zoneName)
+	topic := fmt.Sprintf("bedwetter/heartbeat/%s", slug)
+
+	stop := make(chan struct{})
+	m.mu.Lock()
+	m.heartbeatStop[zoneName] = stop
+	m.mu.Unlock()
+
+	go func() {
+		publish := func() {
+			payload, _ := json.Marshal(map[string]interface{}{
+				"zone":     zoneName,
+				"duration": durationSeconds,
+				"timeout":  timeout,
+			})
+			m.client.Publish(topic, 1, false, string(payload))
+		}
+		publish()
+		ticker := time.NewTicker(time.Duration(interval) * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-m.done:
+				return
+			case <-ticker.C:
+				publish()
+			}
+		}
+	}()
+}
+
+func (m *Manager) stopHeartbeat(zoneName string) {
+	m.mu.Lock()
+	ch, ok := m.heartbeatStop[zoneName]
+	if ok {
+		delete(m.heartbeatStop, zoneName)
+	}
+	m.mu.Unlock()
+	if ok {
+		close(ch)
+	}
+}
+
 func (m *Manager) OpenValve(zoneName string) {
-	m.openValveIO(zoneName)
 	z, ok := m.zones[zoneName]
 	if !ok {
 		return
 	}
+	m.openValveIO(zoneName, z.Config.MaxWateringSeconds)
 	z.mu.Lock()
 	if z.State == StateIdle || z.State == StateCooldown {
 		z.State = StateManualOpen
@@ -986,6 +1064,7 @@ func (m *Manager) CloseValve(zoneName string) {
 	if !ok {
 		return
 	}
+	m.stopHeartbeat(zoneName)
 	topic := z.Config.ValveCommandTopic
 	if topic != "" {
 		m.client.Publish(topic, 1, false, "OFF")

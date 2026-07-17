@@ -34,6 +34,7 @@ type ZoneConfig struct {
 	LatestWateringTime    string `yaml:"latest_watering_time"`
 	SeasonalMultipliers   map[int]float64 `yaml:"seasonal_multipliers"`
 	Indoors               bool            `yaml:"indoor" json:"indoor"`
+	HeartbeatTimeout      int             `yaml:"heartbeat_timeout" json:"heartbeat_timeout"`
 }
 
 type AlertsConfig struct {
@@ -96,16 +97,17 @@ type HomeAssistantConfig struct {
 }
 
 type Config struct {
-	MQTT          MQTTConfig           `yaml:"mqtt"`
-	HomeAssistant HomeAssistantConfig  `yaml:"homeassistant"`
-	Zones         []ZoneConfig         `yaml:"zones"`
-	Alerts        AlertsConfig         `yaml:"alerts"`
-	Ntfy          NtfyConfig           `yaml:"ntfy"`
-	Schedules     []ZoneSchedule       `yaml:"schedules"`
-	Weather       WeatherConfig        `yaml:"weather"`
-	MasterValve   MasterValveConfig    `yaml:"master_valve"`
-	Web           WebConfig            `yaml:"web"`
-	DBPath        string               `yaml:"db_path"`
+	MQTT              MQTTConfig           `yaml:"mqtt"`
+	HomeAssistant     HomeAssistantConfig  `yaml:"homeassistant"`
+	Zones             []ZoneConfig         `yaml:"zones"`
+	Alerts            AlertsConfig         `yaml:"alerts"`
+	Ntfy              NtfyConfig           `yaml:"ntfy"`
+	Schedules         []ZoneSchedule       `yaml:"schedules"`
+	Weather           WeatherConfig        `yaml:"weather"`
+	MasterValve       MasterValveConfig    `yaml:"master_valve"`
+	Web               WebConfig            `yaml:"web"`
+	DBPath            string               `yaml:"db_path"`
+	HeartbeatInterval int                  `yaml:"heartbeat_interval" json:"heartbeat_interval"`
 }
 
 func Load(path string) (*Config, error) {
@@ -121,6 +123,7 @@ func Load(path string) (*Config, error) {
 	cfg.Ntfy.AlertWarn = true
 	cfg.Ntfy.AlertAlarm = true
 	cfg.DBPath = "bedwetter.db"
+	cfg.HeartbeatInterval = 30
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, err
 	}
