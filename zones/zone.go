@@ -29,6 +29,8 @@ const (
 	StateForceClosed
 )
 
+const haCommandGracePeriod = 15 * time.Second
+
 func (s ZoneState) String() string {
 	switch s {
 	case StateIdle:
@@ -60,6 +62,7 @@ type Zone struct {
 	WateringStarted           time.Time
 	PendingActivationDuration int
 	PendingActivationTime     time.Time
+	LastHACommandTime         time.Time
 	mu                        sync.RWMutex
 }
 
@@ -210,6 +213,12 @@ func (m *Manager) pollHAValveStates() {
 		if state == "unavailable" || state == "offline" {
 			log.Printf("Zone %q: HA valve entity unavailable (%s), triggering failsafe", z.Config.Name, state)
 			m.doFailsafe(z, "Valve entity unavailable")
+			z.mu.Unlock()
+			continue
+		}
+		// Skip state reconciliation if we recently sent an HA command — the
+		// entity state may lag behind the command.
+		if !z.LastHACommandTime.IsZero() && time.Since(z.LastHACommandTime) < haCommandGracePeriod {
 			z.mu.Unlock()
 			continue
 		}
@@ -937,17 +946,11 @@ func (m *Manager) openValveIO(zoneName string, durationSeconds int) {
 		entityID := z.Config.ValveSwitchEntity
 		parts := splitEntityID(entityID)
 		if parts != nil {
+			z.mu.Lock()
+			z.LastHACommandTime = time.Now()
+			z.mu.Unlock()
 			go func() {
-				var data map[string]interface{}
-				if durationSeconds > 0 {
-					h := durationSeconds / 3600
-					m := (durationSeconds % 3600) / 60
-					s := durationSeconds % 60
-					data = map[string]interface{}{
-						"duration": fmt.Sprintf("%02d:%02d:%02d", h, m, s),
-					}
-				}
-				if err := m.haAPI.CallServiceWithData(parts[0], "turn_on", entityID, data); err != nil {
+				if err := m.haAPI.CallService(parts[0], "turn_on", entityID); err != nil {
 					log.Printf("Zone %q: HA API turn_on failed for %s: %v", zoneName, entityID, err)
 				} else {
 					log.Printf("Zone %q: HA API turn_on %s", zoneName, entityID)
@@ -1093,6 +1096,9 @@ func (m *Manager) CloseValve(zoneName string) {
 		entityID := z.Config.ValveSwitchEntity
 		parts := splitEntityID(entityID)
 		if parts != nil {
+			z.mu.Lock()
+			z.LastHACommandTime = time.Now()
+			z.mu.Unlock()
 			go func() {
 				if err := m.haAPI.CallService(parts[0], "turn_off", entityID); err != nil {
 					log.Printf("Zone %q: HA API turn_off failed for %s: %v", zoneName, entityID, err)
