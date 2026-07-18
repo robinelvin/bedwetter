@@ -943,6 +943,11 @@ func (m *Manager) openValveIO(zoneName string, durationSeconds int) {
 	if topic != "" {
 		m.client.Publish(topic, 1, false, "ON")
 	} else if m.haAPI != nil && z.Config.ValveSwitchEntity != "" {
+		if durationSeconds > 0 {
+			slug := ha.Slug(zoneName)
+			timeoutTopic := fmt.Sprintf("bedwetter/timeout/%s", slug)
+			m.client.Publish(timeoutTopic, 1, false, strconv.Itoa(durationSeconds))
+		}
 		entityID := z.Config.ValveSwitchEntity
 		parts := splitEntityID(entityID)
 		if parts != nil {

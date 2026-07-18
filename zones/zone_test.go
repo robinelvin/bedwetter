@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/robinelvin/bedwetter/config"
+	"github.com/robinelvin/bedwetter/ha"
 	"github.com/robinelvin/bedwetter/mqtt"
 	"github.com/robinelvin/bedwetter/store"
 )
@@ -1500,14 +1503,14 @@ func TestSensorAvailableClearsFailsafe(t *testing.T) {
 		t.Fatalf("expected StateFailsafe, got %v", z.State)
 	}
 
-	// Valid reading should clear failsafe
-	m.handleSensorReading("Z1", []byte("42"))
+	// Valid reading above threshold should clear failsafe without triggering watering
+	m.handleSensorReading("Z1", []byte("60"))
 	z = m.GetZone("Z1")
 	if z.State != StateIdle {
 		t.Errorf("expected StateIdle after valid reading, got %v", z.State)
 	}
-	if z.Moisture != 42 {
-		t.Errorf("expected moisture 42, got %v", z.Moisture)
+	if z.Moisture != 60 {
+		t.Errorf("expected moisture 60, got %v", z.Moisture)
 	}
 }
 
@@ -1590,8 +1593,8 @@ func TestSensorRecoveryCycle(t *testing.T) {
 		t.Fatalf("expected StateFailsafe, got %v", z.State)
 	}
 
-	// Sensor comes back → clears failsafe
-	m.handleSensorReading("Z1", []byte("45"))
+	// Sensor comes back → clears failsafe (reading above threshold so no watering)
+	m.handleSensorReading("Z1", []byte("60"))
 	z = m.GetZone("Z1")
 	if z.State != StateIdle {
 		t.Fatalf("expected StateIdle after recovery, got %v", z.State)
@@ -1782,6 +1785,69 @@ func TestOpenValveWithZeroDurationNoHeartbeat(t *testing.T) {
 	for _, p := range mq.published {
 		if strings.HasPrefix(p, "bedwetter/heartbeat/") {
 			t.Errorf("no heartbeat expected with 0 duration, got %s", p)
+		}
+	}
+}
+
+func TestOpenValveHAPublishesTimeout(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cfg := &config.Config{
+		HeartbeatInterval: 1,
+		Zones: []config.ZoneConfig{
+			{Name: "Z1", ValveSwitchEntity: "switch.z1_valve", MaxWateringSeconds: 300},
+		},
+	}
+	mq := &fakeMQTTClient{}
+	st := newTestStore(t)
+	haAPI := ha.NewAPIClient(srv.URL, "test-token")
+	m := NewManager(cfg, mq, st, nil, haAPI)
+
+	m.openValveIO("Z1", 300)
+	time.Sleep(150 * time.Millisecond)
+
+	mq.mu.Lock()
+	defer mq.mu.Unlock()
+	found := false
+	for _, p := range mq.published {
+		if p == "bedwetter/timeout/Z1:300" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected timeout publish to bedwetter/timeout/Z1:300, got %v", mq.published)
+	}
+}
+
+func TestOpenValveHANoTimeoutWithZeroDuration(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cfg := &config.Config{
+		HeartbeatInterval: 1,
+		Zones: []config.ZoneConfig{
+			{Name: "Z1", ValveSwitchEntity: "switch.z1_valve"},
+		},
+	}
+	mq := &fakeMQTTClient{}
+	st := newTestStore(t)
+	haAPI := ha.NewAPIClient(srv.URL, "test-token")
+	m := NewManager(cfg, mq, st, nil, haAPI)
+
+	m.openValveIO("Z1", 0)
+	time.Sleep(150 * time.Millisecond)
+
+	mq.mu.Lock()
+	defer mq.mu.Unlock()
+	for _, p := range mq.published {
+		if strings.HasPrefix(p, "bedwetter/timeout/") {
+			t.Errorf("no timeout expected with 0 duration, got %s", p)
 		}
 	}
 }

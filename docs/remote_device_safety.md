@@ -7,8 +7,8 @@ Two independent mechanisms let the remote device enforce its own timeout:
 
 | Path | Mechanism | Who enforces the timeout |
 |------|-----------|-------------------------|
-| Home Assistant / ESPHome | `duration` in `switch.turn_on` service data | ESPHome firmware |
-| Direct MQTT | Heartbeat topic with timeout metadata | Device firmware |
+| Home Assistant / ESPHome | MQTT timeout topic + heartbeat | ESPHome firmware |
+| Direct MQTT | MQTT timeout topic + heartbeat | Device firmware |
 
 Both run simultaneously. A zone uses whichever path matches its configuration.
 
@@ -36,58 +36,105 @@ Both values are also editable in the web UI under Zone Configuration.
 
 ---
 
-### Solution A: ESPHome Duration
+### Solution A: ESPHome via MQTT Timeout
 
 When BedWetter controls a valve through Home Assistant (via `valve_switch_entity`), it
-calls `switch.turn_on` with a `duration` parameter:
+publishes the watering duration to an MQTT topic before calling `switch.turn_on`:
 
-```json
-POST /api/services/switch/turn_on
-{
-  "entity_id": "switch.front_lawn_valve",
-  "duration": "00:05:00"
-}
-```
+1. BedWetter publishes the duration (in seconds) to `bedwetter/timeout/<zone_slug>`
+2. BedWetter calls `switch.turn_on` via the HA REST API (no extra service data)
+3. BedWetter publishes periodic heartbeats to `bedwetter/heartbeat/<zone_slug>`
 
-ESPHome natively supports this. The device starts an internal timer and automatically
-turns off the switch after the duration — even if BedWetter crashes.
+ESPHome subscribes to the timeout topic, sets an internal timer, then the switch's
+`on_turn_on` automation uses that timer for auto-off.
+
+#### MQTT Topics
+
+| Topic | Payload | Description |
+|-------|---------|-------------|
+| `bedwetter/timeout/<slug>` | `"300"` (plain integer) | Sent once when valve opens |
+| `bedwetter/heartbeat/<slug>` | JSON (see below) | Sent every `heartbeat_interval` seconds |
 
 #### Required ESPHome Configuration
 
-Your ESPHome device must be configured to respect the `duration` parameter. Example:
-
 ```yaml
-# esphome valve device
+mqtt:
+  broker: mqtt.local
+  topic_prefix: ""
+  on_message:
+    - topic: bedwetter/timeout/front_lawn
+      payload: "+"
+      then:
+        - lambda: |-
+            id(watering_duration).set_state(atoi(x.c_str()));
+
+number:
+  - platform: template
+    name: "Watering Duration"
+    id: watering_duration
+    optimistic: true
+    min_value: 1
+    max_value: 3600
+    initial_value: 300
+
 switch:
   - platform: gpio
     id: valve
     name: "Front Lawn Valve"
     pin: GPIO5
-
-    # Optional: manual fallback timer
-    # This is a belt-and-suspenders safety net.
-    # The HA duration parameter takes precedence.
     on_turn_on:
-      - delay: 10m
-      - switch.turn_off:
-          id: valve
-
+      - script.execute: auto_off_timer
     on_turn_off:
-      - switch.turn_off:
-          id: valve
+      - script.stop: auto_off_timer
+
+script:
+  - id: auto_off_timer
+    then:
+      - delay: !lambda "return id(watering_duration).state * 1000;"
+      - switch.turn_off: valve
+
+# Heartbeat timeout safety: if no heartbeat in 90s, turn off
+globals:
+  - id: last_heartbeat_ms
+    type: int
+    restore_value: no
+    initial_value: "0"
+
+interval:
+  - interval: 10s
+    then:
+      - if:
+          condition:
+            and:
+              - switch.is_on: valve
+              - lambda: |-
+                  return (millis() - id(last_heartbeat_ms)) > 90000;
+          then:
+            - switch.turn_off: valve
+            - logger.log: "Heartbeat timeout - valve turned off"
+
+mqtt:
+  on_message:
+    - topic: bedwetter/heartbeat/front_lawn
+      payload: "+"
+      then:
+        - lambda: |-
+            id(last_heartbeat_ms) = millis();
 ```
 
 **How it works:**
-1. BedWetter calls `switch.turn_on` with `duration: "00:05:00"`
-2. ESPHome turns on the GPIO pin
-3. ESPHome starts an internal 5-minute timer
-4. After 5 minutes, ESPHome turns off the switch automatically
-5. If BedWetter closes the valve early, it calls `switch.turn_off`, cancelling the timer
+1. BedWetter publishes `"300"` to `bedwetter/timeout/front_lawn`
+2. ESPHome receives it and sets `watering_duration` to 300
+3. BedWetter calls `switch.turn_on` via HA
+4. ESPHome turns on the GPIO pin and starts the auto-off timer (5 minutes)
+5. BedWetter sends periodic heartbeats; ESPHome updates `last_heartbeat_ms`
+6. After 5 minutes, ESPHome turns off the switch automatically
+7. If heartbeats stop (BedWetter offline), the heartbeat timeout fires after 90s
 
 **Notes:**
-- The `duration` parameter format is `HH:MM:SS`
 - Duration is always set to `max_watering_seconds` for the zone
 - For manual opens from the web UI / HA dashboard, the same duration applies as a safety cap
+- The timeout topic is only published while the valve is open
 
 ---
 
@@ -226,26 +273,24 @@ mqtt:
 
 ### How Both Mechanisms Work Together
 
-For a zone using both HA (ESPHome) and MQTT:
+For a zone using HA (ESPHome) with MQTT enabled:
 
-1. BedWetter sends `switch.turn_on` with `duration: "00:05:00"` to ESPHome via HA
-2. BedWetter simultaneously publishes heartbeats to `bedwetter/heartbeat/<zone>`
-3. The ESPHome device has two safety nets:
-   - Its internal duration timer (5 minutes)
+1. BedWetter publishes `"300"` to `bedwetter/timeout/<zone>` via MQTT
+2. BedWetter simultaneously calls `switch.turn_on` via HA REST API
+3. BedWetter publishes periodic heartbeats to `bedwetter/heartbeat/<zone>`
+4. The ESPHome device has two safety nets:
+   - Its internal auto-off timer (set from the timeout topic)
    - The heartbeat timeout (90 seconds by default)
-4. If BedWetter goes offline:
+5. If BedWetter goes offline:
    - The heartbeat stops → device turns off after timeout
-   - If the heartbeat mechanism fails, the ESPHome duration timer still fires
-5. If the MQTT broker goes down:
-   - The HA REST API may still work (if on a different network path)
-   - The ESPHome duration timer runs on-device, independent of MQTT
+   - If the heartbeat mechanism fails, the auto-off timer still fires
 
 ---
 
 ### Disabling Heartbeats
 
 Set `heartbeat_interval: 0` in the global config to disable heartbeat publishing entirely.
-ESPHome duration still works independently.
+The MQTT timeout topic is still published when the valve opens.
 
 Per-zone, set `heartbeat_timeout: 0` to use the default (3 × interval). There is no
 way to disable heartbeats for a single zone without disabling them globally.
