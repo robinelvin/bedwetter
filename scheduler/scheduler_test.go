@@ -505,7 +505,35 @@ func TestNextWateringForZone_CooldownWithSchedule(t *testing.T) {
 	}
 
 	got, reason := NextWateringForZone(now, snap, entries)
-	// Cooldown active, has schedule → return schedule
+	// Moisture below threshold + cooldown active → return cooldown end (zone will re-water immediately after cooldown)
+	want := time.Date(2026, 7, 12, 14, 30, 0, 0, loc)
+	if !got.Equal(want) {
+		t.Errorf("time: got %v, want %v", got, want)
+	}
+	if reason != "Cooldown until 14:30" {
+		t.Errorf("reason: got %q, want 'Cooldown until 14:30'", reason)
+	}
+}
+
+func TestNextWateringForZone_CooldownWithScheduleAboveThreshold(t *testing.T) {
+	loc := time.UTC
+	now := time.Date(2026, 7, 12, 14, 0, 0, 0, loc) // Sunday, 14:00
+	snap := zones.ZoneSnapshot{
+		Config: config.ZoneConfig{
+			Name: "Z1", ThresholdHigh: 80, ThresholdLow: 30,
+			EarliestWateringTime: "06:00", LatestWateringTime: "10:00",
+			CooldownMinutes: 60,
+		},
+		Moisture:    60, // above ThresholdLow
+		State:       zones.StateIdle,
+		LastWaterEnd: time.Date(2026, 7, 12, 13, 30, 0, 0, loc),
+	}
+	entries := []models.ScheduleConfig{
+		{ZoneName: "Z1", DayOfWeek: "Mon", Time: "06:00", Duration: 1800},
+	}
+
+	got, reason := NextWateringForZone(now, snap, entries)
+	// Moisture above threshold → next scheduled time
 	want := time.Date(2026, 7, 13, 6, 0, 0, 0, loc)
 	if !got.Equal(want) {
 		t.Errorf("time: got %v, want %v", got, want)
