@@ -903,10 +903,31 @@ func (m *Manager) TriggerScheduledWatering(zoneName string, adjustedDuration int
 }
 
 func (m *Manager) ForceClose(zoneName string) {
-	m.CloseValve(zoneName)
+	m.mu.RLock()
 	z, ok := m.zones[zoneName]
+	m.mu.RUnlock()
 	if !ok {
 		return
+	}
+	m.stopHeartbeat(zoneName)
+	topic := z.Config.ValveCommandTopic
+	if topic != "" {
+		m.client.Publish(topic, 1, false, "OFF")
+	} else if m.haAPI != nil && z.Config.ValveSwitchEntity != "" {
+		entityID := z.Config.ValveSwitchEntity
+		parts := splitEntityID(entityID)
+		if parts != nil {
+			z.mu.Lock()
+			z.LastHACommandTime = time.Now()
+			z.mu.Unlock()
+			go func() {
+				if err := m.haAPI.CallService(parts[0], "turn_off", entityID); err != nil {
+					log.Printf("Zone %q: HA API turn_off failed for %s: %v", zoneName, entityID, err)
+				} else {
+					log.Printf("Zone %q: HA API turn_off %s", zoneName, entityID)
+				}
+			}()
+		}
 	}
 	z.mu.Lock()
 	z.State = StateForceClosed

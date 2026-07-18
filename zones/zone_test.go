@@ -843,6 +843,35 @@ func TestEvaluateZoneForceClosedBlocksAutoWatering(t *testing.T) {
 	}
 }
 
+func TestForceCloseDuringWateringBlocksReopenBySensor(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, CooldownMinutes: 0,
+			ValveCommandTopic: "v/z1", EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateWatering
+	z.Moisture = 30
+	z.WateringStarted = time.Now()
+	z.mu.Unlock()
+
+	m.ForceClose("Z1")
+	time.Sleep(10 * time.Millisecond)
+
+	m.handleSensorReading("Z1", []byte("30"))
+	time.Sleep(10 * time.Millisecond)
+
+	z = m.GetZone("Z1")
+	if z.State != StateForceClosed {
+		t.Errorf("expected StateForceClosed after ForceClose, got %v", z.State)
+	}
+}
+
 func TestTriggerScheduledWateringBlockedByFailsafe(t *testing.T) {
 	now := time.Now()
 	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
