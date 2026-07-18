@@ -513,6 +513,9 @@ func (m *Manager) doFailsafe(z *Zone, reason string) {
 	if z.State == StateFailsafe {
 		return
 	}
+	if z.State == StateWatering {
+		z.LastWaterEnd = time.Now()
+	}
 	z.State = StateFailsafe
 	z.LastStateChange = time.Now()
 	m.publishZoneState(z)
@@ -529,10 +532,23 @@ func (m *Manager) exitFailsafe(z *Zone, reason string) {
 	m.doExitFailsafe(z, reason)
 }
 
-// doExitFailsafe clears failsafe and returns to idle. Caller must hold z.mu.
+// doExitFailsafe clears failsafe and returns to idle or cooldown. Caller must hold z.mu.
 func (m *Manager) doExitFailsafe(z *Zone, reason string) {
 	if z.State != StateFailsafe {
 		return
+	}
+	if z.Config.CooldownMinutes > 0 && !z.LastWaterEnd.IsZero() {
+		cooldownEnd := z.LastWaterEnd.Add(time.Duration(z.Config.CooldownMinutes) * time.Minute)
+		if time.Now().Before(cooldownEnd) {
+			z.State = StateCooldown
+			z.LastStateChange = time.Now()
+			m.publishZoneState(z)
+			m.LogEvent("info", "system", "Failsafe cleared, entering cooldown: "+reason+" for "+z.Config.Name, z.Config.Name)
+			if m.sendNtfy != nil {
+				go m.sendNtfy("info", "Failsafe Cleared", fmt.Sprintf("%s for zone '%s' (cooldown active)", reason, z.Config.Name))
+			}
+			return
+		}
 	}
 	z.State = StateIdle
 	z.LastStateChange = time.Now()
@@ -715,6 +731,7 @@ func (m *Manager) evaluateZone(zoneName string) {
 				if m.sendNtfy != nil {
 					go m.sendNtfy("alarm", "Safety Shutoff", fmt.Sprintf("Zone '%s': valve open too long", zoneName))
 				}
+				z.LastWaterEnd = time.Now()
 				z.State = StateFailsafe
 				z.LastStateChange = time.Now()
 				m.publishZoneState(z)

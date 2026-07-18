@@ -1961,3 +1961,102 @@ func TestScheduledWateringSetsPendingActivation(t *testing.T) {
 	}
 	z.mu.RUnlock()
 }
+
+func TestFailsafeSafetyShutoffEntersCooldown(t *testing.T) {
+	now := time.Now()
+	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
+	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
+
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", ThresholdLow: 50, MaxWateringSeconds: 300, CooldownMinutes: 30,
+			ValveCommandTopic: "v/z1", EarliestWateringTime: windowStart, LatestWateringTime: windowEnd},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateWatering
+	z.WateringStarted = time.Now().Add(-600 * time.Second)
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.handleSensorReading("Z1", []byte("30"))
+	time.Sleep(10 * time.Millisecond)
+
+	z = m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Fatalf("expected StateFailsafe, got %v", z.State)
+	}
+	if z.LastWaterEnd.IsZero() {
+		t.Fatal("expected LastWaterEnd to be set on safety shutoff")
+	}
+
+	m.handleValveState("Z1", []byte("OFF"))
+	z = m.GetZone("Z1")
+	if z.State != StateCooldown {
+		t.Fatalf("expected StateCooldown after valve off during failsafe, got %v", z.State)
+	}
+
+	m.handleSensorReading("Z1", []byte("30"))
+	time.Sleep(10 * time.Millisecond)
+	z = m.GetZone("Z1")
+	if z.State != StateCooldown {
+		t.Fatalf("expected StateCooldown (still in cooldown), got %v", z.State)
+	}
+
+	z.mu.Lock()
+	z.LastWaterEnd = time.Now().Add(-31 * time.Minute)
+	z.mu.Unlock()
+
+	m.handleSensorReading("Z1", []byte("30"))
+	time.Sleep(10 * time.Millisecond)
+	z = m.GetZone("Z1")
+	if z.State != StateWatering {
+		t.Fatalf("expected StateWatering after cooldown expired, got %v", z.State)
+	}
+}
+
+func TestFailsafeSensorUnavailabilityEntersCooldown(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", MoistureSensorTopic: "sensor/z1", ThresholdLow: 50, MaxWateringSeconds: 300,
+			CooldownMinutes: 30, ValveCommandTopic: "v/z1"},
+	})
+
+	z := m.GetZone("Z1")
+	z.mu.Lock()
+	z.State = StateWatering
+	z.Moisture = 30
+	z.mu.Unlock()
+
+	m.handleSensorReading("Z1", []byte("unavailable"))
+	z = m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Fatalf("expected StateFailsafe, got %v", z.State)
+	}
+	if z.LastWaterEnd.IsZero() {
+		t.Fatal("expected LastWaterEnd set during failsafe while watering")
+	}
+
+	m.handleSensorReading("Z1", []byte("60"))
+	z = m.GetZone("Z1")
+	if z.State != StateCooldown {
+		t.Fatalf("expected StateCooldown after sensor recovery, got %v", z.State)
+	}
+}
+
+func TestFailsafeExitToIdleWhenNoCooldown(t *testing.T) {
+	m := newTestManager(t, []config.ZoneConfig{
+		{Name: "Z1", MoistureSensorTopic: "sensor/z1", ThresholdLow: 50, ValveCommandTopic: "v/z1"},
+	})
+
+	m.handleSensorReading("Z1", []byte("unavailable"))
+	z := m.GetZone("Z1")
+	if z.State != StateFailsafe {
+		t.Fatalf("expected StateFailsafe, got %v", z.State)
+	}
+
+	m.handleSensorReading("Z1", []byte("60"))
+	z = m.GetZone("Z1")
+	if z.State != StateIdle {
+		t.Fatalf("expected StateIdle (no cooldown configured), got %v", z.State)
+	}
+}
