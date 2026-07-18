@@ -515,6 +515,83 @@ func TestNextWateringForZone_CooldownWithSchedule(t *testing.T) {
 	}
 }
 
+func TestNextWateringForZone_ActiveWateringNoCooldown(t *testing.T) {
+	loc := time.UTC
+	now := time.Date(2026, 7, 12, 8, 0, 0, 0, loc) // Within window
+	snap := zones.ZoneSnapshot{
+		Config: config.ZoneConfig{
+			Name: "Z1", ThresholdHigh: 80, ThresholdLow: 30,
+			MaxWateringSeconds:  300,
+			EarliestWateringTime: "06:00", LatestWateringTime: "10:00",
+		},
+		Moisture:         20,
+		State:            zones.StateWatering,
+		WateringStarted:  time.Date(2026, 7, 12, 7, 58, 0, 0, loc), // started 2 min ago, ends at 8:03
+	}
+
+	got, reason := NextWateringForZone(now, snap, nil)
+	// Watering ends at 8:03, no cooldown → next window open from 8:03 is 8:03
+	want := time.Date(2026, 7, 12, 8, 3, 0, 0, loc)
+	if !got.Equal(want) {
+		t.Errorf("time: got %v, want %v", got, want)
+	}
+	if reason != "After current watering + cooldown" {
+		t.Errorf("reason: got %q, want 'After current watering + cooldown'", reason)
+	}
+}
+
+func TestNextWateringForZone_ActiveWateringWithCooldown(t *testing.T) {
+	loc := time.UTC
+	now := time.Date(2026, 7, 12, 8, 0, 0, 0, loc) // Within window
+	snap := zones.ZoneSnapshot{
+		Config: config.ZoneConfig{
+			Name: "Z1", ThresholdHigh: 80, ThresholdLow: 30,
+			MaxWateringSeconds:  300,
+			CooldownMinutes:     30,
+			EarliestWateringTime: "06:00", LatestWateringTime: "10:00",
+		},
+		Moisture:         20,
+		State:            zones.StateWatering,
+		WateringStarted:  time.Date(2026, 7, 12, 7, 58, 0, 0, loc), // started 2 min ago, ends at 8:03
+	}
+
+	got, reason := NextWateringForZone(now, snap, nil)
+	// Watering ends at 8:03, cooldown until 8:33 → next window open is 8:33
+	want := time.Date(2026, 7, 12, 8, 33, 0, 0, loc)
+	if !got.Equal(want) {
+		t.Errorf("time: got %v, want %v", got, want)
+	}
+	if reason != "After current watering + cooldown" {
+		t.Errorf("reason: got %q, want 'After current watering + cooldown'", reason)
+	}
+}
+
+func TestNextWateringForZone_ActiveWateringPastWindow(t *testing.T) {
+	loc := time.UTC
+	now := time.Date(2026, 7, 12, 9, 50, 0, 0, loc) // Within window
+	snap := zones.ZoneSnapshot{
+		Config: config.ZoneConfig{
+			Name: "Z1", ThresholdHigh: 80, ThresholdLow: 30,
+			MaxWateringSeconds:  300,
+			CooldownMinutes:     30,
+			EarliestWateringTime: "06:00", LatestWateringTime: "10:00",
+		},
+		Moisture:         20,
+		State:            zones.StateWatering,
+		WateringStarted:  time.Date(2026, 7, 12, 9, 48, 0, 0, loc), // started 2 min ago, ends at 9:53
+	}
+
+	got, reason := NextWateringForZone(now, snap, nil)
+	// Watering ends at 9:53, cooldown until 10:23 → past window, next open is tomorrow 06:00
+	want := time.Date(2026, 7, 13, 6, 0, 0, 0, loc)
+	if !got.Equal(want) {
+		t.Errorf("time: got %v, want %v", got, want)
+	}
+	if reason != "After current watering + cooldown" {
+		t.Errorf("reason: got %q, want 'After current watering + cooldown'", reason)
+	}
+}
+
 func TestWeekdayFromString(t *testing.T) {
 	tests := []struct {
 		input string

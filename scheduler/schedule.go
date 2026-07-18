@@ -144,6 +144,24 @@ func NextWateringForZone(now time.Time, snap zones.ZoneSnapshot, scheduleEntries
 				}
 			}
 
+			if snap.State == zones.StateWatering && !snap.WateringStarted.IsZero() {
+				wateringEnd := snap.WateringStarted.Add(time.Duration(snap.Config.MaxWateringSeconds) * time.Second)
+				earliestAfterWatering := wateringEnd
+				if snap.Config.CooldownMinutes > 0 {
+					earliestAfterWatering = wateringEnd.Add(time.Duration(snap.Config.CooldownMinutes) * time.Minute)
+				}
+				if now.Before(earliestAfterWatering) {
+					if windowTime, ok := nextWindowOpen(earliestAfterWatering, earliest, latest); ok {
+						if !hasSched || !windowTime.After(schedTime) {
+							return windowTime, "After current watering + cooldown"
+						}
+					}
+					if hasSched {
+						return schedTime, "Schedule"
+					}
+				}
+			}
+
 			if windowTime, ok := nextWindowOpen(now, earliest, latest); ok {
 				if !hasSched || !windowTime.After(schedTime) {
 					return windowTime, "Soil moisture low"
