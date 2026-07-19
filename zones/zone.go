@@ -60,6 +60,7 @@ type Zone struct {
 	LastWaterEnd              time.Time
 	LastStateChange           time.Time
 	WateringStarted           time.Time
+	WateringDuration          int
 	PendingActivationDuration int
 	PendingActivationTime     time.Time
 	LastHACommandTime         time.Time
@@ -724,19 +725,21 @@ func (m *Manager) evaluateZone(zoneName string) {
 				return
 			}
 			elapsed := time.Since(z.WateringStarted)
-			maxDur := time.Duration(z.Config.MaxWateringSeconds) * time.Second
-			if elapsed >= maxDur {
-				log.Printf("Zone %s: max watering duration reached (%ds) — safety shutoff", zoneName, z.Config.MaxWateringSeconds)
-				m.LogEvent("error", "valve", "Safety shutoff: max duration exceeded for "+zoneName, zoneName)
-				if m.sendNtfy != nil {
-					go m.sendNtfy("alarm", "Safety Shutoff", fmt.Sprintf("Zone '%s': valve open too long", zoneName))
+			if z.WateringDuration > 0 {
+				maxDur := time.Duration(z.WateringDuration) * time.Second
+				if elapsed >= maxDur {
+					log.Printf("Zone %s: max watering duration reached (%ds) — safety shutoff", zoneName, z.WateringDuration)
+					m.LogEvent("error", "valve", "Safety shutoff: max duration exceeded for "+zoneName, zoneName)
+					if m.sendNtfy != nil {
+						go m.sendNtfy("alarm", "Safety Shutoff", fmt.Sprintf("Zone '%s': valve open too long", zoneName))
+					}
+					z.LastWaterEnd = time.Now()
+					z.State = StateFailsafe
+					z.LastStateChange = time.Now()
+					m.publishZoneState(z)
+					go m.closeMasterValve()
+					go m.CloseAllValves()
 				}
-				z.LastWaterEnd = time.Now()
-				z.State = StateFailsafe
-				z.LastStateChange = time.Now()
-				m.publishZoneState(z)
-				go m.closeMasterValve()
-				go m.CloseAllValves()
 			}
 			return
 		}
@@ -813,6 +816,7 @@ func (m *Manager) evaluateZone(zoneName string) {
 	go m.openMasterValve()
 	z.State = StateWatering
 	z.WateringStarted = time.Now()
+	z.WateringDuration = z.Config.MaxWateringSeconds
 	z.LastStateChange = time.Now()
 	z.PendingActivationDuration = z.Config.MaxWateringSeconds
 	z.PendingActivationTime = time.Now()
@@ -893,9 +897,9 @@ func (m *Manager) TriggerScheduledWatering(zoneName string, adjustedDuration int
 	m.LogEvent("info", "valve", fmt.Sprintf("Watering started: %s (schedule, %ds)", zoneName, adjustedDuration), zoneName)
 	go m.openValveIO(zoneName, adjustedDuration)
 	go m.openMasterValve()
-	z.Config.MaxWateringSeconds = adjustedDuration
 	z.State = StateWatering
 	z.WateringStarted = time.Now()
+	z.WateringDuration = adjustedDuration
 	z.LastStateChange = time.Now()
 	z.PendingActivationDuration = adjustedDuration
 	z.PendingActivationTime = time.Now()

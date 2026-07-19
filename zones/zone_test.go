@@ -856,8 +856,9 @@ func TestForceCloseDuringWateringBlocksReopenBySensor(t *testing.T) {
 	z := m.GetZone("Z1")
 	z.mu.Lock()
 	z.State = StateWatering
+	z.WateringStarted = time.Now().Add(-600 * time.Second)
+	z.WateringDuration = 300
 	z.Moisture = 30
-	z.WateringStarted = time.Now()
 	z.mu.Unlock()
 
 	m.ForceClose("Z1")
@@ -1129,6 +1130,7 @@ func TestEvaluateZoneMaxDurationExceededTriggersFailsafe(t *testing.T) {
 	z.mu.Lock()
 	z.State = StateWatering
 	z.WateringStarted = time.Now().Add(-600 * time.Second)
+	z.WateringDuration = 300
 	z.Moisture = 30
 	z.mu.Unlock()
 
@@ -2005,6 +2007,7 @@ func TestFailsafeSafetyShutoffEntersCooldown(t *testing.T) {
 	z.mu.Lock()
 	z.State = StateWatering
 	z.WateringStarted = time.Now().Add(-600 * time.Second)
+	z.WateringDuration = 300
 	z.Moisture = 30
 	z.mu.Unlock()
 
