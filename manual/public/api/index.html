@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>REST API — BedWetter User Manual</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #1a1a2e;
+      --accent: #166534;
+      --accent-light: #dcfce7;
+      --border: #e5e7eb;
+      --code-bg: #f3f4f6;
+      --sidebar-bg: #f9fafb;
+      --link: #166534;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a2e;
+        --fg: #e5e7eb;
+        --accent: #4ade80;
+        --accent-light: #14532d;
+        --border: #374151;
+        --code-bg: #111827;
+        --sidebar-bg: #0f172a;
+        --link: #4ade80;
+      }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.7;
+      display: flex;
+      min-height: 100vh;
+    }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    nav {
+      width: 260px;
+      min-width: 260px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    nav h1 {
+      font-size: 1.25rem;
+      margin-bottom: 1.5rem;
+      color: var(--accent);
+    }
+    nav ul { list-style: none; }
+    nav li { margin-bottom: 0.25rem; }
+    nav a {
+      display: block;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      color: var(--fg);
+    }
+    nav a:hover, nav a.active {
+      background: var(--accent-light);
+      color: var(--accent);
+      text-decoration: none;
+    }
+    main {
+      flex: 1;
+      max-width: 52rem;
+      padding: 2.5rem 3rem;
+    }
+    h1 { font-size: 2rem; margin-bottom: 1rem; }
+    h2 { font-size: 1.5rem; margin-top: 2.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+    h3 { font-size: 1.2rem; margin-top: 2rem; margin-bottom: 0.5rem; }
+    p { margin-bottom: 1rem; }
+    ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+    li { margin-bottom: 0.25rem; }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.875em;
+    }
+    :not(pre) > code {
+      background: var(--code-bg);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+    }
+    th { background: var(--sidebar-bg); font-weight: 600; }
+    blockquote {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-light);
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+      border-radius: 0 6px 6px 0;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <h1>BedWetter</h1>
+    <ul>
+      
+        <li><a href="/getting-started/">Getting Started</a></li>
+      
+        <li><a href="/configuration/">Configuration</a></li>
+      
+        <li><a href="/zones/">Zones</a></li>
+      
+        <li><a href="/schedules/">Schedules</a></li>
+      
+        <li><a href="/weather/">Weather</a></li>
+      
+        <li><a href="/home-assistant/">Home Assistant</a></li>
+      
+        <li><a href="/safety/">Safety</a></li>
+      
+        <li><a href="/alerts/">Alerts</a></li>
+      
+        <li><a href="/web-ui/">Web UI</a></li>
+      
+        <li><a href="/api/">REST API</a></li>
+      
+        <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      
+    </ul>
+  </nav>
+  <main>
+    
+<article>
+  <p>BedWetter provides a REST API for programmatic control and monitoring. The API can be used alongside or instead of the web UI.</p>
+<h2 id="base-url">Base URL</h2>
+<pre tabindex="0"><code>http://&lt;your-host&gt;:8080
+</code></pre><h2 id="endpoints">Endpoints</h2>
+<h3 id="list-all-zones">List All Zones</h3>
+<pre tabindex="0"><code>GET /api/zones
+</code></pre><p>Returns a JSON array of all zones with their current state, moisture readings, and next scheduled watering time.</p>
+<p><strong>Response:</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>[
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;name&#34;</span>: <span style="color:#e6db74">&#34;Raised Bed 1&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;state&#34;</span>: <span style="color:#e6db74">&#34;idle&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;moisture&#34;</span>: <span style="color:#ae81ff">52</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;next_watering&#34;</span>: <span style="color:#e6db74">&#34;2024-07-15T06:00:00Z&#34;</span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>]
+</span></span></code></pre></div><h3 id="manually-water-a-zone">Manually Water a Zone</h3>
+<pre tabindex="0"><code>POST /api/zones/:name/water
+</code></pre><p>Opens the valve for the zone, bypassing the watering window, schedule, sensor, cooldown, and rain checks. The valve opens for <code>max_watering_seconds</code> or until manually stopped.</p>
+<p>This is a force-open action and does not increment the daily activation counter.</p>
+<h3 id="stop-watering-a-zone">Stop Watering a Zone</h3>
+<pre tabindex="0"><code>POST /api/zones/:name/stop
+</code></pre><p>Closes the valve immediately and sets a force-close flag that prevents automatic or scheduled triggers from reopening it until the flag is cleared.</p>
+<h3 id="acknowledge-a-failsafe">Acknowledge a Failsafe</h3>
+<pre tabindex="0"><code>POST /api/zones/:name/acknowledge
+</code></pre><p>Clears the failsafe state for a zone, allowing it to return to normal operation.</p>
+<h2 id="example-usage">Example Usage</h2>
+<h3 id="list-zones-with-curl">List zones with curl</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl http://localhost:8080/api/zones
+</span></span></code></pre></div><h3 id="manually-water-a-zone-1">Manually water a zone</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -X POST http://localhost:8080/api/zones/Raised%20Bed%201/water
+</span></span></code></pre></div><h3 id="stop-watering">Stop watering</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -X POST http://localhost:8080/api/zones/Raised%20Bed%201/stop
+</span></span></code></pre></div><h3 id="acknowledge-failsafe">Acknowledge failsafe</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -X POST http://localhost:8080/api/zones/Raised%20Bed%201/acknowledge
+</span></span></code></pre></div><h2 id="web-routes-htmx">Web Routes (htmx)</h2>
+<p>The web UI also exposes HTMX-friendly routes that return HTML partials:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Route</th>
+          <th>Method</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>/dashboard/zones</code></td>
+          <td>GET</td>
+          <td>Zone cards partial</td>
+      </tr>
+      <tr>
+          <td><code>/dashboard/weather</code></td>
+          <td>GET</td>
+          <td>Weather widget partial</td>
+      </tr>
+      <tr>
+          <td><code>/zones/:id/card</code></td>
+          <td>GET</td>
+          <td>Single zone card partial</td>
+      </tr>
+      <tr>
+          <td><code>/zones/:id/history</code></td>
+          <td>GET</td>
+          <td>Sensor reading history</td>
+      </tr>
+      <tr>
+          <td><code>/zones/:name/open</code></td>
+          <td>POST</td>
+          <td>Open valve</td>
+      </tr>
+      <tr>
+          <td><code>/zones/:name/close</code></td>
+          <td>POST</td>
+          <td>Close valve</td>
+      </tr>
+      <tr>
+          <td><code>/zones/:name/force-close</code></td>
+          <td>POST</td>
+          <td>Force-close valve</td>
+      </tr>
+      <tr>
+          <td><code>/zones/:name/acknowledge</code></td>
+          <td>POST</td>
+          <td>Acknowledge failsafe</td>
+      </tr>
+      <tr>
+          <td><code>/zones/all/open</code></td>
+          <td>POST</td>
+          <td>Open all valves</td>
+      </tr>
+      <tr>
+          <td><code>/zones/all/close</code></td>
+          <td>POST</td>
+          <td>Close all valves</td>
+      </tr>
+  </tbody>
+</table>
+
+</article>
+
+  </main>
+</body>
+</html>

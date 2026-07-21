@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zones — BedWetter User Manual</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #1a1a2e;
+      --accent: #166534;
+      --accent-light: #dcfce7;
+      --border: #e5e7eb;
+      --code-bg: #f3f4f6;
+      --sidebar-bg: #f9fafb;
+      --link: #166534;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a2e;
+        --fg: #e5e7eb;
+        --accent: #4ade80;
+        --accent-light: #14532d;
+        --border: #374151;
+        --code-bg: #111827;
+        --sidebar-bg: #0f172a;
+        --link: #4ade80;
+      }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.7;
+      display: flex;
+      min-height: 100vh;
+    }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    nav {
+      width: 260px;
+      min-width: 260px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    nav h1 {
+      font-size: 1.25rem;
+      margin-bottom: 1.5rem;
+      color: var(--accent);
+    }
+    nav ul { list-style: none; }
+    nav li { margin-bottom: 0.25rem; }
+    nav a {
+      display: block;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      color: var(--fg);
+    }
+    nav a:hover, nav a.active {
+      background: var(--accent-light);
+      color: var(--accent);
+      text-decoration: none;
+    }
+    main {
+      flex: 1;
+      max-width: 52rem;
+      padding: 2.5rem 3rem;
+    }
+    h1 { font-size: 2rem; margin-bottom: 1rem; }
+    h2 { font-size: 1.5rem; margin-top: 2.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+    h3 { font-size: 1.2rem; margin-top: 2rem; margin-bottom: 0.5rem; }
+    p { margin-bottom: 1rem; }
+    ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+    li { margin-bottom: 0.25rem; }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.875em;
+    }
+    :not(pre) > code {
+      background: var(--code-bg);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+    }
+    th { background: var(--sidebar-bg); font-weight: 600; }
+    blockquote {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-light);
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+      border-radius: 0 6px 6px 0;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <h1>BedWetter</h1>
+    <ul>
+      
+        <li><a href="/getting-started/">Getting Started</a></li>
+      
+        <li><a href="/configuration/">Configuration</a></li>
+      
+        <li><a href="/zones/">Zones</a></li>
+      
+        <li><a href="/schedules/">Schedules</a></li>
+      
+        <li><a href="/weather/">Weather</a></li>
+      
+        <li><a href="/home-assistant/">Home Assistant</a></li>
+      
+        <li><a href="/safety/">Safety</a></li>
+      
+        <li><a href="/alerts/">Alerts</a></li>
+      
+        <li><a href="/web-ui/">Web UI</a></li>
+      
+        <li><a href="/api/">REST API</a></li>
+      
+        <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      
+    </ul>
+  </nav>
+  <main>
+    
+<article>
+  <p>Zones are the core building blocks of BedWetter. Each zone represents an independent watering area with its own sensors, valve, thresholds, and schedule.</p>
+<h2 id="zone-configuration">Zone Configuration</h2>
+<h3 id="sensor-source-pick-one">Sensor Source (pick one)</h3>
+<p>Each zone requires a <strong>moisture sensor</strong>. You can source readings either directly via MQTT or through a Home Assistant entity.</p>
+<p><strong>Direct MQTT</strong> — set <code>moisture_sensor_topic</code> to the MQTT topic publishing moisture percentage values.</p>
+<p><strong>Home Assistant entity</strong> — set <code>moisture_sensor_entity</code> to the HA entity ID (e.g., <code>sensor.soil_moisture</code>). BedWetter will poll HA every 10 seconds for the current state.</p>
+<p>Optional sensors follow the same pattern:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Sensor</th>
+          <th>MQTT Field</th>
+          <th>HA Entity Field</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Moisture (required)</td>
+          <td><code>moisture_sensor_topic</code></td>
+          <td><code>moisture_sensor_entity</code></td>
+      </tr>
+      <tr>
+          <td>Humidity</td>
+          <td><code>humidity_sensor_topic</code></td>
+          <td><code>humidity_sensor_entity</code></td>
+      </tr>
+      <tr>
+          <td>Temperature</td>
+          <td><code>temperature_sensor_topic</code></td>
+          <td><code>temperature_sensor_entity</code></td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="valve-control-pick-one">Valve Control (pick one)</h3>
+<p><strong>Direct MQTT</strong> — set <code>valve_command_topic</code> for ON/OFF commands and <code>valve_state_topic</code> for state feedback.</p>
+<p><strong>Home Assistant switch</strong> — set <code>valve_switch_entity</code> to the HA switch entity ID (e.g., <code>switch.solenoid_valve</code>).</p>
+<h3 id="thresholds">Thresholds</h3>
+<table>
+  <thead>
+      <tr>
+          <th>Field</th>
+          <th>Default</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>threshold_low</code></td>
+          <td><code>40</code></td>
+          <td>Moisture percentage below which the valve opens</td>
+      </tr>
+      <tr>
+          <td><code>threshold_high</code></td>
+          <td><code>60</code></td>
+          <td>Moisture percentage above which the valve closes</td>
+      </tr>
+  </tbody>
+</table>
+<p>Having separate low and high thresholds prevents oscillation — the system opens at 40%, fills until 60%, then stops.</p>
+<h3 id="limits">Limits</h3>
+<table>
+  <thead>
+      <tr>
+          <th>Field</th>
+          <th>Default</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>max_watering_seconds</code></td>
+          <td><code>300</code></td>
+          <td>Maximum seconds the valve stays open per cycle</td>
+      </tr>
+      <tr>
+          <td><code>max_activations_per_day</code></td>
+          <td><code>5</code></td>
+          <td>Hard cap on valve activations per day</td>
+      </tr>
+      <tr>
+          <td><code>cooldown_minutes</code></td>
+          <td><code>90</code></td>
+          <td>Minutes after closing before re-evaluation</td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="watering-window">Watering Window</h3>
+<table>
+  <thead>
+      <tr>
+          <th>Field</th>
+          <th>Default</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>earliest_watering_time</code></td>
+          <td><code>06:00</code></td>
+          <td>Earliest time a watering cycle may start</td>
+      </tr>
+      <tr>
+          <td><code>latest_watering_time</code></td>
+          <td><code>10:00</code></td>
+          <td>Latest time a watering cycle may start</td>
+      </tr>
+  </tbody>
+</table>
+<p>A cycle that starts within the window is allowed to complete even if it runs past the window end. The window only gates the <em>start</em> of a cycle.</p>
+<h3 id="seasonal-multipliers">Seasonal Multipliers</h3>
+<p>Scale watering duration by month. For example, <code>1.5</code> in July means 50% longer watering during summer.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">seasonal_multipliers</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">1: 0.5    # January</span>: <span style="color:#ae81ff">half duration</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">4: 0.8    # April</span>: <span style="color:#ae81ff">slightly less</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">7: 1.5    # July</span>: <span style="color:#ae81ff">50</span><span style="color:#ae81ff">% more</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">10: 1.0   # October</span>: <span style="color:#ae81ff">normal</span>
+</span></span></code></pre></div><h3 id="indoor-zones">Indoor Zones</h3>
+<table>
+  <thead>
+      <tr>
+          <th>Field</th>
+          <th>Default</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>indoor</code></td>
+          <td><code>false</code></td>
+          <td>When <code>true</code>, rain detection is bypassed for this zone</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="example-zone-configurations">Example Zone Configurations</h2>
+<h3 id="direct-mqtt-zone">Direct MQTT Zone</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Raised Bed 1</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">moisture_sensor_topic</span>: <span style="color:#ae81ff">esp01/sensor/soil_moisture/state</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">valve_command_topic</span>: <span style="color:#ae81ff">esp01/switch/solenoid_valve/command</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">valve_state_topic</span>: <span style="color:#ae81ff">esp01/switch/solenoid_valve/state</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">threshold_low</span>: <span style="color:#ae81ff">40</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">threshold_high</span>: <span style="color:#ae81ff">60</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">max_watering_seconds</span>: <span style="color:#ae81ff">300</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">max_activations_per_day</span>: <span style="color:#ae81ff">5</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">cooldown_minutes</span>: <span style="color:#ae81ff">90</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">earliest_watering_time</span>: <span style="color:#e6db74">&#34;06:00&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">latest_watering_time</span>: <span style="color:#e6db74">&#34;10:00&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">heartbeat_timeout</span>: <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">seasonal_multipliers</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">1</span>: <span style="color:#ae81ff">0.5</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">7</span>: <span style="color:#ae81ff">1.5</span>
+</span></span></code></pre></div><h3 id="home-assistant-entity-zone">Home Assistant Entity Zone</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span>- <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Herb Garden</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">moisture_sensor_entity</span>: <span style="color:#ae81ff">sensor.garden_sensor_soil_moisture</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">valve_switch_entity</span>: <span style="color:#ae81ff">switch.garden_sensor_water_valve</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">threshold_low</span>: <span style="color:#ae81ff">35</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">threshold_high</span>: <span style="color:#ae81ff">55</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">max_watering_seconds</span>: <span style="color:#ae81ff">240</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">max_activations_per_day</span>: <span style="color:#ae81ff">4</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">cooldown_minutes</span>: <span style="color:#ae81ff">120</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">earliest_watering_time</span>: <span style="color:#e6db74">&#34;07:00&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">latest_watering_time</span>: <span style="color:#e6db74">&#34;09:00&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">heartbeat_timeout</span>: <span style="color:#ae81ff">0</span>
+</span></span></code></pre></div><h2 id="zone-state-machine">Zone State Machine</h2>
+<p>Each zone operates as a state machine:</p>
+<pre tabindex="0"><code>         ┌─────────────────────────────────┐
+         │                                 ▼
+      [IDLE] ──trigger──► [WATERING] ──duration──► [COOLDOWN]
+         ▲                      │                        │
+         │               safety shutoff             cooldown expires
+         │                      │                        │
+         │                      ▼                        │
+         │                  [FAULT]                      │
+         │                                               │
+         └───────────────────────────────────────────────┘
+</code></pre><table>
+  <thead>
+      <tr>
+          <th>State</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>Idle</strong></td>
+          <td>Waiting for a trigger (schedule, sensor, or manual)</td>
+      </tr>
+      <tr>
+          <td><strong>Watering</strong></td>
+          <td>Valve is open, actively watering</td>
+      </tr>
+      <tr>
+          <td><strong>Cooldown</strong></td>
+          <td>Waiting after watering before re-evaluation</td>
+      </tr>
+      <tr>
+          <td><strong>ManualOpen</strong></td>
+          <td>User-initiated valve open</td>
+      </tr>
+      <tr>
+          <td><strong>Failsafe</strong></td>
+          <td>Error condition (stale sensor, valve unavailable, max duration exceeded)</td>
+      </tr>
+      <tr>
+          <td><strong>ForceClosed</strong></td>
+          <td>User-initiated emergency stop — prevents automatic reopening</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="mqtt-topic-structure">MQTT Topic Structure</h2>
+<p>BedWetter publishes and subscribes to the following MQTT topics per zone:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Topic</th>
+          <th>Direction</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>bedwetter/zone/&lt;slug&gt;/state</code></td>
+          <td>Publish</td>
+          <td>Current zone state (idle/watering/cooldown/etc.)</td>
+      </tr>
+      <tr>
+          <td><code>bedwetter/timeout/&lt;slug&gt;</code></td>
+          <td>Publish</td>
+          <td>Watering duration for remote device timer</td>
+      </tr>
+      <tr>
+          <td><code>bedwetter/heartbeat/&lt;slug&gt;</code></td>
+          <td>Publish</td>
+          <td>JSON heartbeat while valve is open</td>
+      </tr>
+      <tr>
+          <td><code>&lt;zone&gt;/moisture/state</code></td>
+          <td>Subscribe</td>
+          <td>Soil moisture readings</td>
+      </tr>
+      <tr>
+          <td><code>&lt;zone&gt;/valve/command</code></td>
+          <td>Publish</td>
+          <td>ON/OFF valve commands</td>
+      </tr>
+      <tr>
+          <td><code>&lt;zone&gt;/valve/state</code></td>
+          <td>Subscribe</td>
+          <td>Valve state feedback</td>
+      </tr>
+  </tbody>
+</table>
+<p>The <code>&lt;slug&gt;</code> is the zone name with spaces replaced by underscores (e.g., <code>Raised_Bed_1</code>).</p>
+<h2 id="managing-zones">Managing Zones</h2>
+<p>Zones can be created, edited, and deleted through the web UI at <strong>Configuration &gt; Zones</strong>. After changes, the zone is updated in the SQLite database immediately.</p>
+
+</article>
+
+  </main>
+</body>
+</html>

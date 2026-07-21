@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Schedules — BedWetter User Manual</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #1a1a2e;
+      --accent: #166534;
+      --accent-light: #dcfce7;
+      --border: #e5e7eb;
+      --code-bg: #f3f4f6;
+      --sidebar-bg: #f9fafb;
+      --link: #166534;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a2e;
+        --fg: #e5e7eb;
+        --accent: #4ade80;
+        --accent-light: #14532d;
+        --border: #374151;
+        --code-bg: #111827;
+        --sidebar-bg: #0f172a;
+        --link: #4ade80;
+      }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.7;
+      display: flex;
+      min-height: 100vh;
+    }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    nav {
+      width: 260px;
+      min-width: 260px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    nav h1 {
+      font-size: 1.25rem;
+      margin-bottom: 1.5rem;
+      color: var(--accent);
+    }
+    nav ul { list-style: none; }
+    nav li { margin-bottom: 0.25rem; }
+    nav a {
+      display: block;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      color: var(--fg);
+    }
+    nav a:hover, nav a.active {
+      background: var(--accent-light);
+      color: var(--accent);
+      text-decoration: none;
+    }
+    main {
+      flex: 1;
+      max-width: 52rem;
+      padding: 2.5rem 3rem;
+    }
+    h1 { font-size: 2rem; margin-bottom: 1rem; }
+    h2 { font-size: 1.5rem; margin-top: 2.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+    h3 { font-size: 1.2rem; margin-top: 2rem; margin-bottom: 0.5rem; }
+    p { margin-bottom: 1rem; }
+    ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+    li { margin-bottom: 0.25rem; }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.875em;
+    }
+    :not(pre) > code {
+      background: var(--code-bg);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+    }
+    th { background: var(--sidebar-bg); font-weight: 600; }
+    blockquote {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-light);
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+      border-radius: 0 6px 6px 0;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <h1>BedWetter</h1>
+    <ul>
+      
+        <li><a href="/getting-started/">Getting Started</a></li>
+      
+        <li><a href="/configuration/">Configuration</a></li>
+      
+        <li><a href="/zones/">Zones</a></li>
+      
+        <li><a href="/schedules/">Schedules</a></li>
+      
+        <li><a href="/weather/">Weather</a></li>
+      
+        <li><a href="/home-assistant/">Home Assistant</a></li>
+      
+        <li><a href="/safety/">Safety</a></li>
+      
+        <li><a href="/alerts/">Alerts</a></li>
+      
+        <li><a href="/web-ui/">Web UI</a></li>
+      
+        <li><a href="/api/">REST API</a></li>
+      
+        <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      
+    </ul>
+  </nav>
+  <main>
+    
+<article>
+  <p>Schedules define <em>when to check</em> whether watering is needed. They do not directly open the valve — they initiate an evaluation of the zone&rsquo;s conditions.</p>
+<h2 id="weekly-schedules">Weekly Schedules</h2>
+<p>Each zone can have a weekly schedule: one or more day-and-time entries that trigger evaluation.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">schedules</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#f92672">zone_name</span>: <span style="color:#ae81ff">Raised Bed 1</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">schedule</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">day_of_week</span>: <span style="color:#ae81ff">Mon</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">time</span>: <span style="color:#e6db74">&#34;06:00&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">duration</span>: <span style="color:#ae81ff">300</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">day_of_week</span>: <span style="color:#ae81ff">Wed</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">time</span>: <span style="color:#e6db74">&#34;06:00&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">duration</span>: <span style="color:#ae81ff">300</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">day_of_week</span>: <span style="color:#ae81ff">Fri</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">time</span>: <span style="color:#e6db74">&#34;06:00&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">duration</span>: <span style="color:#ae81ff">300</span>
+</span></span></code></pre></div><p>At each scheduled time, BedWetter evaluates:</p>
+<ol>
+<li>Is the current time within the watering window?</li>
+<li>Is a manual force-close active?</li>
+<li>Is the rain sensor triggered?</li>
+<li>Is rain forecast above threshold?</li>
+<li>Is moisture above <code>threshold_high</code>?</li>
+<li>Has the daily activation limit been reached?</li>
+<li>Is a cooldown period active?</li>
+</ol>
+<p>If all checks pass, a watering cycle begins.</p>
+<h2 id="day-of-week-format">Day-of-Week Format</h2>
+<p>Days use three-letter abbreviations: <code>Mon</code>, <code>Tue</code>, <code>Wed</code>, <code>Thu</code>, <code>Fri</code>, <code>Sat</code>, <code>Sun</code>.</p>
+<h2 id="month-overrides">Month Overrides</h2>
+<p>Month overrides provide completely different schedules for specific months. When a month override is active for the current month, it takes full precedence over the weekly schedule.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">schedules</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#f92672">zone_name</span>: <span style="color:#ae81ff">Raised Bed 1</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">schedule</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">day_of_week</span>: <span style="color:#ae81ff">Mon</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">time</span>: <span style="color:#e6db74">&#34;06:00&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">duration</span>: <span style="color:#ae81ff">300</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">month_overrides</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">month</span>: <span style="color:#ae81ff">7</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">schedule</span>:
+</span></span><span style="display:flex;"><span>          - <span style="color:#f92672">day_of_week</span>: <span style="color:#ae81ff">Mon</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">time</span>: <span style="color:#e6db74">&#34;06:00&#34;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">duration</span>: <span style="color:#ae81ff">360</span>
+</span></span><span style="display:flex;"><span>          - <span style="color:#f92672">day_of_week</span>: <span style="color:#ae81ff">Wed</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">time</span>: <span style="color:#e6db74">&#34;06:00&#34;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">duration</span>: <span style="color:#ae81ff">360</span>
+</span></span><span style="display:flex;"><span>          - <span style="color:#f92672">day_of_week</span>: <span style="color:#ae81ff">Fri</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">time</span>: <span style="color:#e6db74">&#34;06:00&#34;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">duration</span>: <span style="color:#ae81ff">360</span>
+</span></span><span style="display:flex;"><span>          - <span style="color:#f92672">day_of_week</span>: <span style="color:#ae81ff">Sun</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">time</span>: <span style="color:#e6db74">&#34;06:00&#34;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">duration</span>: <span style="color:#ae81ff">360</span>
+</span></span></code></pre></div><p>In this example, during July the zone waters Mon/Wed/Fri/Sun at 06:00 for 360 seconds instead of the normal Mon/Wed/Fri schedule at 300 seconds.</p>
+<h2 id="seasonal-multipliers">Seasonal Multipliers</h2>
+<p>In addition to (or instead of) month overrides, seasonal multipliers scale the scheduled duration per month. This is configured per-zone, not per-schedule.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#75715e"># In zone config:</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">seasonal_multipliers</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">1: 0.5    # January</span>: <span style="color:#ae81ff">50</span><span style="color:#ae81ff">% duration (150s instead of 300s)</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">4: 0.8    # April</span>: <span style="color:#ae81ff">80</span><span style="color:#ae81ff">% duration (240s)</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">7: 1.5    # July</span>: <span style="color:#ae81ff">150</span><span style="color:#ae81ff">% duration (450s)</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">10: 1.0   # October</span>: <span style="color:#ae81ff">normal duration</span>
+</span></span></code></pre></div><p>Multipliers apply to the duration from the schedule or month override. Months not listed use a multiplier of <code>1.0</code>.</p>
+<h2 id="schedule-evaluation-flow">Schedule Evaluation Flow</h2>
+<pre tabindex="0"><code>Scheduled time arrives
+  → Is it within the watering window?       No → Skip
+  → Is a force-close override active?       Yes → Skip
+  → Is the rain sensor triggered?           Yes → Skip
+  → Is rain forecast above threshold?       Yes → Skip
+  → Is moisture above threshold_high?       Yes → Skip (already wet)
+  → Has daily activation limit been reached? Yes → Skip
+  → Is cooldown active?                     Yes → Skip
+  → All checks passed → OPEN VALVE
+</code></pre><h2 id="managing-schedules">Managing Schedules</h2>
+<p>Schedules are managed through the web UI at <strong>Schedules</strong>. You can:</p>
+<ul>
+<li>Add new schedule entries for any zone</li>
+<li>Edit day, time, and duration</li>
+<li>Create month overrides for specific months</li>
+<li>Delete schedule entries</li>
+</ul>
+<p>All schedule data is stored in SQLite and takes effect immediately.</p>
+
+</article>
+
+  </main>
+</body>
+</html>

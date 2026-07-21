@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Getting Started — BedWetter User Manual</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #1a1a2e;
+      --accent: #166534;
+      --accent-light: #dcfce7;
+      --border: #e5e7eb;
+      --code-bg: #f3f4f6;
+      --sidebar-bg: #f9fafb;
+      --link: #166534;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a2e;
+        --fg: #e5e7eb;
+        --accent: #4ade80;
+        --accent-light: #14532d;
+        --border: #374151;
+        --code-bg: #111827;
+        --sidebar-bg: #0f172a;
+        --link: #4ade80;
+      }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.7;
+      display: flex;
+      min-height: 100vh;
+    }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    nav {
+      width: 260px;
+      min-width: 260px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    nav h1 {
+      font-size: 1.25rem;
+      margin-bottom: 1.5rem;
+      color: var(--accent);
+    }
+    nav ul { list-style: none; }
+    nav li { margin-bottom: 0.25rem; }
+    nav a {
+      display: block;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      color: var(--fg);
+    }
+    nav a:hover, nav a.active {
+      background: var(--accent-light);
+      color: var(--accent);
+      text-decoration: none;
+    }
+    main {
+      flex: 1;
+      max-width: 52rem;
+      padding: 2.5rem 3rem;
+    }
+    h1 { font-size: 2rem; margin-bottom: 1rem; }
+    h2 { font-size: 1.5rem; margin-top: 2.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+    h3 { font-size: 1.2rem; margin-top: 2rem; margin-bottom: 0.5rem; }
+    p { margin-bottom: 1rem; }
+    ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+    li { margin-bottom: 0.25rem; }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.875em;
+    }
+    :not(pre) > code {
+      background: var(--code-bg);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+    }
+    th { background: var(--sidebar-bg); font-weight: 600; }
+    blockquote {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-light);
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+      border-radius: 0 6px 6px 0;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <h1>BedWetter</h1>
+    <ul>
+      
+        <li><a href="/getting-started/">Getting Started</a></li>
+      
+        <li><a href="/configuration/">Configuration</a></li>
+      
+        <li><a href="/zones/">Zones</a></li>
+      
+        <li><a href="/schedules/">Schedules</a></li>
+      
+        <li><a href="/weather/">Weather</a></li>
+      
+        <li><a href="/home-assistant/">Home Assistant</a></li>
+      
+        <li><a href="/safety/">Safety</a></li>
+      
+        <li><a href="/alerts/">Alerts</a></li>
+      
+        <li><a href="/web-ui/">Web UI</a></li>
+      
+        <li><a href="/api/">REST API</a></li>
+      
+        <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      
+    </ul>
+  </nav>
+  <main>
+    
+<article>
+  <h2 id="requirements">Requirements</h2>
+<ul>
+<li><strong>Go 1.26+</strong> (for building from source)</li>
+<li><strong>MQTT broker</strong> (e.g., Mosquitto)</li>
+<li><strong>Linux</strong> with SQLite support (CGO enabled for <code>mattn/go-sqlite3</code>)</li>
+<li><strong>Optional:</strong> Home Assistant instance</li>
+<li><strong>Optional:</strong> ESP or other MQTT-capable sensor/valve hardware</li>
+</ul>
+<h2 id="building-from-source">Building from Source</h2>
+<p>Clone the repository and build:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>git clone https://github.com/robinelvin/bedwetter.git
+</span></span><span style="display:flex;"><span>cd bedwetter
+</span></span><span style="display:flex;"><span>make build
+</span></span></code></pre></div><p>This compiles Tailwind CSS and builds the Go binary. The resulting <code>bedwetter</code> binary is ready to run.</p>
+<h3 id="build-commands">Build Commands</h3>
+<table>
+  <thead>
+      <tr>
+          <th>Command</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>make build</code></td>
+          <td>Compile Tailwind CSS and build Go binary</td>
+      </tr>
+      <tr>
+          <td><code>make css</code></td>
+          <td>Compile Tailwind CSS only</td>
+      </tr>
+      <tr>
+          <td><code>make dev</code></td>
+          <td>Live-reload development mode (requires <a href="https://github.com/air-verse/air">Air</a>)</td>
+      </tr>
+      <tr>
+          <td><code>make test</code></td>
+          <td>Run all Go tests with coverage</td>
+      </tr>
+      <tr>
+          <td><code>make clean</code></td>
+          <td>Remove binary, database, and temp files</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="initial-configuration">Initial Configuration</h2>
+<ol>
+<li>Copy the example configuration:</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cp example-config.yaml config.yaml
+</span></span></code></pre></div><ol start="2">
+<li>
+<p>Edit <code>config.yaml</code> with your MQTT broker details, zone definitions, and other settings. At minimum, configure:</p>
+<ul>
+<li><strong>MQTT broker</strong> connection details</li>
+<li><strong>At least one zone</strong> with sensor and valve topics</li>
+<li><strong>Weather coordinates</strong> (latitude/longitude) for forecast integration</li>
+</ul>
+</li>
+</ol>
+<p>See the <a href="../configuration/">Configuration</a> section for the full reference.</p>
+<h2 id="running-bedwetter">Running BedWetter</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>./bedwetter
+</span></span></code></pre></div><p>By default, BedWetter reads <code>config.yaml</code> from the current directory and listens on port <code>8080</code>. To specify a different config file:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>./bedwetter -config /path/to/config.yaml
+</span></span></code></pre></div><h2 id="first-time-setup">First-Time Setup</h2>
+<p>On first launch, open your browser to:</p>
+<pre tabindex="0"><code>http://&lt;your-host&gt;:8080/setup
+</code></pre><p>The setup wizard will prompt you to create an admin account. Until you do, the default credentials <code>admin</code> / <code>bedwetter</code> work at the login page.</p>
+<p>After creating your admin account, you can:</p>
+<ul>
+<li>Add and configure zones via the web UI</li>
+<li>Set up watering schedules</li>
+<li>Configure alerts and notifications</li>
+<li>All settings are persisted in SQLite — the YAML file is only used for initial seeding</li>
+</ul>
+<h2 id="running-as-a-service">Running as a Service</h2>
+<p>BedWetter runs as a foreground process. To run it as a background service, use systemd:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#75715e"># /etc/systemd/system/bedwetter.service</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[Unit]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Description</span><span style="color:#f92672">=</span><span style="color:#e6db74">BedWetter Irrigation Controller</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">After</span><span style="color:#f92672">=</span><span style="color:#e6db74">network.target mosquitto.service</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[Service]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Type</span><span style="color:#f92672">=</span><span style="color:#e6db74">simple</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">ExecStart</span><span style="color:#f92672">=</span><span style="color:#e6db74">/opt/bedwetter/bedwetter -config /opt/bedwetter/config.yaml</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">WorkingDirectory</span><span style="color:#f92672">=</span><span style="color:#e6db74">/opt/bedwetter</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Restart</span><span style="color:#f92672">=</span><span style="color:#e6db74">on-failure</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">RestartSec</span><span style="color:#f92672">=</span><span style="color:#e6db74">10</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">[Install]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">WantedBy</span><span style="color:#f92672">=</span><span style="color:#e6db74">multi-user.target</span>
+</span></span></code></pre></div><div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo systemctl daemon-reload
+</span></span><span style="display:flex;"><span>sudo systemctl enable bedwetter
+</span></span><span style="display:flex;"><span>sudo systemctl start bedwetter
+</span></span></code></pre></div><h2 id="cross-compilation">Cross-Compilation</h2>
+<p>Pre-built binaries are available for multiple platforms via GitHub releases:</p>
+<ul>
+<li><code>linux/amd64</code>, <code>linux/arm64</code>, <code>linux/arm</code></li>
+<li><code>darwin/amd64</code>, <code>darwin/arm64</code></li>
+<li><code>windows/amd64</code></li>
+</ul>
+<p>To build for a specific platform:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>CGO_ENABLED<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span> go build -ldflags<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;-s -w&#34;</span> -o build/bedwetter .
+</span></span></code></pre></div><aside style="border-left: 4px solid var(--accent); background: var(--accent-light); padding: 0.75rem 1rem; margin: 1.5rem 0; border-radius: 0 6px 6px 0;">
+  <strong>Note:</strong> 
+When building with `CGO_ENABLED=0`, ensure your SQLite driver supports pure-Go mode or use static linking.
+</aside>
+
+</article>
+
+  </main>
+</body>
+</html>

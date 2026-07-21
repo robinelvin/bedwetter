@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>//localhost:1313/</loc>
+  </url><url>
+    <loc>//localhost:1313/getting-started/</loc>
+  </url><url>
+    <loc>//localhost:1313/configuration/</loc>
+  </url><url>
+    <loc>//localhost:1313/zones/</loc>
+  </url><url>
+    <loc>//localhost:1313/schedules/</loc>
+  </url><url>
+    <loc>//localhost:1313/weather/</loc>
+  </url><url>
+    <loc>//localhost:1313/home-assistant/</loc>
+  </url><url>
+    <loc>//localhost:1313/safety/</loc>
+  </url><url>
+    <loc>//localhost:1313/alerts/</loc>
+  </url><url>
+    <loc>//localhost:1313/web-ui/</loc>
+  </url><url>
+    <loc>//localhost:1313/api/</loc>
+  </url><url>
+    <loc>//localhost:1313/troubleshooting/</loc>
+  </url><url>
+    <loc>//localhost:1313/categories/</loc>
+  </url><url>
+    <loc>//localhost:1313/tags/</loc>
+  </url>
+</urlset>

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alerts &amp; Notifications — BedWetter User Manual</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #1a1a2e;
+      --accent: #166534;
+      --accent-light: #dcfce7;
+      --border: #e5e7eb;
+      --code-bg: #f3f4f6;
+      --sidebar-bg: #f9fafb;
+      --link: #166534;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a2e;
+        --fg: #e5e7eb;
+        --accent: #4ade80;
+        --accent-light: #14532d;
+        --border: #374151;
+        --code-bg: #111827;
+        --sidebar-bg: #0f172a;
+        --link: #4ade80;
+      }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.7;
+      display: flex;
+      min-height: 100vh;
+    }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    nav {
+      width: 260px;
+      min-width: 260px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    nav h1 {
+      font-size: 1.25rem;
+      margin-bottom: 1.5rem;
+      color: var(--accent);
+    }
+    nav ul { list-style: none; }
+    nav li { margin-bottom: 0.25rem; }
+    nav a {
+      display: block;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      color: var(--fg);
+    }
+    nav a:hover, nav a.active {
+      background: var(--accent-light);
+      color: var(--accent);
+      text-decoration: none;
+    }
+    main {
+      flex: 1;
+      max-width: 52rem;
+      padding: 2.5rem 3rem;
+    }
+    h1 { font-size: 2rem; margin-bottom: 1rem; }
+    h2 { font-size: 1.5rem; margin-top: 2.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+    h3 { font-size: 1.2rem; margin-top: 2rem; margin-bottom: 0.5rem; }
+    p { margin-bottom: 1rem; }
+    ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+    li { margin-bottom: 0.25rem; }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.875em;
+    }
+    :not(pre) > code {
+      background: var(--code-bg);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+    }
+    th { background: var(--sidebar-bg); font-weight: 600; }
+    blockquote {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-light);
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+      border-radius: 0 6px 6px 0;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <h1>BedWetter</h1>
+    <ul>
+      
+        <li><a href="/getting-started/">Getting Started</a></li>
+      
+        <li><a href="/configuration/">Configuration</a></li>
+      
+        <li><a href="/zones/">Zones</a></li>
+      
+        <li><a href="/schedules/">Schedules</a></li>
+      
+        <li><a href="/weather/">Weather</a></li>
+      
+        <li><a href="/home-assistant/">Home Assistant</a></li>
+      
+        <li><a href="/safety/">Safety</a></li>
+      
+        <li><a href="/alerts/">Alerts</a></li>
+      
+        <li><a href="/web-ui/">Web UI</a></li>
+      
+        <li><a href="/api/">REST API</a></li>
+      
+        <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      
+    </ul>
+  </nav>
+  <main>
+    
+<article>
+  <p>BedWetter supports two notification channels: email (SMTP) and push notifications (ntfy).</p>
+<h2 id="email-alerts-smtp">Email Alerts (SMTP)</h2>
+<h3 id="configuration">Configuration</h3>
+<table>
+  <thead>
+      <tr>
+          <th>Field</th>
+          <th>Default</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>email</code></td>
+          <td>—</td>
+          <td>Recipient email address</td>
+      </tr>
+      <tr>
+          <td><code>stale_sensor_minutes</code></td>
+          <td><code>60</code></td>
+          <td>Minutes without sensor update before triggering a stale sensor alert</td>
+      </tr>
+      <tr>
+          <td><code>smtp_server</code></td>
+          <td><code>smtp.gmail.com</code></td>
+          <td>SMTP server hostname</td>
+      </tr>
+      <tr>
+          <td><code>smtp_port</code></td>
+          <td><code>587</code></td>
+          <td>SMTP server port</td>
+      </tr>
+      <tr>
+          <td><code>smtp_username</code></td>
+          <td>—</td>
+          <td>SMTP authentication username</td>
+      </tr>
+      <tr>
+          <td><code>smtp_password</code></td>
+          <td>—</td>
+          <td>SMTP authentication password</td>
+      </tr>
+      <tr>
+          <td><code>from_email</code></td>
+          <td>—</td>
+          <td>Sender address</td>
+      </tr>
+  </tbody>
+</table>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">alerts</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">email</span>: <span style="color:#ae81ff">you@example.com</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">stale_sensor_minutes</span>: <span style="color:#ae81ff">60</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">smtp_server</span>: <span style="color:#ae81ff">smtp.gmail.com</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">smtp_port</span>: <span style="color:#ae81ff">587</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">smtp_username</span>: <span style="color:#ae81ff">you@gmail.com</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">smtp_password</span>: <span style="color:#ae81ff">your_app_password</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">from_email</span>: <span style="color:#ae81ff">bedwetter@example.com</span>
+</span></span></code></pre></div><h3 id="alert-types">Alert Types</h3>
+<table>
+  <thead>
+      <tr>
+          <th>Alert</th>
+          <th>Trigger</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>Stale sensor</strong></td>
+          <td>No sensor reading received within <code>stale_sensor_minutes</code></td>
+      </tr>
+      <tr>
+          <td><strong>Max watering cycles</strong></td>
+          <td>Daily activation limit reached and soil is still dry</td>
+      </tr>
+      <tr>
+          <td><strong>Valve stuck open</strong></td>
+          <td>Valve has been open longer than <code>max_watering_seconds</code></td>
+      </tr>
+  </tbody>
+</table>
+<p>Email alerts are rate-limited to <strong>once per alert type per hour</strong> to avoid flooding your inbox.</p>
+<h2 id="push-notifications-ntfy">Push Notifications (ntfy)</h2>
+<p><a href="https://ntfy.sh">ntfy</a> is a simple HTTP-based pub-sub notification service.</p>
+<h3 id="configuration-1">Configuration</h3>
+<table>
+  <thead>
+      <tr>
+          <th>Field</th>
+          <th>Default</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>enabled</code></td>
+          <td><code>false</code></td>
+          <td>Enable ntfy notifications</td>
+      </tr>
+      <tr>
+          <td><code>server</code></td>
+          <td><code>https://ntfy.sh</code></td>
+          <td>ntfy server URL</td>
+      </tr>
+      <tr>
+          <td><code>uuid</code></td>
+          <td>—</td>
+          <td>Topic UUID (auto-generated on first run if empty)</td>
+      </tr>
+      <tr>
+          <td><code>token</code></td>
+          <td>—</td>
+          <td>Auth token for private ntfy servers (optional)</td>
+      </tr>
+      <tr>
+          <td><code>alert_info</code></td>
+          <td><code>true</code></td>
+          <td>Send info-level notifications</td>
+      </tr>
+      <tr>
+          <td><code>alert_warn</code></td>
+          <td><code>true</code></td>
+          <td>Send warning-level notifications</td>
+      </tr>
+      <tr>
+          <td><code>alert_alarm</code></td>
+          <td><code>true</code></td>
+          <td>Send alarm-level notifications</td>
+      </tr>
+  </tbody>
+</table>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">ntfy</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">enabled</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">server</span>: <span style="color:#ae81ff">https://ntfy.sh</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">uuid</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">token</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">alert_info</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">alert_warn</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">alert_alarm</span>: <span style="color:#66d9ef">true</span>
+</span></span></code></pre></div><h3 id="severity-levels">Severity Levels</h3>
+<table>
+  <thead>
+      <tr>
+          <th>Level</th>
+          <th>Priority</th>
+          <th>Examples</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>info</strong></td>
+          <td>3</td>
+          <td>Valve opened, valve closed</td>
+      </tr>
+      <tr>
+          <td><strong>warn</strong></td>
+          <td>4</td>
+          <td>Stale sensor, max daily activations reached, force close</td>
+      </tr>
+      <tr>
+          <td><strong>alarm</strong></td>
+          <td>5</td>
+          <td>Failsafe activated, safety shutoff triggered</td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="subscribing">Subscribing</h3>
+<p>On first run, BedWetter generates a UUID-based topic. Subscribe to it using:</p>
+<ul>
+<li><strong>ntfy web app:</strong> <code>https://ntfy.sh/&lt;uuid&gt;</code></li>
+<li><strong>ntfy mobile app:</strong> Add the topic <code>https://ntfy.sh/&lt;uuid&gt;</code></li>
+<li><strong>curl:</strong> <code>curl https://ntfy.sh/&lt;uuid&gt;</code></li>
+</ul>
+<p>The UUID is displayed on the Configuration page in the web UI after setup.</p>
+
+</article>
+
+  </main>
+</body>
+</html>

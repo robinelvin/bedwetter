@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Troubleshooting — BedWetter User Manual</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #1a1a2e;
+      --accent: #166534;
+      --accent-light: #dcfce7;
+      --border: #e5e7eb;
+      --code-bg: #f3f4f6;
+      --sidebar-bg: #f9fafb;
+      --link: #166534;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a2e;
+        --fg: #e5e7eb;
+        --accent: #4ade80;
+        --accent-light: #14532d;
+        --border: #374151;
+        --code-bg: #111827;
+        --sidebar-bg: #0f172a;
+        --link: #4ade80;
+      }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.7;
+      display: flex;
+      min-height: 100vh;
+    }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    nav {
+      width: 260px;
+      min-width: 260px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    nav h1 {
+      font-size: 1.25rem;
+      margin-bottom: 1.5rem;
+      color: var(--accent);
+    }
+    nav ul { list-style: none; }
+    nav li { margin-bottom: 0.25rem; }
+    nav a {
+      display: block;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      color: var(--fg);
+    }
+    nav a:hover, nav a.active {
+      background: var(--accent-light);
+      color: var(--accent);
+      text-decoration: none;
+    }
+    main {
+      flex: 1;
+      max-width: 52rem;
+      padding: 2.5rem 3rem;
+    }
+    h1 { font-size: 2rem; margin-bottom: 1rem; }
+    h2 { font-size: 1.5rem; margin-top: 2.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+    h3 { font-size: 1.2rem; margin-top: 2rem; margin-bottom: 0.5rem; }
+    p { margin-bottom: 1rem; }
+    ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+    li { margin-bottom: 0.25rem; }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.875em;
+    }
+    :not(pre) > code {
+      background: var(--code-bg);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+    }
+    th { background: var(--sidebar-bg); font-weight: 600; }
+    blockquote {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-light);
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+      border-radius: 0 6px 6px 0;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <h1>BedWetter</h1>
+    <ul>
+      
+        <li><a href="/getting-started/">Getting Started</a></li>
+      
+        <li><a href="/configuration/">Configuration</a></li>
+      
+        <li><a href="/zones/">Zones</a></li>
+      
+        <li><a href="/schedules/">Schedules</a></li>
+      
+        <li><a href="/weather/">Weather</a></li>
+      
+        <li><a href="/home-assistant/">Home Assistant</a></li>
+      
+        <li><a href="/safety/">Safety</a></li>
+      
+        <li><a href="/alerts/">Alerts</a></li>
+      
+        <li><a href="/web-ui/">Web UI</a></li>
+      
+        <li><a href="/api/">REST API</a></li>
+      
+        <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      
+    </ul>
+  </nav>
+  <main>
+    
+<article>
+  <p>Common issues and solutions for BedWetter.</p>
+<h2 id="application-wont-start">Application Won&rsquo;t Start</h2>
+<h3 id="port-already-in-use">Port already in use</h3>
+<pre tabindex="0"><code>listen tcp :8080: bind: address already in use
+</code></pre><p>Change the port in your configuration:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">web</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">listen_addr</span>: <span style="color:#e6db74">&#34;:8081&#34;</span>
+</span></span></code></pre></div><h3 id="sqlite--cgo-errors">SQLite / CGO errors</h3>
+<p>Ensure CGO is enabled when building:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>CGO_ENABLED<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span> go build -o bedwetter .
+</span></span></code></pre></div><h2 id="zones-not-watering">Zones Not Watering</h2>
+<h3 id="check-the-watering-window">Check the watering window</h3>
+<p>Zones only water within their configured window (<code>earliest_watering_time</code> to <code>latest_watering_time</code>). If the current time is outside the window, no watering will occur.</p>
+<h3 id="check-the-cooldown">Check the cooldown</h3>
+<p>After each watering cycle, the zone enters a cooldown period (<code>cooldown_minutes</code>). No watering will occur during cooldown.</p>
+<h3 id="check-daily-activation-limit">Check daily activation limit</h3>
+<p>Each zone has a <code>max_activations_per_day</code> cap. Once reached, the zone won&rsquo;t water again until midnight.</p>
+<h3 id="check-rain-detection">Check rain detection</h3>
+<ul>
+<li><strong>Forecast rain:</strong> If the Open-Meteo forecast predicts rain ≥ <code>rain_threshold_mm</code> in the next 24 hours, outdoor zones skip watering.</li>
+<li><strong>Rain sensor:</strong> If the physical rain sensor is active, all outdoor zones are locked out.</li>
+<li><strong>Indoor zones:</strong> Set <code>indoor: true</code> on zones that should bypass rain detection.</li>
+</ul>
+<h3 id="check-stale-sensor">Check stale sensor</h3>
+<p>If no sensor reading is received within <code>stale_sensor_minutes</code>, the zone enters a failsafe state and will not water. Check that your MQTT sensor is publishing to the correct topic.</p>
+<h2 id="sensor-readings-not-updating">Sensor Readings Not Updating</h2>
+<ol>
+<li>Verify the MQTT topic in your zone configuration matches the topic your sensor publishes to</li>
+<li>Check that your MQTT broker is running and the sensor is connected</li>
+<li>Use an MQTT client (e.g., <code>mosquitto_sub</code>) to subscribe to the topic and verify messages are arriving</li>
+<li>If using HA entities, verify BedWetter can reach the Home Assistant REST API</li>
+</ol>
+<h2 id="valve-not-responding">Valve Not Responding</h2>
+<ol>
+<li>Verify the valve command topic or HA entity ID in your zone configuration</li>
+<li>Check that your MQTT broker is routing messages to the correct topic</li>
+<li>If using HA, verify the access token and HA URL are correct</li>
+<li>Check the zone&rsquo;s event log in the web UI for error messages</li>
+</ol>
+<h2 id="home-assistant-entities-not-appearing">Home Assistant Entities Not Appearing</h2>
+<ol>
+<li>Ensure BedWetter can reach your HA instance (check URL and token)</li>
+<li>Verify MQTT Discovery is enabled in your HA configuration</li>
+<li>Restart HA&rsquo;s MQTT integration to pick up new discovery messages</li>
+<li>Check HA&rsquo;s MQTT logs for incoming discovery config messages</li>
+</ol>
+<h2 id="failsafe-state">Failsafe State</h2>
+<p>A zone enters failsafe when:</p>
+<ul>
+<li>The sensor is stale (no readings for <code>stale_sensor_minutes</code>)</li>
+<li>The valve has been open longer than <code>max_watering_seconds</code></li>
+<li>The valve is unavailable</li>
+</ul>
+<p>To clear a failsafe, click <strong>Acknowledge</strong> on the zone card in the web UI, or call:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>curl -X POST http://localhost:8080/api/zones/:name/acknowledge
+</span></span></code></pre></div><h2 id="stuck-valves">Stuck Valves</h2>
+<p>If a valve remains open due to a BedWetter failure:</p>
+<ol>
+<li>The heartbeat safety protocol should cause the remote device to time out and close automatically</li>
+<li>As a manual fallback, close the valve from the web UI or REST API</li>
+<li>Check the master shutoff valve (if configured) — it closes on safety shutoff</li>
+</ol>
+<h2 id="database-issues">Database Issues</h2>
+<p>BedWetter uses SQLite and stores the database at the path configured in <code>db_path</code> (default: <code>bedwetter.db</code>).</p>
+<ul>
+<li>The database is created automatically on first run</li>
+<li>To reset, delete the <code>bedwetter.db</code> file and restart BedWetter</li>
+<li>After a reset, you&rsquo;ll need to go through the setup wizard again and reconfigure everything</li>
+</ul>
+<h2 id="logs">Logs</h2>
+<p>BedWetter logs to stdout. When running as a systemd service, view logs with:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>journalctl -u bedwetter -f
+</span></span></code></pre></div><p>Event details are also available in the web UI under the <strong>Events</strong> page and via the <code>bedwetter/event</code> MQTT topic.</p>
+
+</article>
+
+  </main>
+</body>
+</html>

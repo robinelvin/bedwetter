@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Configuration — BedWetter User Manual</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #1a1a2e;
+      --accent: #166534;
+      --accent-light: #dcfce7;
+      --border: #e5e7eb;
+      --code-bg: #f3f4f6;
+      --sidebar-bg: #f9fafb;
+      --link: #166534;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a2e;
+        --fg: #e5e7eb;
+        --accent: #4ade80;
+        --accent-light: #14532d;
+        --border: #374151;
+        --code-bg: #111827;
+        --sidebar-bg: #0f172a;
+        --link: #4ade80;
+      }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.7;
+      display: flex;
+      min-height: 100vh;
+    }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    nav {
+      width: 260px;
+      min-width: 260px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    nav h1 {
+      font-size: 1.25rem;
+      margin-bottom: 1.5rem;
+      color: var(--accent);
+    }
+    nav ul { list-style: none; }
+    nav li { margin-bottom: 0.25rem; }
+    nav a {
+      display: block;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      color: var(--fg);
+    }
+    nav a:hover, nav a.active {
+      background: var(--accent-light);
+      color: var(--accent);
+      text-decoration: none;
+    }
+    main {
+      flex: 1;
+      max-width: 52rem;
+      padding: 2.5rem 3rem;
+    }
+    h1 { font-size: 2rem; margin-bottom: 1rem; }
+    h2 { font-size: 1.5rem; margin-top: 2.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+    h3 { font-size: 1.2rem; margin-top: 2rem; margin-bottom: 0.5rem; }
+    p { margin-bottom: 1rem; }
+    ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+    li { margin-bottom: 0.25rem; }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.875em;
+    }
+    :not(pre) > code {
+      background: var(--code-bg);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+    }
+    th { background: var(--sidebar-bg); font-weight: 600; }
+    blockquote {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-light);
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+      border-radius: 0 6px 6px 0;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <h1>BedWetter</h1>
+    <ul>
+      
+        <li><a href="/getting-started/">Getting Started</a></li>
+      
+        <li><a href="/configuration/">Configuration</a></li>
+      
+        <li><a href="/zones/">Zones</a></li>
+      
+        <li><a href="/schedules/">Schedules</a></li>
+      
+        <li><a href="/weather/">Weather</a></li>
+      
+        <li><a href="/home-assistant/">Home Assistant</a></li>
+      
+        <li><a href="/safety/">Safety</a></li>
+      
+        <li><a href="/alerts/">Alerts</a></li>
+      
+        <li><a href="/web-ui/">Web UI</a></li>
+      
+        <li><a href="/api/">REST API</a></li>
+      
+        <li><a href="/troubleshooting/">Troubleshooting</a></li>
+      
+    </ul>
+  </nav>
+  <main>
+    
+<article>
+  <p>After the initial YAML seed, all configuration is managed through the web UI and stored in the SQLite database. The YAML file is only read on first run to seed the database.</p>
+<h2 id="configuration-reference">Configuration Reference</h2>
+<h3 id="mqtt">MQTT</h3>
+<table>
+  <thead>
+      <tr>
+          <th>Field</th>
+          <th>Default</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>broker</code></td>
+          <td>—</td>
+          <td>MQTT broker hostname or IP</td>
+      </tr>
+      <tr>
+          <td><code>port</code></td>
+          <td><code>1883</code></td>
+          <td>MQTT broker port</td>
+      </tr>
+      <tr>
+          <td><code>username</code></td>
+          <td>—</td>
+          <td>MQTT authentication username</td>
+      </tr>
+      <tr>
+          <td><code>password</code></td>
+          <td>—</td>
+          <td>MQTT authentication password</td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="home-assistant">Home Assistant</h3>
+<table>
+  <thead>
+      <tr>
+          <th>Field</th>
+          <th>Default</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>url</code></td>
+          <td>—</td>
+          <td>Home Assistant base URL (e.g., <code>http://homeassistant.local:8123/</code>)</td>
+      </tr>
+      <tr>
+          <td><code>token</code></td>
+          <td>—</td>
+          <td>Long-lived access token from HA</td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="web-server">Web Server</h3>
+<table>
+  <thead>
+      <tr>
+          <th>Field</th>
+          <th>Default</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>listen_addr</code></td>
+          <td><code>:8080</code></td>
+          <td>Address and port to serve the web UI</td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="database">Database</h3>
+<table>
+  <thead>
+      <tr>
+          <th>Field</th>
+          <th>Default</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>db_path</code></td>
+          <td><code>bedwetter.db</code></td>
+          <td>Path to the SQLite database file</td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="heartbeat">Heartbeat</h3>
+<table>
+  <thead>
+      <tr>
+          <th>Field</th>
+          <th>Default</th>
+          <th>Description</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>heartbeat_interval</code></td>
+          <td><code>30</code></td>
+          <td>Seconds between heartbeats while a valve is open. Set to <code>0</code> to disable.</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="full-yaml-reference">Full YAML Reference</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">mqtt</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">broker</span>: <span style="color:#ae81ff">mqtt</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">port</span>: <span style="color:#ae81ff">1883</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">username</span>: <span style="color:#ae81ff">mqttuser</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">password</span>: <span style="color:#ae81ff">mqttpass</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">homeassistant</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">url</span>: <span style="color:#ae81ff">http://homeassistant.local:8123/</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">token</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">web</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">listen_addr</span>: <span style="color:#e6db74">&#34;:8080&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">db_path</span>: <span style="color:#ae81ff">bedwetter.db</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">heartbeat_interval</span>: <span style="color:#ae81ff">30</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">zones</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#f92672">name</span>: <span style="color:#ae81ff">Zone Name</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">moisture_sensor_topic</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">moisture_sensor_entity</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">humidity_sensor_topic</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">humidity_sensor_entity</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">temperature_sensor_topic</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">temperature_sensor_entity</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">valve_command_topic</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">valve_state_topic</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">valve_switch_entity</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">threshold_low</span>: <span style="color:#ae81ff">40</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">threshold_high</span>: <span style="color:#ae81ff">60</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">max_watering_seconds</span>: <span style="color:#ae81ff">300</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">max_activations_per_day</span>: <span style="color:#ae81ff">5</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">cooldown_minutes</span>: <span style="color:#ae81ff">90</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">earliest_watering_time</span>: <span style="color:#e6db74">&#34;06:00&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">latest_watering_time</span>: <span style="color:#e6db74">&#34;10:00&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">heartbeat_timeout</span>: <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">indoor</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">seasonal_multipliers</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">1</span>: <span style="color:#ae81ff">0.5</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">7</span>: <span style="color:#ae81ff">1.5</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">schedules</span>:
+</span></span><span style="display:flex;"><span>  - <span style="color:#f92672">zone_name</span>: <span style="color:#ae81ff">Zone Name</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">schedule</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">day_of_week</span>: <span style="color:#ae81ff">Mon</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">time</span>: <span style="color:#e6db74">&#34;06:00&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">duration</span>: <span style="color:#ae81ff">300</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">month_overrides</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#f92672">month</span>: <span style="color:#ae81ff">7</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">schedule</span>:
+</span></span><span style="display:flex;"><span>          - <span style="color:#f92672">day_of_week</span>: <span style="color:#ae81ff">Mon</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">time</span>: <span style="color:#e6db74">&#34;06:00&#34;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">duration</span>: <span style="color:#ae81ff">360</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">weather</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">lat</span>: <span style="color:#ae81ff">51.5</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">lon</span>: -<span style="color:#ae81ff">0.12</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">rain_threshold_mm</span>: <span style="color:#ae81ff">5.0</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">rain_sensor_topic</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">rain_sensor_entity</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">alerts</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">email</span>: <span style="color:#ae81ff">you@example.com</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">stale_sensor_minutes</span>: <span style="color:#ae81ff">60</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">smtp_server</span>: <span style="color:#ae81ff">smtp.gmail.com</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">smtp_port</span>: <span style="color:#ae81ff">587</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">smtp_username</span>: <span style="color:#ae81ff">you@gmail.com</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">smtp_password</span>: <span style="color:#ae81ff">app_password</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">from_email</span>: <span style="color:#ae81ff">bedwetter@example.com</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">ntfy</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">enabled</span>: <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">server</span>: <span style="color:#ae81ff">https://ntfy.sh</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">uuid</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">token</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">alert_info</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">alert_warn</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">alert_alarm</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">master_valve</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">command_topic</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">switch_entity</span>: <span style="color:#e6db74">&#34;&#34;</span>
+</span></span></code></pre></div><h2 id="configuring-via-the-web-ui">Configuring via the Web UI</h2>
+<p>After initial setup, all configuration sections are accessible from the <strong>Configuration</strong> page in the web UI:</p>
+<ul>
+<li><strong>MQTT</strong> — broker connection details</li>
+<li><strong>Home Assistant</strong> — URL and access token</li>
+<li><strong>Alerts</strong> — email SMTP settings and stale sensor timeout</li>
+<li><strong>ntfy</strong> — push notification server and topic settings</li>
+<li><strong>Weather</strong> — latitude, longitude, rain threshold, rain sensor</li>
+<li><strong>Master Valve</strong> — MQTT topic or HA entity for the master shutoff</li>
+<li><strong>Zones</strong> — add, edit, or delete watering zones</li>
+</ul>
+
+</article>
+
+  </main>
+</body>
+</html>
