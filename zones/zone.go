@@ -77,6 +77,7 @@ type ZoneSnapshot struct {
 	LastWaterEnd              time.Time
 	LastStateChange           time.Time
 	WateringStarted           time.Time
+	WateringDuration          int
 	PendingActivationDuration int
 	PendingActivationTime     time.Time
 }
@@ -728,17 +729,9 @@ func (m *Manager) evaluateZone(zoneName string) {
 			if z.WateringDuration > 0 {
 				maxDur := time.Duration(z.WateringDuration) * time.Second
 				if elapsed >= maxDur {
-					log.Printf("Zone %s: max watering duration reached (%ds) — safety shutoff", zoneName, z.WateringDuration)
-					m.LogEvent("error", "valve", "Safety shutoff: max duration exceeded for "+zoneName, zoneName)
-					if m.sendNtfy != nil {
-						go m.sendNtfy("alarm", "Safety Shutoff", fmt.Sprintf("Zone '%s': valve open too long", zoneName))
-					}
-					z.LastWaterEnd = time.Now()
-					z.State = StateFailsafe
-					z.LastStateChange = time.Now()
-					m.publishZoneState(z)
-					go m.closeMasterValve()
-					go m.CloseAllValves()
+					log.Printf("Zone %s: watering duration reached (%ds), closing valve", zoneName, z.WateringDuration)
+					m.LogEvent("info", "valve", fmt.Sprintf("Watering duration completed for %s (%ds)", zoneName, z.WateringDuration), zoneName)
+					go m.CloseValve(zoneName)
 				}
 			}
 			return
@@ -1347,6 +1340,7 @@ func (z *Zone) Snapshot() ZoneSnapshot {
 		LastWaterEnd:     z.LastWaterEnd,
 		LastStateChange:  z.LastStateChange,
 		WateringStarted:  z.WateringStarted,
+		WateringDuration: z.WateringDuration,
 	}
 }
 

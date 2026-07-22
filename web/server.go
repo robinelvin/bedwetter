@@ -1625,7 +1625,7 @@ func (s *Server) statusNote(now time.Time, snap zones.ZoneSnapshot, rainActive b
 	}
 	if snap.State == zones.StateWatering {
 		elapsed := time.Since(snap.WateringStarted)
-		remaining := time.Duration(snap.Config.MaxWateringSeconds)*time.Second - elapsed
+		remaining := time.Duration(snap.WateringDuration)*time.Second - elapsed
 		if remaining > 0 {
 			return fmt.Sprintf("Watering (%s remaining)", remaining.Truncate(time.Second)), "info"
 		}

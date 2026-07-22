@@ -1116,7 +1116,7 @@ func TestTriggerScheduledWateringSuccess(t *testing.T) {
 	}
 }
 
-func TestEvaluateZoneMaxDurationExceededTriggersFailsafe(t *testing.T) {
+func TestEvaluateZoneMaxDurationExceededEntersCooldown(t *testing.T) {
 	now := time.Now()
 	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
 	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
@@ -1138,12 +1138,12 @@ func TestEvaluateZoneMaxDurationExceededTriggersFailsafe(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	z = m.GetZone("Z1")
-	if z.State != StateFailsafe {
-		t.Errorf("expected StateFailsafe (max duration exceeded), got %v", z.State)
+	if z.State != StateCooldown {
+		t.Errorf("expected StateCooldown (watering duration completed), got %v", z.State)
 	}
 
 	if !containsPublish(fake.published, "v/z1:OFF") {
-		t.Errorf("expected safety shutoff OFF, got %v", fake.published)
+		t.Errorf("expected valve OFF publish, got %v", fake.published)
 	}
 }
 
@@ -1993,7 +1993,7 @@ func TestScheduledWateringSetsPendingActivation(t *testing.T) {
 	z.mu.RUnlock()
 }
 
-func TestFailsafeSafetyShutoffEntersCooldown(t *testing.T) {
+func TestWateringDurationCompletedEntersCooldown(t *testing.T) {
 	now := time.Now()
 	windowStart := fmt.Sprintf("%02d:%02d", now.Hour()-1, now.Minute())
 	windowEnd := fmt.Sprintf("%02d:%02d", now.Hour()+2, now.Minute())
@@ -2015,17 +2015,11 @@ func TestFailsafeSafetyShutoffEntersCooldown(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	z = m.GetZone("Z1")
-	if z.State != StateFailsafe {
-		t.Fatalf("expected StateFailsafe, got %v", z.State)
+	if z.State != StateCooldown {
+		t.Fatalf("expected StateCooldown (watering duration completed), got %v", z.State)
 	}
 	if z.LastWaterEnd.IsZero() {
-		t.Fatal("expected LastWaterEnd to be set on safety shutoff")
-	}
-
-	m.handleValveState("Z1", []byte("OFF"))
-	z = m.GetZone("Z1")
-	if z.State != StateCooldown {
-		t.Fatalf("expected StateCooldown after valve off during failsafe, got %v", z.State)
+		t.Fatal("expected LastWaterEnd to be set on valve close")
 	}
 
 	m.handleSensorReading("Z1", []byte("30"))
