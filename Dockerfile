@@ -1,4 +1,4 @@
-FROM node:22-alpine AS css
+FROM --platform=$BUILDPLATFORM node:22-alpine AS css
 WORKDIR /app
 COPY package.json postcss.config.js ./
 RUN npm install
