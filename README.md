@@ -43,6 +43,32 @@ make build
 On first run a `bedwetter.db` SQLite database is created and seeded from
 `config.yaml`. Visit `http://<host>:8080/setup` to create the admin account.
 
+## Docker
+
+Build and run with Docker Compose:
+
+```
+cp example-config.yaml config.yaml
+$EDITOR config.yaml
+touch bedwetter.db
+docker compose up -d --build
+```
+
+Or build and run the image directly:
+
+```
+docker build -t bedwetter .
+docker run -d \
+  -p 8080:8080 \
+  -v ./config.yaml:/app/config.yaml:ro \
+  -v ./bedwetter.db:/app/bedwetter.db \
+  --name bedwetter \
+  bedwetter
+```
+
+Set `db_path: bedwetter.db` in your config (the default). Visit
+`http://<host>:8080/setup` to create the admin account.
+
 ## Requirements
 
 - Go 1.26+

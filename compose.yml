@@ -1,0 +1,12 @@
+services:
+  bedwetter:
+    build: .
+    container_name: bedwetter
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./bedwetter.db:/app/bedwetter.db
+    environment:
+      - TZ=UTC
