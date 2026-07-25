@@ -126,4 +126,4 @@ jobs:
           find . -name "bedwetter-${{ github.ref_name }}-*" \
             -exec gh release upload "${{ github.ref_name }}" {} \;
         env:
-          GH_TOKEN: ${{ github.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
