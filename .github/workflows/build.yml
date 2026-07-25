@@ -21,12 +21,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - goos: linux    goarch: amd64    ext: tar.gz
-          - goos: linux    goarch: arm64    ext: tar.gz
-          - goos: linux    goarch: arm      ext: tar.gz
-          - goos: darwin   goarch: amd64    ext: tar.gz
-          - goos: darwin   goarch: arm64    ext: tar.gz
-          - goos: windows  goarch: amd64    ext: zip
+          - { goos: linux,   goarch: amd64, ext: tar.gz }
+          - { goos: linux,   goarch: arm64, ext: tar.gz }
+          - { goos: linux,   goarch: arm,   ext: tar.gz }
+          - { goos: darwin,  goarch: amd64, ext: tar.gz }
+          - { goos: darwin,  goarch: arm64, ext: tar.gz }
+          - { goos: windows, goarch: amd64, ext: zip }
 
     steps:
       - uses: actions/checkout@v4
