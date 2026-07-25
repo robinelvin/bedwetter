@@ -113,17 +113,20 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, docker]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v5
       - uses: actions/download-artifact@v5
+        with:
+          merge-multiple: true
+          pattern: bedwetter-*
       - run: |
           gh release create "${{ github.ref_name }}" \
             --title "${{ github.ref_name }}" \
-            --generate-notes
-          find . -name "bedwetter-${{ github.ref_name }}-*" \
-            -exec gh release upload "${{ github.ref_name }}" {} \;
+            --generate-notes \
+            bedwetter-*.{tar.gz,zip}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
