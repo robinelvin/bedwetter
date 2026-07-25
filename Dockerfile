@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package.json postcss.config.js ./
 RUN npm install
 COPY web/static/input.css web/static/input.css
-RUN npx postcss web/static/input.css -o web/static/tailwind.css
+RUN ./node_modules/.bin/postcss web/static/input.css -o web/static/tailwind.css
 
 FROM golang:1.26-alpine AS builder
 RUN apk add --no-cache gcc musl-dev

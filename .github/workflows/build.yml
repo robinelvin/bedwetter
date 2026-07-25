@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: "20"
       - run: npm install
-      - run: npx postcss web/static/input.css -o web/static/tailwind.css
+      - run: ./node_modules/.bin/postcss web/static/input.css -o web/static/tailwind.css
 
       - name: Build binary
         env:
