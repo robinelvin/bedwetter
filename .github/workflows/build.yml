@@ -9,8 +9,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
       - run: go test -count=1 -timeout 120s -cover ./...
@@ -29,11 +29,11 @@ jobs:
           - { goos: windows, goarch: amd64, ext: zip }
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "20"
       - run: npm install
@@ -69,7 +69,7 @@ jobs:
           dir="bedwetter-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}"
           cd dist && zip -r "../$dir.zip" "$dir"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: bedwetter-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}
           path: bedwetter-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.*
@@ -81,7 +81,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: docker/setup-qemu-action@v3
 
@@ -118,7 +118,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
       - run: |
           gh release create "${{ github.ref_name }}" \
             --title "${{ github.ref_name }}" \
