@@ -1,6 +1,9 @@
 services:
   bedwetter:
-    build: .
+    build:
+      context: .
+      args:
+        VERSION: ${VERSION:-dev}
     container_name: bedwetter
     restart: unless-stopped
     ports:

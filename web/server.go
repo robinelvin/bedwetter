@@ -62,6 +62,12 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 	}
 
 	funcMap := template.FuncMap{
+		"static": func(path string) string {
+			if staticVersion == "" {
+				return path
+			}
+			return path + "?v=" + staticVersion
+		},
 		"isUnset": func(f float64) bool { return math.IsNaN(f) },
 		"formatTime": func(t time.Time) string {
 			if t.IsZero() {

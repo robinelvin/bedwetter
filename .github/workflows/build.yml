@@ -46,7 +46,8 @@ jobs:
         run: |
           ext="${{ matrix.goos == 'windows' && '.exe' || '' }}"
           mkdir -p build
-          CGO_ENABLED=0 go build -ldflags="-s -w" -o "build/bedwetter$ext" .
+          VERSION="${GITHUB_SHA::7}"
+          CGO_ENABLED=0 go build -ldflags="-s -w -X 'github.com/robinelvin/bedwetter/web/staticVersion=${VERSION}'" -o "build/bedwetter$ext" .
 
       - name: Assemble archive directory
         run: |
@@ -108,6 +109,7 @@ jobs:
           push: ${{ startsWith(github.ref, 'refs/tags/v') }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
