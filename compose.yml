@@ -11,5 +11,4 @@ services:
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ./bedwetter.db:/app/bedwetter.db
-    environment:
-      - TZ=UTC
+    environment: {}  # Timezone is set via config.yaml `timezone:` field (defaults to UTC)

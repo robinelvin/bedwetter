@@ -58,7 +58,7 @@ func main() {
  ╚═════╝ ╚══════╝╚═════╝  ╚══╝╚══╝ ╚══════╝   ╚═╝      ╚═╝   ╚══════╝╚═╝  ╚═╝
 `)
 
-	db, err := store.New(cfg.DBPath)
+	db, err := store.New(cfg.DBPath, cfg.Loc())
 	if err != nil {
 		log.Fatalf("Failed to open database: %v", err)
 	}

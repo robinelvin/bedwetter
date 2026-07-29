@@ -10,10 +10,11 @@ import (
 )
 
 type Store struct {
-	db *gorm.DB
+	db  *gorm.DB
+	loc *time.Location
 }
 
-func New(dbPath string) (*Store, error) {
+func New(dbPath string, loc *time.Location) (*Store, error) {
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		return nil, err
@@ -21,7 +22,7 @@ func New(dbPath string) (*Store, error) {
 	if err := models.AutoMigrate(db); err != nil {
 		return nil, err
 	}
-	return &Store{db: db}, nil
+	return &Store{db: db, loc: loc}, nil
 }
 
 func (s *Store) DB() *gorm.DB {
@@ -62,8 +63,8 @@ func (s *Store) RecentValveEvents(zoneName string, limit int) ([]models.ValveEve
 
 func (s *Store) ActivationsToday(zoneName string) (int64, error) {
 	var count int64
-	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	now := time.Now().In(s.loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, s.loc)
 	err := s.db.Model(&models.ValveEvent{}).
 		Where("zone_name = ? AND state = ? AND created_at >= ?", zoneName, "open", today).
 		Count(&count).Error

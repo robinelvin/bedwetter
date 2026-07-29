@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/approvals/go-approval-tests"
 	"github.com/gin-gonic/gin"
@@ -30,7 +31,7 @@ func newTestServer(t *testing.T) *Server {
 		DBPath:  t.TempDir() + "/test.db",
 	}
 
-	st, err := store.New(cfg.DBPath)
+	st, err := store.New(cfg.DBPath, time.UTC)
 	if err != nil {
 		t.Fatalf("store.New: %v", err)
 	}

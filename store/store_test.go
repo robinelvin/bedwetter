@@ -9,7 +9,7 @@ import (
 )
 
 func newTestStore(t *testing.T) *Store {
-	s, err := New(t.TempDir() + "/test.db")
+	s, err := New(t.TempDir()+"/test.db", time.UTC)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
@@ -398,7 +398,7 @@ func TestDB(t *testing.T) {
 }
 
 func TestNewInvalidPath(t *testing.T) {
-	_, err := New("/nonexistent/dir/test.db")
+	_, err := New("/nonexistent/dir/test.db", time.UTC)
 	if err == nil {
 		t.Fatal("expected error for invalid path, got nil")
 	}

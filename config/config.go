@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -108,6 +109,15 @@ type Config struct {
 	Web               WebConfig            `yaml:"web"`
 	DBPath            string               `yaml:"db_path"`
 	HeartbeatInterval int                  `yaml:"heartbeat_interval" json:"heartbeat_interval"`
+	Timezone          string               `yaml:"timezone"`
+	loc               *time.Location
+}
+
+func (c *Config) Loc() *time.Location {
+	if c.loc == nil {
+		return time.UTC
+	}
+	return c.loc
 }
 
 func Load(path string) (*Config, error) {
@@ -124,8 +134,16 @@ func Load(path string) (*Config, error) {
 	cfg.Ntfy.AlertAlarm = true
 	cfg.DBPath = "bedwetter.db"
 	cfg.HeartbeatInterval = 30
+	cfg.Timezone = "UTC"
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, err
+	}
+	if cfg.Timezone != "" {
+		loc, err := time.LoadLocation(cfg.Timezone)
+		if err != nil {
+			return nil, err
+		}
+		cfg.loc = loc
 	}
 	return cfg, nil
 }

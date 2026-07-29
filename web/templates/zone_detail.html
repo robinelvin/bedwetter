@@ -36,7 +36,7 @@
                 <tbody class="divide-y divide-border">
                     {{range .events.Events}}
                     <tr class="hover:bg-background-secondary transition-colors">
-                        <td class="px-5 py-3 whitespace-nowrap font-mono text-xs text-foreground-muted">{{.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
+                        <td class="px-5 py-3 whitespace-nowrap font-mono text-xs text-foreground-muted">{{formatDateTime .CreatedAt}}</td>
                         <td class="px-5 py-3 whitespace-nowrap">
                             {{if eq .Level "warn"}}
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">

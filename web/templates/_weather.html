@@ -12,7 +12,7 @@
         <span class="text-xs text-foreground-muted">No data</span>
         {{else}}
         <span class="text-xs text-foreground-muted"
-            >Updated {{.FetchedAt.Format "15:04"}}</span
+            >Updated {{formatTime .FetchedAt}}</span
         >
         {{end}}
     </div>

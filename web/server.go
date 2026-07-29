@@ -73,13 +73,13 @@ func New(cfg *config.Config, s *store.Store, zm *zones.Manager, am *alerts.Alert
 			if t.IsZero() {
 				return "never"
 			}
-			return t.Format("15:04:05")
+			return t.In(sv.cfg.Loc()).Format("15:04:05")
 		},
 		"formatDateTime": func(t time.Time) string {
 			if t.IsZero() {
 				return ""
 			}
-			return t.Format("2006-01-02 15:04:05")
+			return t.In(sv.cfg.Loc()).Format("2006-01-02 15:04:05")
 		},
 		"floatVal": func(f float64) float64 { return f },
 		"toF":      func(i int) float64 { return float64(i) },
@@ -430,7 +430,7 @@ func (s *Server) zoneViews() []zoneView {
 		log.Printf("Failed to load schedules for zone view: %v", err)
 	}
 
-	now := time.Now()
+	now := time.Now().In(s.cfg.Loc())
 	rainActive := s.zoneManager.RainDetected()
 	results := make([]zoneView, len(snapshots))
 	for i, snap := range snapshots {
@@ -698,7 +698,7 @@ func (s *Server) dashboard(c *gin.Context) {
 		"title":         "Dashboard",
 		"zones":         zoneStates,
 		"weather":       weather,
-		"upcomingHours": weather.UpcomingHours(8),
+		"upcomingHours": weather.UpcomingHours(8, s.cfg.Loc()),
 	})
 }
 
@@ -713,7 +713,7 @@ func (s *Server) dashboardWeather(c *gin.Context) {
 	weather := s.scheduler.GetWeather()
 	s.renderPartial(c, "_weather", http.StatusOK, gin.H{
 		"weather":       weather,
-		"upcomingHours": weather.UpcomingHours(8),
+		"upcomingHours": weather.UpcomingHours(8, s.cfg.Loc()),
 	})
 }
 
@@ -821,7 +821,7 @@ func (s *Server) zoneDetail(c *gin.Context) {
 	snap := zone.Snapshot()
 
 	schedules, _ := s.store.GetSchedule(zc.Name)
-	now := time.Now()
+	now := time.Now().In(s.cfg.Loc())
 	rainActive := s.zoneManager.RainDetected()
 	nextTime, reason := scheduler.NextWateringForZone(now, snap, schedules)
 
@@ -848,7 +848,7 @@ func (s *Server) zoneDetail(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	events, _ := s.store.GetEventLogsByZone(zc.Name, page, 50)
 
-	weekSchedule := scheduler.BuildWeekSchedule(time.Now(), schedules)
+	weekSchedule := scheduler.BuildWeekSchedule(time.Now().In(s.cfg.Loc()), schedules, s.cfg.Loc())
 
 	s.render(c, "zone_detail", http.StatusOK, gin.H{
 		"title":         zc.Name,
@@ -880,7 +880,7 @@ func (s *Server) zoneCard(c *gin.Context) {
 	snap := zone.Snapshot()
 
 	schedules, _ := s.store.GetSchedule(zc.Name)
-	now := time.Now()
+	now := time.Now().In(s.cfg.Loc())
 	rainActive := s.zoneManager.RainDetected()
 	nextTime, reason := scheduler.NextWateringForZone(now, snap, schedules)
 
@@ -1643,7 +1643,7 @@ func (s *Server) statusNote(now time.Time, snap zones.ZoneSnapshot, rainActive b
 	if snap.State == zones.StateCooldown && snap.Config.CooldownMinutes > 0 && !snap.LastWaterEnd.IsZero() {
 		cooldownEnd := snap.LastWaterEnd.Add(time.Duration(snap.Config.CooldownMinutes) * time.Minute)
 		if cooldownEnd.After(now) {
-			return fmt.Sprintf("Cooldown until %s", cooldownEnd.Format("15:04")), "info"
+			return fmt.Sprintf("Cooldown until %s", cooldownEnd.In(s.cfg.Loc()).Format("15:04")), "info"
 		}
 	}
 	if snap.Config.MaxActivationsPerDay > 0 && activations >= int64(snap.Config.MaxActivationsPerDay) {

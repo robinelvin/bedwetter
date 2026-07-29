@@ -77,7 +77,7 @@
                 {{range .readings}}
                 <tr class="hover:bg-background-secondary transition-colors">
                     <td class="px-4 py-2.5 font-mono text-foreground-secondary">
-                        {{.CreatedAt.Format "15:04:05"}}
+                        {{formatTime .CreatedAt}}
                     </td>
                     <td
                         class="px-4 py-2.5 font-mono font-medium {{if lt .Moisture 40.0}}text-error{{else}}text-primary{{end}}"

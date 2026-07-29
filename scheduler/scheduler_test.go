@@ -21,7 +21,7 @@ func (f *fakeMQTTClient) Unsubscribe(topics ...string) {}
 func (f *fakeMQTTClient) Disconnect(quiesce uint) {}
 
 func newTestStore(t *testing.T) *store.Store {
-	s, err := store.New(t.TempDir() + "/test.db")
+	s, err := store.New(t.TempDir()+"/test.db", time.UTC)
 	if err != nil {
 		t.Fatalf("store.New: %v", err)
 	}
@@ -182,7 +182,7 @@ func TestBuildWeekSchedule(t *testing.T) {
 		{ZoneName: "Z1", Month: 7, DayOfWeek: "Fri", Time: "07:00", Duration: 1200},
 	}
 
-	result := BuildWeekSchedule(now, entries)
+	result := BuildWeekSchedule(now, entries, time.UTC)
 
 	if len(result) != 7 {
 		t.Fatalf("expected 7 days, got %d", len(result))
@@ -232,7 +232,7 @@ func TestBuildWeekSchedule(t *testing.T) {
 
 func TestBuildWeekScheduleEmpty(t *testing.T) {
 	now := time.Date(2026, 7, 12, 10, 0, 0, 0, time.UTC)
-	result := BuildWeekSchedule(now, nil)
+	result := BuildWeekSchedule(now, nil, time.UTC)
 
 	if len(result) != 7 {
 		t.Fatalf("expected 7 days, got %d", len(result))
@@ -252,7 +252,7 @@ func TestBuildWeekScheduleMonthOverride(t *testing.T) {
 		{ZoneName: "Z1", Month: 1, DayOfWeek: "Mon", Time: "08:00", Duration: 7200},
 	}
 
-	result := BuildWeekSchedule(now, entries)
+	result := BuildWeekSchedule(now, entries, time.UTC)
 
 	for _, d := range result {
 		if d.Day == "Mon" {

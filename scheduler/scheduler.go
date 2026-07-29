@@ -58,14 +58,14 @@ func (wc *WeatherCache) RainDetected() bool {
 	return wc.RainToday || wc.RainTomorrow
 }
 
-func (wc *WeatherCache) UpcomingHours(n int) []WeatherHourly {
+func (wc *WeatherCache) UpcomingHours(n int, loc *time.Location) []WeatherHourly {
 	result := make([]WeatherHourly, 0, n)
-	now := time.Now()
+	now := time.Now().In(loc)
 	for _, h := range wc.Hourly {
 		if len(result) >= n {
 			break
 		}
-		t, err := time.Parse("2006-01-02T15:04", h.Time)
+		t, err := time.ParseInLocation("2006-01-02T15:04", h.Time, loc)
 		if err != nil {
 			continue
 		}
@@ -111,8 +111,12 @@ func (s *Scheduler) loop() {
 	}
 }
 
+func (s *Scheduler) now() time.Time {
+	return time.Now().In(s.cfg.Loc())
+}
+
 func (s *Scheduler) evaluate() {
-	now := time.Now()
+	now := s.now()
 	weekday := now.Weekday().String()[:3]
 	currentMinute := now.Hour()*60 + now.Minute()
 
@@ -210,7 +214,7 @@ func (s *Scheduler) CheckWeather() {
 	s.weatherCache.Forecast = wc.Forecast
 	s.weatherCache.RainToday = wc.RainToday
 	s.weatherCache.RainTomorrow = wc.RainTomorrow
-	s.weatherCache.FetchedAt = time.Now()
+	s.weatherCache.FetchedAt = s.now()
 }
 
 type rawOpenMeteoResponse struct {
@@ -268,8 +272,8 @@ func (s *Scheduler) fetchOpenMeteo() (*WeatherCache, error) {
 		},
 	}
 
-	today := time.Now().Format("2006-01-02")
-	tomorrow := time.Now().Add(24 * time.Hour).Format("2006-01-02")
+	today := s.now().Format("2006-01-02")
+	tomorrow := s.now().Add(24 * time.Hour).Format("2006-01-02")
 
 	for i, t := range raw.Hourly.Time {
 		wh := WeatherHourly{

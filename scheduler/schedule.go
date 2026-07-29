@@ -187,7 +187,7 @@ type WeekDaySchedule struct {
 	Bars []ScheduleBar
 }
 
-func BuildWeekSchedule(now time.Time, entries []models.ScheduleConfig) []WeekDaySchedule {
+func BuildWeekSchedule(now time.Time, entries []models.ScheduleConfig, loc *time.Location) []WeekDaySchedule {
 	month := int(now.Month())
 	var result []WeekDaySchedule
 
@@ -219,7 +219,7 @@ func BuildWeekSchedule(now time.Time, entries []models.ScheduleConfig) []WeekDay
 
 		var bars []ScheduleBar
 		for _, e := range active {
-			t, err := time.Parse("15:04", e.Time)
+			t, err := time.ParseInLocation("15:04", e.Time, loc)
 			if err != nil {
 				continue
 			}

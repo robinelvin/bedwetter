@@ -762,7 +762,7 @@ func (m *Manager) evaluateZone(zoneName string) {
 		}
 	}
 
-	if !IsWithinWateringWindow(z.Config.EarliestWateringTime, z.Config.LatestWateringTime, time.Now()) {
+	if !IsWithinWateringWindow(z.Config.EarliestWateringTime, z.Config.LatestWateringTime, time.Now().In(m.cfg.Loc())) {
 		log.Printf("Zone %q: outside watering window (%s-%s)", zoneName, z.Config.EarliestWateringTime, z.Config.LatestWateringTime)
 		return
 	}
@@ -842,7 +842,7 @@ func (m *Manager) TriggerScheduledWatering(zoneName string, adjustedDuration int
 		}
 	}
 
-	if !IsWithinWateringWindow(z.Config.EarliestWateringTime, z.Config.LatestWateringTime, time.Now()) {
+	if !IsWithinWateringWindow(z.Config.EarliestWateringTime, z.Config.LatestWateringTime, time.Now().In(m.cfg.Loc())) {
 		log.Printf("Schedule: skipping %s, outside watering window (%s-%s)", zoneName, z.Config.EarliestWateringTime, z.Config.LatestWateringTime)
 		return
 	}

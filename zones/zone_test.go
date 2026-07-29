@@ -44,7 +44,7 @@ func (f *fakeMQTTClient) Unsubscribe(topics ...string) {}
 func (f *fakeMQTTClient) Disconnect(quiesce uint) {}
 
 func newTestStore(t *testing.T) *store.Store {
-	s, err := store.New(t.TempDir() + "/test.db")
+	s, err := store.New(t.TempDir()+"/test.db", time.UTC)
 	if err != nil {
 		t.Fatalf("store.New: %v", err)
 	}
