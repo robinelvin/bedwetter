@@ -1,7 +1,7 @@
 FROM --platform=$BUILDPLATFORM node:22-alpine AS css
 WORKDIR /app
-COPY package.json postcss.config.js ./
-RUN npm install
+COPY package.json package-lock.json postcss.config.js ./
+RUN npm ci
 COPY web/static/input.css web/static/input.css
 COPY web/templates web/templates
 RUN ./node_modules/.bin/postcss web/static/input.css -o web/static/tailwind.css
