@@ -29,6 +29,12 @@ func (s *Store) DB() *gorm.DB {
 	return s.db
 }
 
+func (s *Store) Close() {
+	if sqlDB, err := s.db.DB(); err == nil {
+		sqlDB.Close()
+	}
+}
+
 func (s *Store) SaveSensorReading(zoneName string, moisture, humidity, temperature float64) error {
 	return s.db.Create(&models.SensorReading{
 		ZoneName:    zoneName,
