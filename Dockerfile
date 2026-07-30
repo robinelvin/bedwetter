@@ -14,7 +14,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=css /app/web/static/tailwind.css web/static/tailwind.css
-RUN CGO_ENABLED=1 go build -ldflags="-s -w -X 'github.com/robinelvin/bedwetter/web/staticVersion=${VERSION}'" -trimpath -o bedwetter .
+RUN CGO_ENABLED=1 go build -ldflags="-s -w -X 'github.com/robinelvin/bedwetter/web/staticVersion=${VERSION}' -X 'github.com/robinelvin/bedwetter/web.Version=${VERSION}'" -trimpath -o bedwetter .
 
 FROM alpine:3.22
 RUN apk add --no-cache ca-certificates tzdata

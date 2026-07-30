@@ -4,7 +4,7 @@ css:
 	npx postcss web/static/input.css -o web/static/tailwind.css
 
 build: css
-	go build -o bedwetter .
+	go build -ldflags="-X 'github.com/robinelvin/bedwetter/web.staticVersion=dev' -X 'github.com/robinelvin/bedwetter/web.Version=dev'" -o bedwetter .
 
 dev:
 	@which air > /dev/null 2>&1 || \

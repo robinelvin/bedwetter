@@ -269,6 +269,7 @@ func (s *Server) render(c *gin.Context, page string, code int, data gin.H) {
 	if _, ok := data["authenticated"]; !ok {
 		data["authenticated"] = s.isAuthenticated(c)
 	}
+	data["version"] = Version
 	if err := s.templates[page].ExecuteTemplate(c.Writer, "base", data); err != nil {
 		log.Printf("Template render error: %v", err)
 	}
@@ -283,6 +284,7 @@ func (s *Server) renderPartial(c *gin.Context, name string, code int, data gin.H
 	if _, ok := data["authenticated"]; !ok {
 		data["authenticated"] = s.isAuthenticated(c)
 	}
+	data["version"] = Version
 	if err := s.templates[name].ExecuteTemplate(c.Writer, name, data); err != nil {
 		log.Printf("Template render error: %v", err)
 	}
