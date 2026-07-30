@@ -137,7 +137,7 @@ func NextWateringForZone(now time.Time, snap zones.ZoneSnapshot, scheduleEntries
 			if snap.Config.CooldownMinutes > 0 && !snap.LastWaterEnd.IsZero() {
 				cooldownEnd := snap.LastWaterEnd.Add(time.Duration(snap.Config.CooldownMinutes) * time.Minute)
 				if now.Before(cooldownEnd) {
-					return cooldownEnd, fmt.Sprintf("Cooldown until %s", cooldownEnd.Format("15:04"))
+					return cooldownEnd, fmt.Sprintf("Cooldown until %s", cooldownEnd.In(now.Location()).Format("15:04"))
 				}
 			}
 
