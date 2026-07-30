@@ -1,7 +1,6 @@
 *.db
 bedwetter
 config.yaml
-package-lock.json
 tmp/
 node_modules/
 .github/
