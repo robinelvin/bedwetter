@@ -14,11 +14,16 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=css /app/web/static/tailwind.css web/static/tailwind.css
-RUN CGO_ENABLED=1 go build -ldflags="-s -w -X 'github.com/robinelvin/bedwetter/web/staticVersion=${VERSION}' -X 'github.com/robinelvin/bedwetter/web.Version=${VERSION}'" -trimpath -o bedwetter .
+RUN echo "${VERSION}" > web/VERSION.txt && CGO_ENABLED=1 go build -ldflags="-s -w" -trimpath -o bedwetter .
 
 FROM alpine:3.22
+ARG VERSION=dev
 RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
+ENV VERSION=${VERSION}
+LABEL org.opencontainers.image.title="BedWetter" \
+      org.opencontainers.image.description="A garden irrigation controller" \
+      org.opencontainers.image.version="${VERSION}"
 COPY --from=builder /app/bedwetter .
 COPY --from=builder /app/web/static web/static
 COPY example-config.yaml config.yaml

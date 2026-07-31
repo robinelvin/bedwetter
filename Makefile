@@ -3,8 +3,11 @@
 css:
 	npx postcss web/static/input.css -o web/static/tailwind.css
 
+VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
+
 build: css
-	go build -ldflags="-X 'github.com/robinelvin/bedwetter/web.staticVersion=dev' -X 'github.com/robinelvin/bedwetter/web.Version=dev'" -o bedwetter .
+	echo "$(VERSION)" > web/VERSION.txt
+	go build -ldflags="-s -w" -o bedwetter .
 
 dev:
 	@which air > /dev/null 2>&1 || \

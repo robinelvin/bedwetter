@@ -47,7 +47,8 @@ jobs:
           ext="${{ matrix.goos == 'windows' && '.exe' || '' }}"
           mkdir -p build
           VERSION="${GITHUB_SHA::7}"
-          CGO_ENABLED=0 go build -ldflags="-s -w -X 'github.com/robinelvin/bedwetter/web/staticVersion=${VERSION}' -X 'github.com/robinelvin/bedwetter/web.Version=${VERSION}'" -o "build/bedwetter$ext" .
+          echo "${VERSION}" > web/VERSION.txt
+          CGO_ENABLED=0 go build -ldflags="-s -w" -o "build/bedwetter$ext" .
 
       - name: Assemble archive directory
         run: |
